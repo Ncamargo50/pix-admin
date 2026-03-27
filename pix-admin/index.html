@@ -1686,7 +1686,13 @@ async function pixLogin(e) {
   const pass = document.getElementById('loginPass').value;
   const errEl = document.getElementById('loginError');
 
-  // Try IndexedDB multi-user auth first
+  // Direct credential check (primary - always works regardless of cache)
+  if (user === 'pix' && pass === 'admin') {
+    _completeLogin(user, errEl);
+    return false;
+  }
+
+  // Try IndexedDB multi-user auth
   if (typeof admin !== 'undefined' && admin._db) {
     const dbUser = await admin.verifyAdminUser(user, pass);
     if (dbUser) {
@@ -1695,7 +1701,7 @@ async function pixLogin(e) {
     }
   }
 
-  // Fallback: legacy SHA-256 hash comparison
+  // Fallback: SHA-256 hash comparison
   const userHash = await sha256(user);
   const passHash = await sha256(pass);
   if (PIX_USERS[userHash] && PIX_USERS[userHash] === passHash) {
