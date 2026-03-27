@@ -156,11 +156,12 @@ class PixAdmin {
   // ===== MULTI-USER AUTH =====
 
   async _ensureAdminUser() {
-    const admin = await this._dbGet('users', 'admin');
-    if (!admin) {
+    // Seed default admin user: pix / admin
+    const existing = await this._dbGet('users', 'pix');
+    if (!existing) {
       const salt = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-      const hash = await this._hashPw('pixadvisor', salt);
-      await this._dbPut('users', { username: 'admin', passwordHash: hash, salt, role: 'admin', createdAt: new Date().toISOString() });
+      const hash = await this._hashPw('admin', salt);
+      await this._dbPut('users', { username: 'pix', passwordHash: hash, salt, role: 'admin', createdAt: new Date().toISOString() });
     }
   }
 
