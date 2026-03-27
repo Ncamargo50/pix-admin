@@ -191,12 +191,14 @@ class PixAdmin {
 
   _expandParentGroup(viewName) {
     const viewGroupMap = {
+      'manage-clients': 'cadastro-group', 'gis-dashboard': 'cadastro-group',
+      'management-zones': 'field-group', 'sampling-points': 'field-group', 'service-orders': 'field-group', 'samples': 'field-group',
       'soil': 'soil-group', 'soil-interpretation': 'soil-group', 'soil-relationships': 'soil-group', 'soil-amendments': 'soil-group',
       'leaf': 'leaf-group', 'leaf-dris': 'leaf-group', 'leaf-cross': 'leaf-group',
-      'gis-dashboard': 'gis-group', 'nutrient-maps': 'gis-group', 'relation-maps': 'gis-group', 'management-zones': 'gis-group', 'sampling-points': 'gis-group', 'prescription': 'gis-group',
       'engine-idw': 'engine-group', 'engine-kriging': 'engine-group', 'engine-variogram': 'engine-group', 'engine-validation': 'engine-group',
+      'nutrient-maps': 'maps-group', 'relation-maps': 'maps-group', 'prescription': 'maps-group',
       'interpretation': 'reports-group', 'report-protocol': 'reports-group', 'report-financial': 'reports-group', 'report-export': 'reports-group',
-      'service-orders': 'manage-group', 'samples': 'manage-group', 'manage-crops': 'manage-group', 'manage-clients': 'manage-group', 'settings': 'manage-group'
+      'manage-crops': 'config-group', 'settings': 'config-group'
     };
     const groupId = viewGroupMap[viewName];
     if (groupId) {
