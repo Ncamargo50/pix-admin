@@ -587,7 +587,7 @@ select.form-input { cursor:pointer; }
 
 /* ===== FULL-SCREEN MAP VIEWS (PRO MAX v3) ===== */
 .view-fullmap { display:none; }
-.view-fullmap.active { display:grid; grid-template-columns:1fr 400px; height:calc(100vh - 56px); gap:0; overflow:hidden; }
+.view-fullmap.active { display:grid; grid-template-columns:1fr 400px; height:calc(100vh - 100px); gap:0; overflow:hidden; }
 .fullmap-map { height:100%; width:100%; position:relative; }
 .fullmap-map .leaflet-container { height:100% !important; width:100% !important; border-radius:0; }
 .fullmap-panel { overflow-y:auto; padding:16px; background:var(--dark-2); border-left:1px solid var(--border); display:flex; flex-direction:column; gap:12px; }
