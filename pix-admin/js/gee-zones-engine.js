@@ -29,7 +29,7 @@ class GEEZonesEngine {
     soja: {
       label: 'Soja',
       icon: '🌱',
-      indices: { NDVI: 0.25, NDRE: 0.20, SAVI: 0.10, GNDVI: 0.05, NDWI: 0.05 },
+      indices: { NDVI: 0.25, NDRE: 0.15, SAVI: 0.10, GNDVI: 0.05, NDWI: 0.05 },
       description: 'NDVI + NDRE — ciclo corto con alta variación temporal'
     },
     maiz_sorgo: {
@@ -53,7 +53,7 @@ class GEEZonesEngine {
     perennes: {
       label: 'Palta / Maracuyá / Frutales',
       icon: '🥑',
-      indices: { NDVI: 0.20, GNDVI: 0.15, NDRE: 0.15, NDMI: 0.10, CIre: 0.05 },
+      indices: { NDVI: 0.20, GNDVI: 0.10, NDRE: 0.15, NDMI: 0.10, CIre: 0.05 },
       description: 'Multi-índice — vigor perenne + estrés hídrico'
     }
   };
@@ -68,8 +68,11 @@ class GEEZonesEngine {
     flow_inv:      0.05,
     slope_inv:     0.05,
     elevation_rel: 0.05,
-    dist_drainage: 0.00  // absorbed into flow_inv for GEE pipeline
+    dist_drainage: 0.00  // computed by ZonesEngine from DEM locally (not a GEE layer)
   };
+  // NOTE: dist_drainage weight is 0.10 in the skill but handled inside ZonesEngine
+  // via COMPOSITE_WEIGHTS.drain_distance. The total terrain contribution remains 0.40
+  // because ZonesEngine adds drain_distance internally from flow accumulation data.
 
   /** GEE initialization state */
   static _eeReady = false;
@@ -160,7 +163,7 @@ class GEEZonesEngine {
       GNDVI: () => img.normalizedDifference(['B8', 'B3']).rename(name),
       NDMI:  () => img.normalizedDifference(['B8A', 'B11']).rename(name),
       NDWI:  () => img.normalizedDifference(['B3', 'B8']).rename(name),
-      LSWI:  () => img.normalizedDifference(['B8A', 'B11']).rename(name),  // same formula as NDMI
+      LSWI:  () => img.normalizedDifference(['B8', 'B11']).rename(name),  // NIR broadband (B8) vs SWIR1
       RECI:  () => img.expression('NIR / RE1 - 1', { NIR: img.select('B8'), RE1: img.select('B5') }).rename(name),
       CIre:  () => img.expression('NIR / RE2 - 1', { NIR: img.select('B8'), RE2: img.select('B7') }).rename(name)
     };
@@ -172,11 +175,14 @@ class GEEZonesEngine {
 
   /**
    * Apply SCL cloud/shadow mask to a Sentinel-2 SR image.
-   * Excludes: 3 (cloud shadow), 8 (cloud med), 9 (cloud high), 10 (cirrus), 11 (snow)
+   * Excludes: 0 (no data), 1 (saturated/defective), 3 (cloud shadow),
+   *           8 (cloud med), 9 (cloud high), 10 (cirrus), 11 (snow/ice)
+   * Keeps: 2 (dark area), 4 (vegetation), 5 (bare soil), 6 (water), 7 (cloud low/unclassified)
    */
   static _maskS2clouds(img) {
     const scl = img.select('SCL');
-    const mask = scl.neq(3).and(scl.neq(8)).and(scl.neq(9)).and(scl.neq(10)).and(scl.neq(11));
+    const mask = scl.neq(0).and(scl.neq(1)).and(scl.neq(3))
+      .and(scl.neq(8)).and(scl.neq(9)).and(scl.neq(10)).and(scl.neq(11));
     return img.updateMask(mask);
   }
 
@@ -279,21 +285,26 @@ class GEEZonesEngine {
     const slope = terrain.select('slope');
     const aspect = terrain.select('aspect');
 
-    // TWI approximation in GEE
-    // Using slope-only approximation: TWI = ln(1000 / tan(slope_rad + 0.001))
+    // TWI = ln(contributing_area / tan(slope_rad + epsilon))
+    // Without true flow accumulation, use pixel area * constant as proxy
+    // pixelArea = scale^2 (m²), assume uniform contributing area = scale * 10 cells
     const slopeRad = slope.multiply(Math.PI / 180);
-    const twi = slopeRad.add(0.001).tan().pow(-1).multiply(1000).log().rename('TWI');
+    const pixelContribArea = scale * scale * 10;  // proxy for contributing area (m²)
+    const twi = slopeRad.add(0.001).tan().pow(-1).multiply(pixelContribArea).log().rename('TWI');
 
-    // Flow accumulation from MERIT Hydro (if available)
-    let flowAcc;
-    try {
-      flowAcc = ee.Image('MERIT/Hydro/v1_0_1').select('upa').clip(geometry).rename('flow');
-    } catch (e) {
-      // Fallback: use inverted slope as proxy for flow tendency
-      flowAcc = slope.multiply(-1).add(slope.reduceRegion({
-        reducer: ee.Reducer.max(), geometry, scale: 30
-      }).values().get(0)).rename('flow');
-    }
+    // Flow accumulation: try MERIT Hydro, fallback to slope-based proxy.
+    // GEE is lazy — ee.Image() won't throw. We use a server-side conditional
+    // by checking if the MERIT collection has data in the region.
+    const meritExists = ee.ImageCollection('MERIT/Hydro/v1_0_1')
+      .filterBounds(geometry).size();
+    const meritFlow = ee.Image('MERIT/Hydro/v1_0_1').select('upa').clip(geometry);
+    // Slope-based proxy: inverted normalized slope as flow tendency
+    const slopeProxy = slope.unitScale(
+      ee.Number(slope.reduceRegion({ reducer: ee.Reducer.min(), geometry, scale: 30 }).get('slope')),
+      ee.Number(slope.reduceRegion({ reducer: ee.Reducer.max(), geometry, scale: 30 }).get('slope'))
+    ).multiply(-1).add(1);
+    const flowAcc = ee.Algorithms.If(meritExists.gt(0), meritFlow, slopeProxy);
+    const flowAccImg = ee.Image(flowAcc).rename('flow');
 
     // --- Step 6: Stack all layers and download ---
     progress(6, STEPS, 'Descargando datos del servidor GEE...');
@@ -304,7 +315,7 @@ class GEEZonesEngine {
       .addBands(dem.rename('DEM'))
       .addBands(slope.rename('slope'))
       .addBands(twi)
-      .addBands(flowAcc);
+      .addBands(flowAccImg);
 
     // Download as 2D arrays via sampleRectangle
     const sampled = await allBands
@@ -352,17 +363,24 @@ class GEEZonesEngine {
       cellSize:      scale
     };
 
-    // Build custom weights mapping the crop indices to the composite score formula
-    // ZonesEngine.COMPOSITE_WEIGHTS maps: ndvi, ndre, ndvi_stability, twi, flow_inv, slope_inv, rel_elevation, drain_distance
+    // Build custom weights mapping crop indices to ZonesEngine composite score slots.
+    // ZonesEngine has 3 vegetation slots (ndvi_median, ndre_median, + EVI implicit via ndvi_stability).
+    // The 1st crop index maps to ndvi_median, 2nd to ndre_median.
+    // Remaining vegetation weight (3rd+ indices) is distributed into ndvi_stability
+    // alongside the temporal stability terrain weight, since ZonesEngine only has 3 vegetation slots.
+    const vegWeight1 = cropConfig.indices[primaryIdx] || 0.25;
+    const vegWeight2 = cropConfig.indices[secondIdx] || 0.15;
+    const vegWeightRemaining = Object.values(cropConfig.indices).reduce((a, b) => a + b, 0) - vegWeight1 - vegWeight2;
+
     const compositeWeights = {
-      ndvi:           cropConfig.indices[primaryIdx] || 0.25,
-      ndre:           cropConfig.indices[secondIdx] || 0.15,
-      ndvi_stability: this.TERRAIN_WEIGHTS.stability,
+      ndvi_median:    vegWeight1,
+      ndre_median:    vegWeight2,
+      ndvi_stability: this.TERRAIN_WEIGHTS.stability + Math.max(0, vegWeightRemaining),
       twi:            this.TERRAIN_WEIGHTS.twi_inv,
       flow_inv:       this.TERRAIN_WEIGHTS.flow_inv,
       slope_inv:      this.TERRAIN_WEIGHTS.slope_inv,
       rel_elevation:  this.TERRAIN_WEIGHTS.elevation_rel,
-      drain_distance: 0.10  // remaining weight to drain/flow
+      drain_distance: 0.10
     };
 
     // Normalize weights to sum to 1.0
@@ -408,11 +426,14 @@ class GEEZonesEngine {
     const indexNames = Object.keys(cropConfig.indices);
     const primaryIdx = indexNames[0];
     const secondIdx = indexNames[1] || indexNames[0];
+    const vegWeight1 = cropConfig.indices[primaryIdx] || 0.25;
+    const vegWeight2 = cropConfig.indices[secondIdx] || 0.15;
+    const vegWeightRemaining = Object.values(cropConfig.indices).reduce((a, b) => a + b, 0) - vegWeight1 - vegWeight2;
 
     const compositeWeights = {
-      ndvi:           cropConfig.indices[primaryIdx] || 0.25,
-      ndre:           cropConfig.indices[secondIdx] || 0.15,
-      ndvi_stability: this.TERRAIN_WEIGHTS.stability,
+      ndvi_median:    vegWeight1,
+      ndre_median:    vegWeight2,
+      ndvi_stability: this.TERRAIN_WEIGHTS.stability + Math.max(0, vegWeightRemaining),
       twi:            this.TERRAIN_WEIGHTS.twi_inv,
       flow_inv:       this.TERRAIN_WEIGHTS.flow_inv,
       slope_inv:      this.TERRAIN_WEIGHTS.slope_inv,

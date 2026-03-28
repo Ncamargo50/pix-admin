@@ -258,7 +258,8 @@ class SamplingEngine {
     // Need at least some interior cells and edge cells
     if (interiorCells.length < 2 || edgeCells.length === 0) return null;
 
-    // For each interior cell, find minimum distance to any edge cell
+    // For each interior cell, find minimum distance to any edge cell AND field boundary.
+    // The polo must be far from both zone edges and the lot perimeter.
     let bestCell = null;
     let bestMinDist = -1;
 
@@ -266,10 +267,24 @@ class SamplingEngine {
       // Must be inside polygon
       if (polygon && !this.pointInPolygon(cell.lat, cell.lng, polygon)) continue;
 
+      // Min distance to zone edge cells
       let minDistToEdge = Infinity;
       for (const edge of edgeCells) {
         const d = this._haversine(cell.lat, cell.lng, edge.lat, edge.lng);
         if (d < minDistToEdge) minDistToEdge = d;
+      }
+
+      // Also consider distance to field boundary (lot perimeter)
+      if (polygon) {
+        for (let p = 0; p < polygon.length; p++) {
+          const segA = polygon[p];
+          const segB = polygon[(p + 1) % polygon.length];
+          // segA/segB are [lng,lat] — extract lat,lng
+          const aLat = Array.isArray(segA) ? segA[1] || segA[0] : segA.lat;
+          const aLng = Array.isArray(segA) ? segA[0] || segA[1] : segA.lng;
+          const dBoundary = this._haversine(cell.lat, cell.lng, aLat, aLng);
+          if (dBoundary < minDistToEdge) minDistToEdge = dBoundary;
+        }
       }
 
       if (minDistToEdge > bestMinDist) {
