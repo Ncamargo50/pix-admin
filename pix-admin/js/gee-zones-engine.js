@@ -80,48 +80,97 @@ class GEEZonesEngine {
 
   // ==================== GEE AUTHENTICATION ====================
 
+  /** GEE JS client library CDN URL */
+  static EE_CDN = 'https://cdn.earthengine.google.com/v0.1.384/earthengine-client.min.js';
+
+  /**
+   * Load the Earth Engine JS library dynamically (on demand).
+   * Avoids loading ~500KB upfront for users who may only use demo mode.
+   * @returns {Promise<boolean>} true if ee global is available
+   */
+  static async _loadEELibrary() {
+    if (typeof ee !== 'undefined') return true;
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = this.EE_CDN;
+      script.onload = () => {
+        console.log('GEEZonesEngine: ee.js library loaded from CDN');
+        resolve(typeof ee !== 'undefined');
+      };
+      script.onerror = () => {
+        console.warn('GEEZonesEngine: Failed to load ee.js from CDN');
+        resolve(false);
+      };
+      document.head.appendChild(script);
+    });
+  }
+
   /**
    * Initialize Google Earth Engine.
-   * Tries service-account token endpoint first, falls back to OAuth popup.
+   * 1. Loads ee.js dynamically if not present
+   * 2. Tries service-account token endpoint (production)
+   * 3. Falls back to OAuth popup (development)
+   * 4. Returns false gracefully if unavailable (demo mode will be used)
+   *
    * @param {string} [tokenEndpoint] - URL to fetch short-lived GEE token
+   * @param {string} [projectId] - GEE project ID (e.g. 'ee-gisagronomico')
    * @returns {Promise<boolean>} true if ready
    */
-  static async initGEE(tokenEndpoint) {
+  static async initGEE(tokenEndpoint, projectId) {
     if (this._eeReady) return true;
     if (this._eeInitPromise) return this._eeInitPromise;
 
     this._eeInitPromise = (async () => {
       try {
-        // Check ee global is loaded
-        if (typeof ee === 'undefined') {
-          console.warn('GEEZonesEngine: ee.js not loaded, GEE unavailable');
+        // Step 1: Load ee.js library
+        const loaded = await this._loadEELibrary();
+        if (!loaded) {
+          console.warn('GEEZonesEngine: ee.js not available — will use demo mode');
           return false;
         }
 
-        // Strategy 1: Service account token endpoint
+        // Step 2: Service account token endpoint (recommended for production)
         if (tokenEndpoint) {
           try {
-            const resp = await fetch(tokenEndpoint);
+            const resp = await fetch(tokenEndpoint, { timeout: 10000 });
             if (resp.ok) {
-              const { access_token, project } = await resp.json();
-              ee.data.setAuthToken('', 'Bearer', access_token, 3600, [], null, false);
-              await new Promise((resolve, reject) => {
-                ee.initialize(project || null, null, resolve, reject);
-              });
-              this._eeReady = true;
-              console.log('GEEZonesEngine: Initialized via service account token');
-              return true;
+              const data = await resp.json();
+              const token = data.access_token || data.token;
+              const project = data.project || projectId;
+              if (token) {
+                ee.data.setAuthToken('', 'Bearer', token, 3600, [], null, false);
+                await new Promise((resolve, reject) => {
+                  ee.initialize(project || null, null, resolve, reject);
+                });
+                this._eeReady = true;
+                console.log('GEEZonesEngine: Initialized via service account token');
+                return true;
+              }
             }
           } catch (e) {
-            console.warn('GEEZonesEngine: Token endpoint failed, trying OAuth...', e.message);
+            console.warn('GEEZonesEngine: Token endpoint failed:', e.message);
           }
         }
 
-        // Strategy 2: OAuth popup (development)
+        // Step 3: Direct project initialization (if user has credentials in browser)
+        if (projectId) {
+          try {
+            await new Promise((resolve, reject) => {
+              ee.initialize(projectId, null, resolve, reject);
+            });
+            this._eeReady = true;
+            console.log('GEEZonesEngine: Initialized with project ID:', projectId);
+            return true;
+          } catch (e) {
+            console.warn('GEEZonesEngine: Direct init failed, trying OAuth...', e.message);
+          }
+        }
+
+        // Step 4: OAuth popup (development / interactive)
         try {
           await new Promise((resolve, reject) => {
             ee.data.authenticateViaPopup(() => {
-              ee.initialize(null, null, resolve, reject);
+              ee.initialize(projectId || null, null, resolve, reject);
             }, reject);
           });
           this._eeReady = true;

@@ -2954,6 +2954,47 @@ class PixAdmin {
 
   // ===== MANAGEMENT ZONES — GEE ENGINE =====
 
+  /** Attempt to connect to Google Earth Engine */
+  async connectGEE() {
+    const btn = document.getElementById('mzGeeConnectBtn');
+    const dot = document.getElementById('mzGeeStatusDot');
+    const txt = document.getElementById('mzGeeConnectionText');
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Conectando...';
+    txt.textContent = 'Cargando librería ee.js...';
+    dot.style.background = '#f5a623';
+
+    try {
+      // Try to init GEE — will load library + authenticate
+      // You can set a token endpoint URL here for production
+      const projectId = 'ee-gisagronomico';  // Your GEE project
+      const connected = await GEEZonesEngine.initGEE(null, projectId);
+
+      if (connected) {
+        dot.style.background = '#7fd633';
+        txt.innerHTML = '<span style="color:var(--teal)">GEE Conectado</span> — Sentinel-2 + DEM + SAR disponibles';
+        btn.textContent = 'Conectado';
+        btn.style.borderColor = 'var(--teal)';
+        btn.style.color = 'var(--teal)';
+        this.toast('Google Earth Engine conectado correctamente');
+      } else {
+        dot.style.background = '#f5a623';
+        txt.textContent = 'Motor: Modo Demo (GEE requiere autenticación)';
+        btn.textContent = 'Reintentar';
+        btn.disabled = false;
+        this.toast('GEE no disponible — usando modo demo con datos simulados', 'warning');
+      }
+    } catch (e) {
+      dot.style.background = '#e74c3c';
+      txt.textContent = 'Error: ' + e.message;
+      btn.textContent = 'Reintentar';
+      btn.disabled = false;
+      this.toast('Error conectando GEE: ' + e.message, 'error');
+    }
+  }
+
   /** Build crop type selector cards from GEEZonesEngine config */
   buildMZCropSelector() {
     const container = document.getElementById('mzCropCategories');

@@ -945,6 +945,11 @@
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;line-height:1.6">
               Score Compuesto: indices vegetacion + estabilidad temporal + altimetria + TWI + flujo de agua
             </div>
+            <div id="mzGeeConnection" style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+              <div id="mzGeeStatusDot" style="width:8px;height:8px;border-radius:50%;background:#f5a623" title="GEE desconectado"></div>
+              <span id="mzGeeConnectionText" style="font-size:10px;color:var(--text-muted);flex:1">Motor: Modo Demo (GEE no conectado)</span>
+              <button class="btn btn-sm btn-outline" id="mzGeeConnectBtn" onclick="admin.connectGEE()" style="font-size:10px;padding:3px 8px">Conectar GEE</button>
+            </div>
             <div id="mzGeeStatus" style="font-size:11px;margin-bottom:8px;display:none">
               <span id="mzGeeStatusIcon"></span> <span id="mzGeeStatusText"></span>
             </div>
