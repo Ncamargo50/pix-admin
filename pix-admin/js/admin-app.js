@@ -2485,86 +2485,32 @@ class PixAdmin {
     if (this.maps.mz) return;
     const container = document.getElementById('mzMap');
     if (!container || container.offsetHeight === 0) return;
-    this.maps.mz = L.map('mzMap').setView([-27.035, -55.545], 13);
-    const satMZ = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { attribution: 'Google', maxZoom: 21 });
-    const hybMZ = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: 'Google', maxZoom: 21 });
+
+    // Center on field polygon if available, otherwise default
+    let center = [-16.75, -63.32];  // Bolivia default
+    let zoom = 13;
+    if (this.fieldPolygon && this.fieldPolygon.length > 0) {
+      const pb = GEEZonesEngine.boundsFromPolygon(this.fieldPolygon, true);
+      center = [(pb.minLat + pb.maxLat) / 2, (pb.minLng + pb.maxLng) / 2];
+      zoom = 15;
+    }
+
+    this.maps.mz = L.map('mzMap', { zoomControl: true }).setView(center, zoom);
+    const satMZ = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { attribution: 'Google Satellite', maxZoom: 21 });
+    const hybMZ = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: 'Google Hybrid', maxZoom: 21 });
+    const osmMZ = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM', maxZoom: 19 });
     satMZ.addTo(this.maps.mz);
-    L.control.layers({ 'Satélite': satMZ, 'Híbrido': hybMZ }, null, { position: 'topright', collapsed: true }).addTo(this.maps.mz);
+    L.control.layers({ 'Satélite': satMZ, 'Híbrido': hybMZ, 'OSM': osmMZ }, null, { position: 'topright', collapsed: true }).addTo(this.maps.mz);
+
+    // If polygon loaded, fit to it and draw boundary
+    if (this.fieldPolygon && this.fieldPolygon.length > 2) {
+      const latLngs = this.fieldPolygon.map(c => [c[1], c[0]]);
+      L.polygon(latLngs, { color: '#7fd633', weight: 2, fill: false, dashArray: '6,4' }).addTo(this.maps.mz);
+      this.maps.mz.fitBounds(latLngs, { padding: [30, 30] });
+    }
   }
 
-  generateManagementZones() {
-    if (!this.maps.mz) this.initMZMap();
-    const nutrient = document.getElementById('mzBaseVar').value;
-    const numZones = parseInt(document.getElementById('mzNumZones').value);
-    const method = document.getElementById('mzMethod').value;
-    const info = NUTRIENT_INFO[nutrient] || { label: nutrient, unit: '' };
-    const points = this._getGISPoints(nutrient);
-
-    if (points.length < 2) { this.toast('Se necesitan al menos 2 puntos', 'warning'); return; }
-
-    const polygon = this._boundaryPolygon || null;
-    const bounds = polygon
-      ? InterpolationEngine.getBounds({ features: [{ geometry: { type: 'Polygon', coordinates: [polygon] }, type: 'Feature' }] })
-      : InterpolationEngine.getBounds(points);
-
-    let gridResult;
-    if (method === 'kriging' && typeof KrigingEngine !== 'undefined') {
-      const empirical = KrigingEngine.computeEmpiricalVariogram(points);
-      const fitted = KrigingEngine.autoFitAllModels(empirical);
-      const vp = { model: fitted[0].model, ...fitted[0].params };
-      gridResult = KrigingEngine.interpolateKriging(points, bounds, vp, { resolution: 80 });
-    } else {
-      gridResult = InterpolationEngine.interpolateIDW(points, bounds, { resolution: 80, power: 2, smooth: 2 });
-    }
-
-    const zoneResult = InterpolationEngine.generateManagementZones(gridResult, numZones);
-
-    // Clear old layers
-    if (this._mzOverlay) { this.maps.mz.removeLayer(this._mzOverlay); this._mzOverlay = null; }
-    if (this._mzLabels) { this._mzLabels.forEach(m => this.maps.mz.removeLayer(m)); this._mzLabels = []; }
-
-    this._mzOverlay = InterpolationEngine.addToLeafletMap(this.maps.mz, zoneResult, {
-      isZones: true, opacity: 0.70, layerOpacity: 0.80, polygon
-    });
-
-    // Zone labels
-    this._mzLabels = [];
-    for (const z of zoneResult.zones) {
-      if (z.cellCount === 0) continue;
-      const icon = L.divIcon({
-        className: 'map-zone-label',
-        html: `<span style="font-size:14px">Z${z.zone}<br><small style="font-weight:500;font-size:11px">${z.mean} ${info.unit}</small></span>`,
-        iconSize: [0, 0], iconAnchor: [0, 0]
-      });
-      const marker = L.marker([z.centroidLat, z.centroidLng], { icon, interactive: false }).addTo(this.maps.mz);
-      this._mzLabels.push(marker);
-    }
-
-    this.maps.mz.fitBounds([[bounds.minLat, bounds.minLng], [bounds.maxLat, bounds.maxLng]]);
-
-    // Legend
-    let legendHtml = `<div class="map-legend pro"><div class="legend-title">Zonas de Manejo — ${info.label}</div>`;
-    for (const z of zoneResult.zones) {
-      legendHtml += `<div class="legend-item">
-        <span class="legend-color" style="background:rgb(${z.color.join(',')})"></span>
-        <span class="legend-label">Zona ${z.zone}:</span>
-        <span class="legend-range">${z.mean} ${info.unit} (${z.areaPct}%)</span>
-      </div>`;
-    }
-    legendHtml += '</div>';
-    document.getElementById('mzLegend').innerHTML = legendHtml;
-
-    // Stats
-    let statsHtml = '<div class="card" style="padding:10px"><table class="data-table" style="font-size:12px"><thead><tr><th>Zona</th><th>Media</th><th>Rango</th><th>Área</th></tr></thead><tbody>';
-    for (const z of zoneResult.zones) {
-      statsHtml += `<tr><td><span class="zone-color" style="background:rgb(${z.color.join(',')});width:16px;height:16px"></span> Z${z.zone}</td>
-        <td class="cell-value">${z.mean}</td><td>${z.min} – ${z.max}</td><td>${z.areaPct}%</td></tr>`;
-    }
-    statsHtml += '</tbody></table></div>';
-    document.getElementById('mzStats').innerHTML = statsHtml;
-
-    this.toast(`${numZones} zonas de manejo generadas (${info.label}, ${method.toUpperCase()})`);
-  }
+  // NOTE: Old generateManagementZones() removed — replaced by generateZonesGEE() in the GEE ENGINE section.
 
   // ===== KRIGING ENGINE CONTROLLERS =====
 
@@ -3028,7 +2974,7 @@ class PixAdmin {
       const vegTags = breakdown.filter(b => b.source === 'vegetation').map(b =>
         `<span class="idx-tag">${b.name} ${b.weight}%</span>`).join(' ');
       const scoreTags = breakdown.filter(b => b.source === 'score').map(b =>
-        `<span class="terr-tag">${b.name} ${b.weight}%</span>`).join(' ');
+        `<span class="score-tag">${b.name} ${b.weight}%</span>`).join(' ');
       const terrTags = breakdown.filter(b => b.source === 'terrain').map(b =>
         `<span class="terr-tag">${b.name} ${b.weight}%</span>`).join(' ');
       const cropConfig = GEEZonesEngine.CROP_INDEX_CONFIGS[cropKey];
@@ -3040,9 +2986,16 @@ class PixAdmin {
       infoEl.style.display = '';
     }
 
-    // Show campaign selector
+    // Show campaign selector + update fenological info
     const campSection = document.getElementById('mzCampaignSection');
     if (campSection) campSection.style.display = '';
+    const campInfo = document.getElementById('mzCampaignInfo');
+    if (campInfo && cropConfig) {
+      const v = cropConfig.ventana;
+      const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const ventanaStr = v ? `${meses[v.mesInicio]}-${meses[v.mesFin]}` : 'Anual';
+      campInfo.textContent = `Ranking Percentil Multi-Campaña v4.1 — Ventana: ${ventanaStr} (${cropConfig.fenologia})`;
+    }
 
     // Enable generate button if lot is loaded
     const btn = document.getElementById('mzGenerateBtn');
