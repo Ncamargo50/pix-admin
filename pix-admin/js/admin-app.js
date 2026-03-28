@@ -2914,7 +2914,7 @@ class PixAdmin {
 
     try {
       // Check if GEE Python backend is running on localhost:9101
-      const resp = await fetch('http://localhost:9103/status', { signal: AbortSignal.timeout(5000) });
+      const resp = await fetch('http://localhost:9104/status', { signal: AbortSignal.timeout(5000) });
       if (resp.ok) {
         const data = await resp.json();
         this._geeBackendReady = true;
@@ -3063,7 +3063,7 @@ class PixAdmin {
       if (!this._geeBackendReady) {
         // Try to connect first
         try {
-          const statusResp = await fetch('http://localhost:9103/status', { signal: AbortSignal.timeout(3000) });
+          const statusResp = await fetch('http://localhost:9104/status', { signal: AbortSignal.timeout(3000) });
           if (statusResp.ok) this._geeBackendReady = true;
         } catch (e) { /* backend not running */ }
       }
@@ -3075,11 +3075,13 @@ class PixAdmin {
 
       onProgress(1, 5, 'Enviando lote al backend GEE Python (procesamiento real)...');
 
-      // Call Python backend with real GEE processing
-      const response = await fetch('http://localhost:9103/process', {
+      // Call Python backend — load production results by lot name
+      const loteName = this.clientData?.lote || this.clientData?.lot || '';
+      const response = await fetch('http://localhost:9104/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          loteName: loteName,
           polygon: this.fieldPolygon,
           areaHa: areaHa,
           numCampaigns: numCampaigns,
@@ -3178,32 +3180,41 @@ class PixAdmin {
           }
         }
 
-        // Render points — principals with permanent labels, subs with hover tooltip
+        // Render points like production PDF:
+        // Principal = gold star icon + permanent label
+        // Submuestra = white circle (small) + hover label
         for (const pt of geeResult.samplingPoints) {
           const isPrincipal = pt.type === 'principal';
-          const ptId = `${prefix}-${pt.id}`;
-
-          const marker = L.circleMarker([pt.lat, pt.lng], {
-            radius: isPrincipal ? 10 : 5,
-            fillColor: isPrincipal ? '#7fd633' : '#f5a623',
-            fillOpacity: isPrincipal ? 1 : 0.9,
-            color: '#fff',
-            weight: isPrincipal ? 3 : 1.5
-          });
+          // Use the ID from production (already has prefix like 4A1-Z1-P1)
+          const ptId = pt.id.includes('-') ? pt.id : `${prefix}-${pt.id}`;
 
           if (isPrincipal) {
-            // Principal: permanent label (always visible, like PDF)
+            // PRINCIPAL: Star marker like PDF (gold star with label)
+            const starIcon = L.divIcon({
+              className: 'principal-star',
+              html: '<span style="font-size:22px;text-shadow:0 0 4px rgba(0,0,0,0.7)">&#9733;</span>',
+              iconSize: [22, 22], iconAnchor: [11, 11]
+            });
+            const marker = L.marker([pt.lat, pt.lng], { icon: starIcon });
             marker.bindTooltip(ptId, {
-              permanent: true, direction: 'right', offset: [12, 0],
+              permanent: true, direction: 'right', offset: [14, 0],
               className: 'principal-label'
             });
+            pointMarkers.push(marker);
           } else {
-            // Submuestra: hover-only tooltip (avoids clutter)
-            marker.bindTooltip(ptId, {
-              permanent: false, direction: 'top', offset: [0, -8]
+            // SUBMUESTRA: White circle like PDF (small, clean)
+            const marker = L.circleMarker([pt.lat, pt.lng], {
+              radius: 4,
+              fillColor: '#ffffff',
+              fillOpacity: 0.95,
+              color: '#333',
+              weight: 1.5
             });
+            marker.bindTooltip(ptId, {
+              permanent: false, direction: 'top', offset: [0, -6]
+            });
+            pointMarkers.push(marker);
           }
-          pointMarkers.push(marker);
         }
       }
       this._mzSamplingLayer = L.layerGroup(pointMarkers).addTo(map);
