@@ -3075,7 +3075,8 @@ class PixAdmin {
 
     const map = this.maps.mz;
     if (!map) return;
-    const bounds = map.getBounds();
+    // Use polygon bounds (NOT map viewport bounds) for correct spatial reference
+    const polyBounds = GEEZonesEngine.boundsFromPolygon(this.fieldPolygon, true);
     const areaHa = this.fieldAreaHa || this._fieldAreaHa || 50;
     const cropKey = this._mzSelectedCrop;
 
@@ -3108,10 +3109,7 @@ class PixAdmin {
         // Demo/fallback mode
         isDemo = true;
         onProgress(1, 4, 'Modo Demo — generando datos simulados...');
-        const b = {
-          minLat: bounds.getSouth(), maxLat: bounds.getNorth(),
-          minLng: bounds.getWest(), maxLng: bounds.getEast()
-        };
+        const b = polyBounds;
         // Convert polygon format for ZonesEngine (expects [[lat,lng]])
         const boundary = this.fieldPolygon.map(c => [c[1], c[0]]);
         geeResult = GEEZonesEngine.processFieldDemo(b, boundary, areaHa, cropKey);
@@ -3126,10 +3124,7 @@ class PixAdmin {
       // Build config for ZonesEngine
       const zonesConfig = {
         satelliteData: geeResult.satelliteData,
-        bounds: {
-          minLat: bounds.getSouth(), maxLat: bounds.getNorth(),
-          minLng: bounds.getWest(), maxLng: bounds.getEast()
-        },
+        bounds: polyBounds,
         boundary: this.fieldPolygon.map(c => [c[1], c[0]]),
         areaHa: areaHa,
         numZones: numZones,
@@ -3144,9 +3139,16 @@ class PixAdmin {
 
       onProgress(isDemo ? 4 : 8, isDemo ? 4 : 8, 'Renderizando zonas en mapa...');
 
-      // Render on map
+      // Fit map to polygon bounds before rendering
+      map.fitBounds([
+        [polyBounds.minLat, polyBounds.minLng],
+        [polyBounds.maxLat, polyBounds.maxLng]
+      ], { padding: [20, 20] });
+
+      // Render on map using polygon bounds (not viewport)
       this._clearMZOverlays();
-      const overlay = ZonesEngine.renderZonesToMap(map, result.zoneGrid, bounds, numZones, {
+      const renderBounds = map.getBounds();  // now correctly fitted to polygon
+      const overlay = ZonesEngine.renderZonesToMap(map, result.zoneGrid, renderBounds, numZones, {
         opacity: 0.7,
         showLabels: true,
         clipPolygon: this.fieldPolygon
@@ -3216,12 +3218,11 @@ class PixAdmin {
     }
 
     try {
+      // Use polygon bounds (same as zone generation) — NOT map viewport
+      const polyBounds = GEEZonesEngine.boundsFromPolygon(this.fieldPolygon, true);
       const config = {
         zoneGrid: this._lastMZResult.zoneGrid,
-        bounds: {
-          minLat: bounds.getSouth(), maxLat: bounds.getNorth(),
-          minLng: bounds.getWest(), maxLng: bounds.getEast()
-        },
+        bounds: polyBounds,
         numZones: this._lastMZResult.numZones,
         polygon: this.fieldPolygon,
         areaHa: this.fieldAreaHa || this._fieldAreaHa || 50,
