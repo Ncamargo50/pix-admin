@@ -19,60 +19,89 @@ class GEEZonesEngine {
    * Each category defines which Sentinel-2 indices to compute and their
    * contribution to the composite score. Terrain weights are shared.
    */
+  /**
+   * Crop-specific vegetation indices for GEE computation.
+   * These indices are used to compute a RANKING PERCENTIL per campaign.
+   * The ranking is then fed into the Score Compuesto via PRODUCTION_SCORE_WEIGHTS.
+   *
+   * CAÑA indices match production v4.1 exactly (7 indices).
+   */
   static CROP_INDEX_CONFIGS = {
     cana: {
       label: 'Caña de Azúcar',
       icon: '🌾',
-      indices: { NDRE: 0.20, kNDVI: 0.10, RECI: 0.15, CIre: 0.10, NDMI: 0.05 },
-      description: 'NDRE + kNDVI — red-edge dominante, kNDVI anti-saturación para LAI alto'
+      indices: { NDRE: 0.25, RECI: 0.15, CIre: 0.10, IRECI: 0.08, EVI: 0.07, NDMI: 0.05, MSI: 0.05 },
+      fenologia: 'ELONGACION',
+      ventana: { mesInicio: 5, mesFin: 9 },  // Mayo-Septiembre
+      description: '7 indices produccion v4.1 — NDRE primario, etapa elongacion (mayo-sept)'
     },
     soja: {
       label: 'Soja',
       icon: '🌱',
       indices: { NDVI: 0.25, NDRE: 0.15, SAVI: 0.10, GNDVI: 0.05, NDWI: 0.05 },
-      description: 'NDVI + NDRE — ciclo corto con alta variación temporal'
+      fenologia: 'R3_R6',
+      ventana: { mesInicio: 1, mesFin: 4 },  // Enero-Abril (llenado)
+      description: 'NDVI + NDRE — ciclo corto, ventana reproductiva'
     },
     maiz_sorgo: {
       label: 'Maíz / Sorgo',
       icon: '🌽',
       indices: { kNDVI: 0.20, NDRE: 0.15, EVI: 0.10, LSWI: 0.10, CIre: 0.05 },
-      description: 'kNDVI anti-saturación + EVI — dosel denso, LSWI agua foliar'
+      fenologia: 'VT_R1',
+      ventana: { mesInicio: 1, mesFin: 4 },  // Enero-Abril (floración-llenado)
+      description: 'kNDVI anti-saturación + EVI — dosel denso'
     },
     girasol: {
       label: 'Girasol / Chía',
       icon: '🌻',
       indices: { NDVI: 0.20, NDRE: 0.20, EVI: 0.10, NDMI: 0.10 },
+      fenologia: 'R1_R4',
+      ventana: { mesInicio: 2, mesFin: 5 },
       description: 'Balance NDVI/NDRE — estrés hídrico con NDMI'
     },
     horticolas: {
       label: 'Tomate / Papa / Pimentón',
       icon: '🍅',
       indices: { NDVI: 0.20, GNDVI: 0.15, NDRE: 0.15, NDMI: 0.10 },
+      fenologia: 'FRUCTIFICACION',
+      ventana: { mesInicio: 3, mesFin: 8 },
       description: 'GNDVI — parcelas pequeñas con suelo expuesto'
     },
     perennes: {
       label: 'Palta / Maracuyá / Frutales',
       icon: '🥑',
       indices: { NDVI: 0.20, GNDVI: 0.10, NDRE: 0.15, NDMI: 0.10, CIre: 0.05 },
+      fenologia: 'VEGETATIVO',
+      ventana: { mesInicio: 1, mesFin: 12 },  // Todo el año (perenne)
       description: 'Multi-índice — vigor perenne + estrés hídrico'
     }
   };
 
   /**
-   * Shared terrain-derived weights (sum = 0.40).
-   * Applied identically regardless of crop type.
+   * PRODUCTION SCORE WEIGHTS — Exact replication of v4.1 PESOS_SCORE.
+   * These weights are applied to the Score Compuesto Ponderado, NOT to vegetation indices.
+   * rank_medio/rank_std/rank_min come from multi-campaign ranking analysis.
+   * Sum = 1.00
    */
-  static TERRAIN_WEIGHTS = {
-    stability:     0.15,
-    twi_inv:       0.10,
-    flow_inv:      0.05,
-    slope_inv:     0.05,
-    elevation_rel: 0.05,
-    dist_drainage: 0.00  // computed by ZonesEngine from DEM locally (not a GEE layer)
+  static PRODUCTION_SCORE_WEIGHTS = {
+    ndvi_median:    0.40,  // rank_medio — stable productive potential (multi-year average)
+    ndre_median:    0.20,  // rank_std — temporal stability (INVERTED: lower = more stable)
+    ndvi_stability: 0.10,  // rank_min — worst-year security
+    twi:            0.10,  // Topographic Wetness Index
+    flow_inv:       0.06,  // Flow accumulation (INVERTED)
+    slope_inv:      0.06,  // Slope (INVERTED)
+    rel_elevation:  0.04,  // Relative elevation within field
+    drain_distance: 0.04   // Distance to drainage lines
   };
-  // NOTE: dist_drainage weight is 0.10 in the skill but handled inside ZonesEngine
-  // via COMPOSITE_WEIGHTS.drain_distance. The total terrain contribution remains 0.40
-  // because ZonesEngine adds drain_distance internally from flow accumulation data.
+
+  /** Production parameters */
+  static CLOUD_MAX = 15;          // Primary cloud threshold (%)
+  static CLOUD_FALLBACK_1 = 25;   // First fallback
+  static CLOUD_FALLBACK_2 = 40;   // Second fallback
+  static MIN_SCENES = 5;          // Minimum scenes per campaign
+  static MIN_ZONE_AREA_HA = 1.5;  // Minimum zone area (ha)
+  static ZONE_THRESHOLD_HA = 33;  // <=33ha→3 zones, >33ha→4 zones
+  static MAX_ZONES = 4;           // Maximum absolute zone count
 
   /** GEE initialization state */
   static _eeReady = false;
@@ -263,6 +292,11 @@ class GEEZonesEngine {
       OSAVI: () => img.expression(
         '((NIR - RED) / (NIR + RED + 0.16)) * 1.16',
         { NIR: img.select('B8'), RED: img.select('B4') }
+      ).rename(name),
+
+      // MSI: Moisture Stress Index — SWIR/NIR ratio (inverse of NDMI, higher=more stress)
+      MSI: () => img.expression(
+        'SWIR / NIR', { SWIR: img.select('B11'), NIR: img.select('B8A') }
       ).rename(name)
     };
 
@@ -288,14 +322,16 @@ class GEEZonesEngine {
 
   /**
    * Process a field polygon through the full GEE pipeline.
+   * Follows production v4.1 methodology: multi-campaign ranking percentile.
    *
    * @param {Array<[number,number]>} fieldPolygon - [[lng,lat], ...] boundary
    * @param {string} cropKey - Key from CROP_INDEX_CONFIGS
    * @param {number} areaHa - Field area in hectares
    * @param {Function} [onProgress] - (step, totalSteps, message) callback
+   * @param {number} [numCampaigns=5] - Number of campaigns/years to analyze
    * @returns {Promise<Object>} satelliteData object for ZonesEngine
    */
-  static async processField(fieldPolygon, cropKey, areaHa, onProgress) {
+  static async processField(fieldPolygon, cropKey, areaHa, onProgress, numCampaigns = 5) {
     if (!this._eeReady) throw new Error('GEE not initialized. Call initGEE() first.');
 
     const cropConfig = this.CROP_INDEX_CONFIGS[cropKey];
@@ -327,20 +363,27 @@ class GEEZonesEngine {
     let s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
       .filterBounds(geometry)
       .filterDate(start, now)
-      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20));
+      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', this.CLOUD_MAX));
 
     // Apply cloud mask — use bound function reference (arrow + this doesn't work in GEE .map)
     const maskFn = this._maskS2clouds;
     s2 = s2.map(function(img) { return maskFn(img); });
 
     const count = await s2.size().getInfo();
-    if (count < 4) {
-      // Relax cloud filter if insufficient images
+    if (count < this.MIN_SCENES) {
+      // Fallback 1: relax to 25%
       s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-        .filterBounds(geometry)
-        .filterDate(start, now)
-        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+        .filterBounds(geometry).filterDate(start, now)
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', this.CLOUD_FALLBACK_1))
         .map(function(img) { return maskFn(img); });
+      const count2 = await s2.size().getInfo();
+      if (count2 < this.MIN_SCENES) {
+        // Fallback 2: relax to 40%
+        s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+          .filterBounds(geometry).filterDate(start, now)
+          .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', this.CLOUD_FALLBACK_2))
+          .map(function(img) { return maskFn(img); });
+      }
     }
 
     // --- Step 3: Compute crop-specific indices ---
@@ -357,16 +400,18 @@ class GEEZonesEngine {
       return result;
     });
 
-    // --- Step 4: Create campaign composites (4 x 6-month periods) ---
-    progress(4, STEPS, 'Generando composites multi-campaña...');
+    // --- Step 4: Create campaign composites (phenological windows per year) ---
+    // Production v4.1: each campaign = specific months (e.g., May-Sept for sugarcane elongation)
+    progress(4, STEPS, `Generando composites ${numCampaigns} campañas (ventana fenológica)...`);
 
+    const ventana = cropConfig.ventana || { mesInicio: 5, mesFin: 9 };
+    const currentYear = new Date().getFullYear();
     const campaigns = [];
-    for (let i = 0; i < 4; i++) {
-      const campStart = now.advance(-(24 - i * 6), 'month');
-      const campEnd = now.advance(-(18 - i * 6), 'month');
+    for (let y = 0; y < numCampaigns; y++) {
+      const year = currentYear - numCampaigns + y;
+      const campStart = ee.Date.fromYMD(year, ventana.mesInicio, 1);
+      const campEnd = ee.Date.fromYMD(year, ventana.mesFin, 30);
       const campCollection = withIndices.filterDate(campStart, campEnd);
-
-      // Median composite per campaign for each index
       const composite = campCollection.select(indexNames).median().clip(geometry);
       campaigns.push(composite);
     }
@@ -527,25 +572,9 @@ class GEEZonesEngine {
       cellSize:      scale
     };
 
-    // Build custom weights mapping crop indices to ZonesEngine composite score slots.
-    // ZonesEngine has 3 vegetation slots (ndvi_median, ndre_median, + EVI implicit via ndvi_stability).
-    // The 1st crop index maps to ndvi_median, 2nd to ndre_median.
-    // Remaining vegetation weight (3rd+ indices) is distributed into ndvi_stability
-    // alongside the temporal stability terrain weight, since ZonesEngine only has 3 vegetation slots.
-    const vegWeight1 = cropConfig.indices[primaryIdx] || 0.25;
-    const vegWeight2 = cropConfig.indices[secondIdx] || 0.15;
-    const vegWeightRemaining = Object.values(cropConfig.indices).reduce((a, b) => a + b, 0) - vegWeight1 - vegWeight2;
-
-    const compositeWeights = {
-      ndvi_median:    vegWeight1,
-      ndre_median:    vegWeight2,
-      ndvi_stability: this.TERRAIN_WEIGHTS.stability + Math.max(0, vegWeightRemaining),
-      twi:            this.TERRAIN_WEIGHTS.twi_inv,
-      flow_inv:       this.TERRAIN_WEIGHTS.flow_inv,
-      slope_inv:      this.TERRAIN_WEIGHTS.slope_inv,
-      rel_elevation:  this.TERRAIN_WEIGHTS.elevation_rel,
-      drain_distance: 0.10
-    };
+    // Use PRODUCTION score weights directly — v4.1 methodology
+    // rank_medio(40%), rank_std(20%), rank_min(10%), TWI(10%), flow(6%), slope(6%), elev(4%), drain(4%)
+    const compositeWeights = { ...this.PRODUCTION_SCORE_WEIGHTS };
 
     // Normalize weights to sum to 1.0
     const wSum = Object.values(compositeWeights).reduce((a, b) => a + b, 0);
@@ -580,41 +609,20 @@ class GEEZonesEngine {
    * @param {string} cropKey
    * @returns {Object} Same structure as processField() return
    */
-  static processFieldDemo(bounds, boundary, areaHa, cropKey) {
+  static processFieldDemo(bounds, boundary, areaHa, cropKey, numCampaigns = 5) {
     const cropConfig = this.CROP_INDEX_CONFIGS[cropKey];
     if (!cropConfig) throw new Error(`Unknown crop: ${cropKey}`);
 
-    // Use existing simulation — resolution = grid rows (not meters!)
-    // Higher grid for better zone delineation and sampling point placement
+    // Simulation grid resolution — higher = better zone detail
     const gridRes = areaHa > 200 ? 80 : areaHa > 50 ? 60 : 40;
     const satelliteData = ZonesEngine.simulateSatelliteData(bounds, boundary, areaHa, {
-      years: 4,
+      years: numCampaigns,
       resolution: gridRes,
       cellSize: 10
     });
 
-    const indexNames = Object.keys(cropConfig.indices);
-    const primaryIdx = indexNames[0];
-    const secondIdx = indexNames[1] || indexNames[0];
-    const vegWeight1 = cropConfig.indices[primaryIdx] || 0.25;
-    const vegWeight2 = cropConfig.indices[secondIdx] || 0.15;
-    const vegWeightRemaining = Object.values(cropConfig.indices).reduce((a, b) => a + b, 0) - vegWeight1 - vegWeight2;
-
-    const compositeWeights = {
-      ndvi_median:    vegWeight1,
-      ndre_median:    vegWeight2,
-      ndvi_stability: this.TERRAIN_WEIGHTS.stability + Math.max(0, vegWeightRemaining),
-      twi:            this.TERRAIN_WEIGHTS.twi_inv,
-      flow_inv:       this.TERRAIN_WEIGHTS.flow_inv,
-      slope_inv:      this.TERRAIN_WEIGHTS.slope_inv,
-      rel_elevation:  this.TERRAIN_WEIGHTS.elevation_rel,
-      drain_distance: 0.10
-    };
-
-    const wSum = Object.values(compositeWeights).reduce((a, b) => a + b, 0);
-    for (const k in compositeWeights) {
-      compositeWeights[k] = compositeWeights[k] / wSum;
-    }
+    // Use PRODUCTION score weights directly (same as real GEE pipeline)
+    const compositeWeights = { ...this.PRODUCTION_SCORE_WEIGHTS };
 
     return {
       satelliteData,
@@ -623,8 +631,8 @@ class GEEZonesEngine {
       cropConfig,
       scale: satelliteData.cellSize || 10,
       imageCount: 0,
-      campaignCount: 4,
-      indexNames,
+      campaignCount: numCampaigns,
+      indexNames: Object.keys(cropConfig.indices),
       isDemo: true
     };
   }
@@ -643,17 +651,21 @@ class GEEZonesEngine {
 
     const breakdown = [];
 
-    // Vegetation indices
+    // Vegetation indices (used for ranking, shown as reference)
     for (const [name, weight] of Object.entries(cropConfig.indices)) {
       breakdown.push({ name, weight: Math.round(weight * 100), source: 'vegetation' });
     }
 
-    // Terrain
-    breakdown.push({ name: 'Estabilidad temporal', weight: Math.round(this.TERRAIN_WEIGHTS.stability * 100), source: 'terrain' });
-    breakdown.push({ name: 'TWI (humedad)', weight: Math.round(this.TERRAIN_WEIGHTS.twi_inv * 100), source: 'terrain' });
-    breakdown.push({ name: 'Flujo agua', weight: Math.round(this.TERRAIN_WEIGHTS.flow_inv * 100), source: 'terrain' });
-    breakdown.push({ name: 'Pendiente', weight: Math.round(this.TERRAIN_WEIGHTS.slope_inv * 100), source: 'terrain' });
-    breakdown.push({ name: 'Elevación relativa', weight: Math.round(this.TERRAIN_WEIGHTS.elevation_rel * 100), source: 'terrain' });
+    // Score Compuesto weights (production v4.1)
+    const sw = this.PRODUCTION_SCORE_WEIGHTS;
+    breakdown.push({ name: 'Ranking medio (5 años)', weight: Math.round(sw.ndvi_median * 100), source: 'score' });
+    breakdown.push({ name: 'Estabilidad temporal', weight: Math.round(sw.ndre_median * 100), source: 'score' });
+    breakdown.push({ name: 'Seguridad (peor año)', weight: Math.round(sw.ndvi_stability * 100), source: 'score' });
+    breakdown.push({ name: 'TWI (humedad)', weight: Math.round(sw.twi * 100), source: 'terrain' });
+    breakdown.push({ name: 'Flujo agua', weight: Math.round(sw.flow_inv * 100), source: 'terrain' });
+    breakdown.push({ name: 'Pendiente', weight: Math.round(sw.slope_inv * 100), source: 'terrain' });
+    breakdown.push({ name: 'Elevación', weight: Math.round(sw.rel_elevation * 100), source: 'terrain' });
+    breakdown.push({ name: 'Dist. drenaje', weight: Math.round(sw.drain_distance * 100), source: 'terrain' });
 
     return breakdown;
   }

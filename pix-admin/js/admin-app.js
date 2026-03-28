@@ -3021,18 +3021,28 @@ class PixAdmin {
     // Update UI selection
     document.querySelectorAll('.crop-card').forEach(c => c.classList.toggle('selected', c.dataset.crop === cropKey));
 
-    // Show index breakdown
+    // Show index + score breakdown
     const infoEl = document.getElementById('mzIndexInfo');
     if (infoEl && typeof GEEZonesEngine !== 'undefined') {
       const breakdown = GEEZonesEngine.getWeightBreakdown(cropKey);
       const vegTags = breakdown.filter(b => b.source === 'vegetation').map(b =>
         `<span class="idx-tag">${b.name} ${b.weight}%</span>`).join(' ');
+      const scoreTags = breakdown.filter(b => b.source === 'score').map(b =>
+        `<span class="terr-tag">${b.name} ${b.weight}%</span>`).join(' ');
       const terrTags = breakdown.filter(b => b.source === 'terrain').map(b =>
         `<span class="terr-tag">${b.name} ${b.weight}%</span>`).join(' ');
-      infoEl.innerHTML = `<div style="margin-bottom:4px"><strong style="color:var(--teal);font-size:10px">VEGETACION:</strong> ${vegTags}</div>`
-        + `<div><strong style="color:#7ab8ff;font-size:10px">TERRENO:</strong> ${terrTags}</div>`;
+      const cropConfig = GEEZonesEngine.CROP_INDEX_CONFIGS[cropKey];
+      const ventanaInfo = cropConfig?.ventana ? `Ventana: mes ${cropConfig.ventana.mesInicio}-${cropConfig.ventana.mesFin}` : '';
+      infoEl.innerHTML = `<div style="margin-bottom:4px"><strong style="color:var(--teal);font-size:10px">INDICES (${Object.keys(cropConfig.indices).length}):</strong> ${vegTags}</div>`
+        + `<div style="margin-bottom:4px"><strong style="color:#f5a623;font-size:10px">SCORE COMPUESTO:</strong> ${scoreTags}</div>`
+        + `<div><strong style="color:#7ab8ff;font-size:10px">TERRENO:</strong> ${terrTags}</div>`
+        + (ventanaInfo ? `<div style="margin-top:4px;font-size:10px;color:var(--text-dim)">${ventanaInfo} | ${cropConfig.fenologia}</div>` : '');
       infoEl.style.display = '';
     }
+
+    // Show campaign selector
+    const campSection = document.getElementById('mzCampaignSection');
+    if (campSection) campSection.style.display = '';
 
     // Enable generate button if lot is loaded
     const btn = document.getElementById('mzGenerateBtn');
@@ -3078,6 +3088,7 @@ class PixAdmin {
     // Use polygon bounds (NOT map viewport bounds) for correct spatial reference
     const polyBounds = GEEZonesEngine.boundsFromPolygon(this.fieldPolygon, true);
     const areaHa = this.fieldAreaHa || this._fieldAreaHa || 50;
+    const numCampaigns = parseInt(document.getElementById('mzCampaignCount')?.value) || 5;
     const cropKey = this._mzSelectedCrop;
 
     // UI: show progress
@@ -3104,7 +3115,7 @@ class PixAdmin {
       // Try GEE first, fallback to demo
       if (typeof GEEZonesEngine !== 'undefined' && GEEZonesEngine._eeReady) {
         onProgress(1, 8, 'Conectando con Google Earth Engine...');
-        geeResult = await GEEZonesEngine.processField(this.fieldPolygon, cropKey, areaHa, onProgress);
+        geeResult = await GEEZonesEngine.processField(this.fieldPolygon, cropKey, areaHa, onProgress, numCampaigns);
       } else {
         // Demo/fallback mode
         isDemo = true;
@@ -3112,7 +3123,7 @@ class PixAdmin {
         const b = polyBounds;
         // Convert polygon format for ZonesEngine (expects [[lat,lng]])
         const boundary = this.fieldPolygon.map(c => [c[1], c[0]]);
-        geeResult = GEEZonesEngine.processFieldDemo(b, boundary, areaHa, cropKey);
+        geeResult = GEEZonesEngine.processFieldDemo(b, boundary, areaHa, cropKey, numCampaigns);
         onProgress(2, 4, 'Calculando Score Compuesto...');
       }
 
@@ -3129,7 +3140,7 @@ class PixAdmin {
         areaHa: areaHa,
         numZones: numZones,
         weights: geeResult.compositeWeights,
-        minZoneAreaHa: 0.3
+        minZoneAreaHa: GEEZonesEngine.MIN_ZONE_AREA_HA  // 1.5 ha (production v4.1)
       };
 
       const result = ZonesEngine.generateFromSatellite(zonesConfig);

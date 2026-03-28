@@ -73,15 +73,16 @@ class ZonesEngine {
    * Default layer weights for the Score Compuesto Ponderado methodology.
    * All weights must sum to 1.0.
    */
+  // Production v4.1 PESOS_SCORE — Ranking Percentil Multi-Campaña methodology
   static COMPOSITE_WEIGHTS = {
-    ndvi_median:    0.25,  // Long-term vigor
-    ndre_median:    0.15,  // Chlorophyll / nitrogen status
-    ndvi_stability: 0.15,  // Temporal consistency (1 - normalized std dev)
-    twi:            0.10,  // Topographic Wetness Index (moisture)
-    flow_inv:       0.10,  // Inverse flow accumulation (drainage)
-    slope_inv:      0.10,  // Inverse slope (tillage ease)
-    rel_elevation:  0.05,  // Relative elevation within field
-    drain_distance: 0.10   // Distance to nearest drainage line
+    ndvi_median:    0.40,  // rank_medio — potencial productivo estable (promedio multi-año)
+    ndre_median:    0.20,  // rank_std — estabilidad temporal (INVERTIDO: bajo=estable)
+    ndvi_stability: 0.10,  // rank_min — seguridad (peor año registrado)
+    twi:            0.10,  // TWI — humedad topográfica
+    flow_inv:       0.06,  // Acumulación flujo (INVERTIDO)
+    slope_inv:      0.06,  // Pendiente (INVERTIDO)
+    rel_elevation:  0.04,  // Elevación relativa
+    drain_distance: 0.04   // Distancia a líneas de drenaje
   };
 
   /**
@@ -133,7 +134,7 @@ class ZonesEngine {
       boundary,
       areaHa,
       weights: customWeights = null,
-      minZoneAreaHa = 0.5
+      minZoneAreaHa = 1.5  // Production v4.1: 1.5 ha minimum zone area
     } = config;
 
     const w = customWeights || this.COMPOSITE_WEIGHTS;
@@ -315,11 +316,10 @@ class ZonesEngine {
    * @param {number} areaHa - Field area in hectares
    * @returns {number} Recommended zone count
    */
+  // Production v4.1 rule: ≤33ha→3 zones, >33ha→4 zones, MAX 4
   static _zoneCountByArea(areaHa) {
-    if (areaHa < 10) return 2;
-    if (areaHa < 30) return 3;
-    if (areaHa < 60) return 4;
-    return 5;
+    if (areaHa <= 33) return 3;
+    return 4;  // max absoluto = 4 (nunca 2, nunca 5+)
   }
 
   // ==================== PIXEL-LEVEL TEMPORAL OPERATIONS ====================

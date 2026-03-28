@@ -310,29 +310,33 @@ class SamplingEngine {
 
   /**
    * Determine number of main points and subsamples per zone based on area.
-   * GIS Skill standard:
-   *   < 3 ha  → 1 principal + 5 submuestras
-   *   3-10 ha → 1 principal + 7 submuestras
-   *   10-20 ha → 1 principal + 10 submuestras
-   *   > 20 ha → 2 principales + 8 submuestras c/u
+   * Production v4.1 exact table — ALWAYS 1 principal, progressive subsamples.
+   * Max absolute: 10 subsamples per zone.
    */
   static _densityByZoneArea(zoneAreaHa) {
-    if (zoneAreaHa < 3)  return { mainPoints: 1, subsPerMain: 5 };
-    if (zoneAreaHa < 10) return { mainPoints: 1, subsPerMain: 7 };
-    if (zoneAreaHa < 20) return { mainPoints: 1, subsPerMain: 10 };
-    return { mainPoints: 2, subsPerMain: 8 };
+    let nSub;
+    if (zoneAreaHa < 2)       nSub = 3;
+    else if (zoneAreaHa < 5)  nSub = 4;
+    else if (zoneAreaHa < 8)  nSub = 5;
+    else if (zoneAreaHa < 12) nSub = 6;
+    else if (zoneAreaHa < 18) nSub = 7;
+    else if (zoneAreaHa < 25) nSub = 8;
+    else if (zoneAreaHa < 35) nSub = 9;
+    else                      nSub = 10;
+    return { mainPoints: 1, subsPerMain: nSub };
   }
 
   /**
-   * Adaptive subsample radius based on zone area.
-   * Larger zones need wider subsample spread to represent the ambiente well.
+   * Adaptive internal buffer for subsample placement.
+   * Production v4.1 exact table — ensures points are far enough from edges.
    */
   static _adaptiveRadius(zoneAreaHa) {
-    if (zoneAreaHa < 3)  return 10;  // 10m radius for small zones
-    if (zoneAreaHa < 10) return 15;  // 15m
-    if (zoneAreaHa < 20) return 25;  // 25m
-    if (zoneAreaHa < 50) return 35;  // 35m
-    return 50;                        // 50m for large zones
+    if (zoneAreaHa < 3)  return 15;
+    if (zoneAreaHa < 8)  return 20;
+    if (zoneAreaHa < 15) return 30;
+    if (zoneAreaHa < 30) return 40;
+    if (zoneAreaHa < 50) return 50;
+    return 60;
   }
 
   // ==================== ZIGZAG SUBSAMPLE DISTRIBUTION ====================

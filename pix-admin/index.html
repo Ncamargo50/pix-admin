@@ -939,11 +939,25 @@
             </div>
           </div>
 
+          <!-- CAMPAIGN SELECTOR -->
+          <div class="panel-section" id="mzCampaignSection" style="display:none">
+            <div class="gis-control-group">
+              <label class="form-label" style="font-size:11px;color:var(--text-muted)">CAMPAÑAS MULTI-TEMPORALES</label>
+              <select class="form-input" id="mzCampaignCount" style="font-size:12px">
+                <option value="3">3 campañas (3 años)</option>
+                <option value="4">4 campañas (4 años)</option>
+                <option value="5" selected>5 campañas (5 años)</option>
+                <option value="7">7 campañas (7 años)</option>
+              </select>
+            </div>
+            <div style="font-size:10px;color:var(--text-dim);margin-top:4px" id="mzCampaignInfo">Ranking Percentil Multi-Campaña v4.1 — ventana fenológica por cultivo</div>
+          </div>
+
           <!-- STEP 2: GENERATE ZONES (GEE ENGINE) -->
           <div class="panel-section">
             <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> 2. Generar Zonas de Manejo</div>
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;line-height:1.6">
-              Score Compuesto: indices vegetacion + estabilidad temporal + altimetria + TWI + flujo de agua
+              Score Compuesto: rank medio 40% + estabilidad 20% + seguridad 10% + terreno 30%
             </div>
             <div id="mzGeeConnection" style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
               <div id="mzGeeStatusDot" style="width:8px;height:8px;border-radius:50%;background:#f5a623" title="GEE desconectado"></div>
