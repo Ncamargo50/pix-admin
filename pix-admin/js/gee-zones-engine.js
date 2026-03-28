@@ -329,8 +329,9 @@ class GEEZonesEngine {
       .filterDate(start, now)
       .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20));
 
-    // Apply cloud mask
-    s2 = s2.map(img => this._maskS2clouds(img));
+    // Apply cloud mask — use bound function reference (arrow + this doesn't work in GEE .map)
+    const maskFn = this._maskS2clouds;
+    s2 = s2.map(function(img) { return maskFn(img); });
 
     const count = await s2.size().getInfo();
     if (count < 4) {
@@ -339,16 +340,19 @@ class GEEZonesEngine {
         .filterBounds(geometry)
         .filterDate(start, now)
         .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
-        .map(img => this._maskS2clouds(img));
+        .map(function(img) { return maskFn(img); });
     }
 
     // --- Step 3: Compute crop-specific indices ---
     progress(3, STEPS, `Calculando índices: ${indexNames.join(', ')}...`);
 
-    const withIndices = s2.map(img => {
-      let result = img;
-      for (const idx of indexNames) {
-        result = result.addBands(this._computeIndex(img, idx));
+    // Build index computation function (GEE .map requires serializable functions)
+    const computeIdx = this._computeIndex.bind(this);
+    const idxList = indexNames;
+    const withIndices = s2.map(function(img) {
+      var result = img;
+      for (var i = 0; i < idxList.length; i++) {
+        result = result.addBands(computeIdx(img, idxList[i]));
       }
       return result;
     });
@@ -384,23 +388,39 @@ class GEEZonesEngine {
 
     // TWI with real flow accumulation from MERIT Hydro when available
     const slopeRad = slope.multiply(Math.PI / 180);
-    const meritExists = ee.ImageCollection('MERIT/Hydro/v1_0_1')
-      .filterBounds(geometry).size();
-    const meritFlow = ee.Image('MERIT/Hydro/v1_0_1').select('upa').clip(geometry);
-    const slopeProxy = slope.unitScale(
-      ee.Number(slope.reduceRegion({ reducer: ee.Reducer.min(), geometry, scale: 30 }).get('slope')),
-      ee.Number(slope.reduceRegion({ reducer: ee.Reducer.max(), geometry, scale: 30 }).get('slope'))
-    ).multiply(-1).add(1);
-    const flowAccImg = ee.Image(ee.Algorithms.If(meritExists.gt(0), meritFlow, slopeProxy)).rename('flow');
 
-    // TWI: use real contributing area from MERIT when available, proxy otherwise
-    // Real TWI = ln(contributing_area_m² / tan(slope_rad + eps))
-    const contribArea = ee.Image(ee.Algorithms.If(
-      meritExists.gt(0),
-      meritFlow.multiply(1e6),  // upa is km² → convert to m²
-      ee.Image.constant(scale * scale * 10)  // proxy: 10 pixels upstream
-    ));
-    const twi = contribArea.divide(slopeRad.add(0.001).tan()).log().rename('TWI');
+    // MERIT/Hydro is a single ee.Image (not a collection) — check if 'upa' band has data
+    // by sampling a point. If it fails or returns null, use slope proxy.
+    let flowAccImg, twi;
+    let usedMerit = false;
+    try {
+      const meritImg = ee.Image('MERIT/Hydro/v1_0_1');
+      const meritFlow = meritImg.select('upa').clip(geometry);
+      // Test if MERIT has data in this region (sample center point)
+      const centerPt = geometry.centroid();
+      const testVal = await meritFlow.sample({ region: centerPt, scale: 500, numPixels: 1 }).size().getInfo();
+
+      if (testVal > 0) {
+        // MERIT available — use real flow accumulation
+        flowAccImg = meritFlow.rename('flow');
+        // Real TWI = ln(contributing_area_m² / tan(slope_rad + eps))
+        // upa is upstream area in km² → multiply by 1e6 for m²
+        const contribArea = meritFlow.multiply(1e6);
+        twi = contribArea.divide(slopeRad.add(0.001).tan()).log().rename('TWI');
+        usedMerit = true;
+      }
+    } catch (e) {
+      console.warn('GEEZonesEngine: MERIT Hydro unavailable:', e.message);
+    }
+
+    if (!usedMerit) {
+      // Fallback: slope-based proxy for flow and TWI
+      const slopeMin = ee.Number(slope.reduceRegion({ reducer: ee.Reducer.min(), geometry: geometry, scale: 30, bestEffort: true }).get('slope'));
+      const slopeMax = ee.Number(slope.reduceRegion({ reducer: ee.Reducer.max(), geometry: geometry, scale: 30, bestEffort: true }).get('slope'));
+      flowAccImg = slope.unitScale(slopeMin, slopeMax).multiply(-1).add(1).rename('flow');
+      const pixelContribArea = scale * scale * 10;
+      twi = ee.Image.constant(pixelContribArea).divide(slopeRad.add(0.001).tan()).log().rename('TWI');
+    }
 
     // --- Step 6: Sentinel-1 SAR — RVI radar (cloud-independent) ---
     progress(6, STEPS, 'Integrando Sentinel-1 SAR (RVI radar)...');
@@ -418,9 +438,10 @@ class GEEZonesEngine {
       const s1Count = await s1.size().getInfo();
       if (s1Count >= 3) {
         // RVI = 4 * VH / (VV + VH) — range 0 (bare) to 1 (dense veg)
+        // S1 GRD values are in dB → convert to linear: linear = 10^(dB/10)
         const s1Median = s1.median().clip(geometry);
-        const vv = s1Median.select('VV').pow(10).divide(10);  // dB to linear
-        const vh = s1Median.select('VH').pow(10).divide(10);
+        const vv = ee.Image(10).pow(s1Median.select('VV').divide(10));
+        const vh = ee.Image(10).pow(s1Median.select('VH').divide(10));
         sarRVI = vh.multiply(4).divide(vv.add(vh)).rename('SAR_RVI');
       }
     } catch (e) {
@@ -443,10 +464,23 @@ class GEEZonesEngine {
       downloadStack = downloadStack.addBands(sarRVI);
     }
 
-    // Add individual campaign bands (avoids 4 extra sampleRectangle calls!)
+    // Add individual campaign bands with renamed suffixes
+    // (regexpRename doesn't exist in ee.js API — use rename() with explicit band list)
     for (let i = 0; i < campaigns.length; i++) {
-      const renamed = campaigns[i].select(indexNames).regexpRename('(.*)', `$1_c${i}`);
+      const campBands = campaigns[i].select(indexNames);
+      const newNames = indexNames.map(idx => idx + '_c' + i);
+      const renamed = campBands.rename(newNames);
       downloadStack = downloadStack.addBands(renamed);
+    }
+
+    // Auto-adjust scale to keep sampleRectangle within pixel limits (~262144 px)
+    // Estimate pixel count: area_m² / scale² per band
+    const areaSqM = areaHa * 10000;
+    const estPixels = areaSqM / (scale * scale);
+    if (estPixels > 200000) {
+      // Increase scale to stay within limits
+      scale = Math.ceil(Math.sqrt(areaSqM / 200000));
+      console.log(`GEEZonesEngine: Auto-adjusted scale to ${scale}m to fit sampleRectangle limits`);
     }
 
     // SINGLE download — all data in one call (was 5 calls before!)
