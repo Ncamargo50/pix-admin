@@ -3095,40 +3095,93 @@ class PixAdmin {
       onProgress(2, 5, 'Recibiendo resultados del servidor GEE...');
       const geeResult = await response.json();
 
-      // geeResult contains: zoneGrid, scoreGrid, stats, numZones, scale, campaigns, method
+      // geeResult contains: zonesGeoJSON, samplingPoints, stats, numZones, campaigns, method
       const numZones = geeResult.numZones;
-      const zoneGrid = geeResult.zoneGrid;
 
-      // Store result for sampling and export
+      // Store result
       this._lastMZResult = {
-        zoneGrid: zoneGrid,
-        scoreGrid: geeResult.scoreGrid,
         stats: geeResult.stats,
         numZones: numZones,
         cropKey: cropKey,
-        geojson: null,  // Will be generated on export
+        geojson: geeResult.zonesGeoJSON,
+        samplingPoints: geeResult.samplingPoints,
         metadata: { method: geeResult.method, campaigns: geeResult.campaigns, scale: geeResult.scale }
       };
 
-      onProgress(3, 5, 'Renderizando zonas en mapa...');
+      onProgress(3, 5, 'Renderizando zonas vectoriales en mapa...');
 
-      // Fit map to polygon bounds
+      // Fit map to polygon
       map.fitBounds([
         [polyBounds.minLat, polyBounds.minLng],
         [polyBounds.maxLat, polyBounds.maxLng]
-      ], { padding: [20, 20] });
+      ], { padding: [30, 30] });
 
-      // Render zones on map
+      // === RENDER VECTORIZED ZONE POLYGONS (like production PDF) ===
       this._clearMZOverlays();
-      const renderBounds = map.getBounds();
-      const overlay = ZonesEngine.renderZonesToMap(map, zoneGrid, renderBounds, numZones, {
-        opacity: 0.7,
-        showLabels: true,
-        clipPolygon: this.fieldPolygon
-      });
-      this._mzOverlay = overlay;
+      const zoneColors = ['#CC0000', '#FF8C00', '#FFD700', '#228B22'];
+      const zoneLabels = [];
 
-      onProgress(4, 5, 'Calculando estadísticas...');
+      const zonesLayer = L.geoJSON(geeResult.zonesGeoJSON, {
+        style: (feature) => ({
+          fillColor: feature.properties.color || zoneColors[feature.properties.zona - 1] || '#888',
+          fillOpacity: 0.55,
+          color: '#fff',
+          weight: 2,
+          opacity: 0.8
+        }),
+        onEachFeature: (feature, layer) => {
+          const p = feature.properties;
+          layer.bindTooltip(`Z${p.zona} ${p.clase}<br>${p.area_ha} ha (${p.porcentaje}%)<br>Score: ${p.score_prom}`, {
+            sticky: true, className: 'zone-tooltip'
+          });
+          // Zone label at centroid
+          const center = layer.getBounds().getCenter();
+          const label = L.marker(center, {
+            icon: L.divIcon({
+              className: 'map-zone-label',
+              html: `<span style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 6px rgba(0,0,0,0.8)">Z${p.zona}</span>`,
+              iconSize: [30, 20], iconAnchor: [15, 10]
+            }),
+            interactive: false
+          });
+          zoneLabels.push(label);
+        }
+      }).addTo(map);
+
+      const labelsGroup = L.layerGroup(zoneLabels).addTo(map);
+      this._mzOverlay = { overlay: zonesLayer, labels: labelsGroup };
+
+      // === RENDER SAMPLING POINTS (from backend — real Polo + FPS) ===
+      onProgress(4, 5, 'Renderizando puntos de muestreo...');
+      const prefix = (document.getElementById('mzSamplingPrefix')?.value || 'PIX').toUpperCase().trim();
+      const pointMarkers = [];
+
+      if (geeResult.samplingPoints) {
+        for (const pt of geeResult.samplingPoints) {
+          const isPrincipal = pt.type === 'principal';
+          const ptId = `${prefix}-${pt.id}`;
+          const marker = L.circleMarker([pt.lat, pt.lng], {
+            radius: isPrincipal ? 9 : 5,
+            fillColor: isPrincipal ? '#7fd633' : '#f5a623',
+            fillOpacity: isPrincipal ? 1 : 0.85,
+            color: '#fff',
+            weight: isPrincipal ? 3 : 1.5
+          }).bindTooltip(ptId, { permanent: false, direction: 'top' });
+          pointMarkers.push(marker);
+        }
+      }
+      this._mzSamplingLayer = L.layerGroup(pointMarkers).addTo(map);
+
+      // Store sampling result for export
+      const mainPts = (geeResult.samplingPoints || []).filter(p => p.type === 'principal');
+      const subPts = (geeResult.samplingPoints || []).filter(p => p.type === 'submuestra');
+      this._lastSamplingResult = {
+        points: mainPts.map(p => ({ ...p, id: `${prefix}-${p.id}` })),
+        compositePoints: subPts.map(p => ({ ...p, id: `${prefix}-${p.id}` }))
+      };
+
+      // Render sampling report
+      this._renderMZSamplingReport(this._lastSamplingResult);
 
       // Update results panel
       this._renderMZStats(geeResult.stats, numZones);
@@ -3145,11 +3198,11 @@ class PixAdmin {
       if (statusEl) {
         statusEl.style.display = '';
         statusIcon.textContent = '✅';
-        statusText.innerHTML = `<span style="color:var(--teal)">GEE REAL v4.1</span> — ${geeResult.campaigns} campañas, ${geeResult.gridSize[0]}x${geeResult.gridSize[1]} grid`;
+        statusText.innerHTML = `<span style="color:var(--teal)">GEE REAL v4.1</span> — ${geeResult.campaigns} campañas, método: ${geeResult.method}`;
       }
 
       onProgress(5, 5, 'Completo.');
-      this.toast(`${numZones} zonas generadas — Caña de Azúcar (GEE REAL v4.1, ${geeResult.campaigns} campañas)`);
+      this.toast(`${numZones} zonas generadas — Caña (GEE REAL, ${geeResult.campaigns} campañas, ${mainPts.length}P + ${subPts.length}S)`);
 
     } catch (e) {
       console.error('GEE Zones error:', e);

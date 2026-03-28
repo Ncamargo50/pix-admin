@@ -269,17 +269,179 @@ def process_field(polygon_coords, area_ha, num_campaigns=5):
     for s in stats:
         print(f'  Z{s["zona"]} {s["clase"]}: {s["area_ha"]}ha ({s["porcentaje"]}%)')
 
-    # Convert to JSON-serializable
+    # === VECTORIZE ZONES AS GEOJSON (organic polygons like production PDF) ===
+    print('Vectorizing zones to GeoJSON polygons...')
+    import rasterio.features
+    from shapely.geometry import shape, mapping
+    from shapely.ops import unary_union
+    from shapely.validation import make_valid
+
+    # Build affine transform from polygon bounds
+    lats = [c[1] for c in polygon_coords]
+    lngs = [c[0] for c in polygon_coords]
+    min_lat, max_lat = min(lats), max(lats)
+    min_lng, max_lng = min(lngs), max(lngs)
+    pixel_w = (max_lng - min_lng) / cols
+    pixel_h = (max_lat - min_lat) / rows
+    from rasterio.transform import from_bounds
+    transform = from_bounds(min_lng, min_lat, max_lng, max_lat, cols, rows)
+
+    # Create field polygon for clipping
+    from shapely.geometry import Polygon as ShapelyPolygon
+    field_poly = ShapelyPolygon(polygon_coords)
+    if not field_poly.is_valid:
+        field_poly = make_valid(field_poly)
+
+    zone_colors = ['#CC0000', '#FF8C00', '#FFD700', '#228B22']
+    geojson_features = []
+    sampling_points = []
+
+    for z in range(1, num_zones + 1):
+        zone_mask = (zones == z).astype(np.int16)
+        if zone_mask.sum() == 0:
+            continue
+
+        # Vectorize zone raster to polygons
+        shapes_gen = rasterio.features.shapes(zone_mask, mask=zone_mask > 0, transform=transform)
+        polys = []
+        for geom, val in shapes_gen:
+            if val > 0:
+                poly = shape(geom)
+                if poly.is_valid:
+                    polys.append(poly)
+
+        if not polys:
+            continue
+
+        # Merge all polygons for this zone
+        merged = unary_union(polys)
+        if not merged.is_valid:
+            merged = make_valid(merged)
+
+        # Smooth edges: buffer +20m then -20m (production v4.1)
+        buf_deg = 20 / 111320  # ~20m in degrees
+        smoothed = merged.buffer(buf_deg).buffer(-buf_deg)
+        if smoothed.is_empty:
+            smoothed = merged
+
+        # Simplify (5m tolerance)
+        simp_deg = 5 / 111320
+        smoothed = smoothed.simplify(simp_deg, preserve_topology=True)
+
+        # Clip to field boundary
+        clipped = smoothed.intersection(field_poly)
+        if clipped.is_empty:
+            clipped = merged.intersection(field_poly)
+
+        # Add to GeoJSON
+        geojson_features.append({
+            'type': 'Feature',
+            'properties': {
+                'zona': z,
+                'clase': labels[z - 1],
+                'color': zone_colors[z - 1] if z <= len(zone_colors) else '#888',
+                'area_ha': stats[z - 1]['area_ha'],
+                'porcentaje': stats[z - 1]['porcentaje'],
+                'score_prom': stats[z - 1]['score_prom'],
+            },
+            'geometry': mapping(clipped)
+        })
+
+        # === SAMPLING POINTS (Polo de Inaccesibilidad + FPS) ===
+        from shapely.ops import polylabel
+        try:
+            main_pt = polylabel(clipped, tolerance=10 / 111320)
+        except:
+            main_pt = clipped.representative_point()
+
+        z_area = stats[z - 1]['area_ha']
+        # Subsample count (production v4.1 table)
+        if z_area < 2: n_sub = 3
+        elif z_area < 5: n_sub = 4
+        elif z_area < 8: n_sub = 5
+        elif z_area < 12: n_sub = 6
+        elif z_area < 18: n_sub = 7
+        elif z_area < 25: n_sub = 8
+        elif z_area < 35: n_sub = 9
+        else: n_sub = 10
+
+        prefix = 'PIX'  # Will be overridden by frontend
+        sampling_points.append({
+            'id': f'Z{z}-P1', 'type': 'principal', 'zona': z,
+            'lat': main_pt.y, 'lng': main_pt.x
+        })
+
+        # FPS subsamples
+        try:
+            # Buffer interior
+            if z_area < 3: buf_int = 15
+            elif z_area < 8: buf_int = 20
+            elif z_area < 15: buf_int = 30
+            elif z_area < 30: buf_int = 40
+            elif z_area < 50: buf_int = 50
+            else: buf_int = 60
+            interior = clipped.buffer(-buf_int / 111320)
+            if interior.is_empty or interior.area < 1e-10:
+                interior = clipped
+
+            # Generate random candidates
+            import random
+            random.seed(42 + z)
+            bounds_z = interior.bounds
+            candidates = []
+            for _ in range(300):
+                px = random.uniform(bounds_z[0], bounds_z[2])
+                py = random.uniform(bounds_z[1], bounds_z[3])
+                from shapely.geometry import Point
+                if interior.contains(Point(px, py)):
+                    candidates.append((px, py))
+
+            # FPS: select n_sub points maximizing min distance
+            selected = []
+            if candidates:
+                # Start with farthest from main point
+                dists = [((c[0]-main_pt.x)**2 + (c[1]-main_pt.y)**2)**0.5 for c in candidates]
+                first = candidates[dists.index(max(dists))]
+                selected.append(first)
+                used = {dists.index(max(dists))}
+
+                while len(selected) < n_sub and len(selected) < len(candidates):
+                    best_idx, best_min = -1, -1
+                    for i, c in enumerate(candidates):
+                        if i in used:
+                            continue
+                        min_d = min(((c[0]-s[0])**2 + (c[1]-s[1])**2)**0.5 for s in selected)
+                        if min_d > best_min:
+                            best_min = min_d
+                            best_idx = i
+                    if best_idx < 0:
+                        break
+                    selected.append(candidates[best_idx])
+                    used.add(best_idx)
+
+            for si, sp in enumerate(selected):
+                sampling_points.append({
+                    'id': f'Z{z}-S{si+1}', 'type': 'submuestra', 'zona': z,
+                    'lat': sp[1], 'lng': sp[0]
+                })
+        except Exception as e:
+            print(f'  Warning: FPS failed for Z{z}: {e}')
+
+    zones_geojson = {
+        'type': 'FeatureCollection',
+        'features': geojson_features
+    }
+
+    print(f'Vectorized: {len(geojson_features)} zone polygons, {len(sampling_points)} sampling points')
+
     return {
-        'zoneGrid': zones.tolist(),
-        'scoreGrid': score_smooth.tolist(),
+        'zonesGeoJSON': zones_geojson,
+        'samplingPoints': sampling_points,
         'stats': stats,
         'numZones': num_zones,
         'gridSize': [rows, cols],
         'scale': scale,
         'campaigns': len(campanas),
-        'mask': mask.tolist(),
-        'demGrid': dem_arr.tolist(),
         'method': 'REAL_GEE_v4.1'
     }
 
