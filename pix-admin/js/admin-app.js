@@ -3295,17 +3295,19 @@ class PixAdmin {
 
   _renderMZStats(stats, numZones) {
     if (!stats) return;
-    const zoneColors = InterpolationEngine.PALETTES.zones;
+    // Production palette: #CC0000 (Baja), #FF8C00 (Media-Baja), #FFD700 (Media-Alta), #228B22 (Alta)
+    const prodColors = ['#CC0000', '#FF8C00', '#FFD700', '#228B22'];
     const html = stats.map((s, i) => {
-      const color = zoneColors[i] ? `rgb(${zoneColors[i].join(',')})` : 'var(--teal)';
-      const potential = s.potential || (i < numZones / 3 ? 'Bajo' : i >= numZones * 2 / 3 ? 'Alto' : 'Medio');
-      const potClass = potential.toLowerCase();
+      const color = prodColors[i] || 'var(--teal)';
+      const area = s.area_ha || s.areaHa || 0;
+      const pct = s.porcentaje || s.pct || 0;
+      const clase = s.clase || s.label || '';
+      const score = s.score_prom || s.mean || 0;
       return `<div class="zone-stat-card" style="border-left-color:${color}">
-        <div class="zone-label" style="color:${color}">Zona ${i + 1}</div>
-        <div class="zone-area">${s.areaHa ? s.areaHa.toFixed(1) + ' ha' : s.count + ' px'}</div>
-        <div class="zone-mean">${s.mean?.toFixed(1) || '—'}</div>
-        <div class="zone-cv">CV: ${s.cv?.toFixed(0) || '—'}%</div>
-        <div class="zone-potential zone-potential-${potClass}">${potential}</div>
+        <div class="zone-label" style="color:${color}">Zona ${s.zona || i + 1}</div>
+        <div class="zone-area">${area.toFixed(1)} ha <span style="color:var(--text-dim);font-size:10px">(${pct.toFixed(0)}%)</span></div>
+        <div class="zone-mean">Score: ${score.toFixed(2)}</div>
+        <div class="zone-potential" style="color:${color};font-weight:700">${clase}</div>
       </div>`;
     }).join('');
     document.getElementById('mzZoneStats').innerHTML = html;
