@@ -232,20 +232,29 @@ def process_field(polygon_coords, area_ha, num_campaigns=5):
         PESOS_SCORE['dist_drenaje'] * dist_drain_n
     )
 
-    # Gaussian smoothing (production sigma=10)
-    score_smooth = gaussian_filter(score, sigma=3)
-    score_smooth[~mask] = 0
+    # Interpolate to higher resolution before smoothing (production uses 2m)
+    # Upsample the score grid by 3x for smoother zone boundaries
+    from scipy.ndimage import zoom as ndizoom
+    score_upsampled = ndizoom(score, 3, order=1)  # bilinear 3x upscale
+    mask_upsampled = ndizoom(mask.astype(float), 3, order=0) > 0.5
+
+    # Gaussian smoothing (production sigma=10 at 2m ≈ sigma=5 pixels at 10m × 3x = sigma=15)
+    score_smooth = gaussian_filter(score_upsampled, sigma=8)
+    score_smooth[~mask_upsampled] = 0
+
+    # Update rows/cols for upsampled grid
+    rows_up, cols_up = score_smooth.shape
 
     # Zone classification by percentiles
     num_zones = 3 if area_ha <= 33 else 4
-    valid_scores = score_smooth[mask]
+    valid_scores = score_smooth[mask_upsampled]
     if num_zones == 3:
         cuts = np.percentile(valid_scores, [33.33, 66.67])
     else:
         cuts = np.percentile(valid_scores, [25, 50, 75])
 
     zones = np.zeros_like(score_smooth, dtype=int)
-    zones[mask] = np.digitize(score_smooth[mask], cuts) + 1
+    zones[mask_upsampled] = np.digitize(score_smooth[mask_upsampled], cuts) + 1
 
     # Zone statistics
     zone_labels = {3: ['Baja', 'Media', 'Alta'], 4: ['Baja', 'Media-Baja', 'Media-Alta', 'Alta']}
@@ -254,15 +263,15 @@ def process_field(polygon_coords, area_ha, num_campaigns=5):
     for z in range(1, num_zones + 1):
         zmask = zones == z
         zcount = zmask.sum()
-        z_area = (zcount / mask.sum()) * area_ha if mask.sum() > 0 else 0
-        z_pct = (zcount / mask.sum()) * 100 if mask.sum() > 0 else 0
+        z_area = (zcount / mask_upsampled.sum()) * area_ha if mask_upsampled.sum() > 0 else 0
+        z_pct = (zcount / mask_upsampled.sum()) * 100 if mask_upsampled.sum() > 0 else 0
         stats.append({
             'zona': z,
             'clase': labels[z - 1],
             'area_ha': round(z_area, 1),
             'porcentaje': round(z_pct, 1),
             'score_prom': round(float(np.nanmean(score_smooth[zmask])), 3) if zcount > 0 else 0,
-            'ndvi_prom': round(float(np.nanmean(rank_medio[zmask])), 3) if zcount > 0 else 0,
+            'ndvi_prom': round(float(np.nanmean(score_smooth[zmask]) * 100), 1) if zcount > 0 else 0,
         })
 
     print(f'Result: {num_zones} zones')
@@ -281,10 +290,10 @@ def process_field(polygon_coords, area_ha, num_campaigns=5):
     lngs = [c[0] for c in polygon_coords]
     min_lat, max_lat = min(lats), max(lats)
     min_lng, max_lng = min(lngs), max(lngs)
-    pixel_w = (max_lng - min_lng) / cols
-    pixel_h = (max_lat - min_lat) / rows
+    pixel_w = (max_lng - min_lng) / cols_up
+    pixel_h = (max_lat - min_lat) / rows_up
     from rasterio.transform import from_bounds
-    transform = from_bounds(min_lng, min_lat, max_lng, max_lat, cols, rows)
+    transform = from_bounds(min_lng, min_lat, max_lng, max_lat, cols_up, rows_up)
 
     # Create field polygon for clipping
     from shapely.geometry import Polygon as ShapelyPolygon
@@ -297,7 +306,7 @@ def process_field(polygon_coords, area_ha, num_campaigns=5):
     sampling_points = []
 
     for z in range(1, num_zones + 1):
-        zone_mask = (zones == z).astype(np.int16)
+        zone_mask = (zones == z).astype(np.uint8)
         if zone_mask.sum() == 0:
             continue
 
@@ -318,8 +327,8 @@ def process_field(polygon_coords, area_ha, num_campaigns=5):
         if not merged.is_valid:
             merged = make_valid(merged)
 
-        # Smooth edges: buffer +20m then -20m (production v4.1)
-        buf_deg = 20 / 111320  # ~20m in degrees
+        # Smooth edges: buffer +30m then -30m (production v4.1 uses 20m but we need more for GEE grid)
+        buf_deg = 30 / 111320  # ~30m in degrees
         smoothed = merged.buffer(buf_deg).buffer(-buf_deg)
         if smoothed.is_empty:
             smoothed = merged
@@ -439,7 +448,7 @@ def process_field(polygon_coords, area_ha, num_campaigns=5):
         'samplingPoints': sampling_points,
         'stats': stats,
         'numZones': num_zones,
-        'gridSize': [rows, cols],
+        'gridSize': [rows_up, cols_up],
         'scale': scale,
         'campaigns': len(campanas),
         'method': 'REAL_GEE_v4.1'

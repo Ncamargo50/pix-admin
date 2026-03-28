@@ -3157,17 +3157,60 @@ class PixAdmin {
       const pointMarkers = [];
 
       if (geeResult.samplingPoints) {
+        // Group points by zone for connecting lines
+        const byZone = {};
+        for (const pt of geeResult.samplingPoints) {
+          if (!byZone[pt.zona]) byZone[pt.zona] = { principal: null, subs: [] };
+          if (pt.type === 'principal') byZone[pt.zona].principal = pt;
+          else byZone[pt.zona].subs.push(pt);
+        }
+
+        // Draw connection lines (principal → subsamples) like production PDF
+        for (const [z, data] of Object.entries(byZone)) {
+          if (data.principal && data.subs.length > 0) {
+            for (const sub of data.subs) {
+              const line = L.polyline(
+                [[data.principal.lat, data.principal.lng], [sub.lat, sub.lng]],
+                { color: '#fff', weight: 1, opacity: 0.5, dashArray: '4,4' }
+              );
+              pointMarkers.push(line);
+            }
+          }
+        }
+
+        // Render points with permanent labels (like production PDF)
         for (const pt of geeResult.samplingPoints) {
           const isPrincipal = pt.type === 'principal';
           const ptId = `${prefix}-${pt.id}`;
+
+          // Circle marker
           const marker = L.circleMarker([pt.lat, pt.lng], {
-            radius: isPrincipal ? 9 : 5,
+            radius: isPrincipal ? 10 : 6,
             fillColor: isPrincipal ? '#7fd633' : '#f5a623',
-            fillOpacity: isPrincipal ? 1 : 0.85,
+            fillOpacity: isPrincipal ? 1 : 0.9,
             color: '#fff',
-            weight: isPrincipal ? 3 : 1.5
-          }).bindTooltip(ptId, { permanent: false, direction: 'top' });
+            weight: isPrincipal ? 3 : 2
+          });
           pointMarkers.push(marker);
+
+          // Permanent label with nomenclature (like PDF)
+          const labelIcon = L.divIcon({
+            className: 'sampling-label',
+            html: `<span style="
+              font-size:${isPrincipal ? '11' : '9'}px;
+              font-weight:${isPrincipal ? '800' : '600'};
+              color:${isPrincipal ? '#7fd633' : '#f5a623'};
+              background:rgba(15,27,45,0.85);
+              padding:1px 4px;
+              border-radius:3px;
+              white-space:nowrap;
+              border:1px solid ${isPrincipal ? '#7fd633' : '#f5a623'};
+            ">${ptId}</span>`,
+            iconSize: [0, 0],
+            iconAnchor: isPrincipal ? [-12, 5] : [-8, 3]
+          });
+          const label = L.marker([pt.lat, pt.lng], { icon: labelIcon, interactive: false });
+          pointMarkers.push(label);
         }
       }
       this._mzSamplingLayer = L.layerGroup(pointMarkers).addTo(map);
