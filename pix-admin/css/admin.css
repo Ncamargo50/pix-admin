@@ -606,6 +606,21 @@ select.form-input { cursor:pointer; }
 .wizard-content { display:none; }
 .wizard-content.active { display:block; }
 
+/* ===== GEE Zones Engine — Crop Selector & Progress ===== */
+.crop-category-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:8px; }
+.crop-card { display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px; background:var(--dark-4); border:2px solid transparent; border-radius:8px; cursor:pointer; transition:all .2s; text-align:center; }
+.crop-card:hover { border-color:var(--border); background:var(--dark-3); }
+.crop-card.selected { border-color:var(--teal); background:rgba(127,214,51,0.08); }
+.crop-card .crop-icon { font-size:26px; line-height:1; }
+.crop-card .crop-name { font-size:11px; font-weight:700; color:var(--text-light); line-height:1.2; }
+.crop-card.selected .crop-name { color:var(--teal); }
+.mz-index-info { font-size:11px; color:var(--text-muted); padding:8px 10px; background:var(--dark); border-radius:6px; line-height:1.7; margin-top:4px; }
+.mz-index-info .idx-tag { display:inline-block; padding:1px 6px; background:rgba(127,214,51,0.12); color:var(--teal); border-radius:4px; font-size:10px; font-weight:600; margin:1px 2px; }
+.mz-index-info .terr-tag { display:inline-block; padding:1px 6px; background:rgba(100,160,255,0.12); color:#7ab8ff; border-radius:4px; font-size:10px; font-weight:600; margin:1px 2px; }
+.mz-progress-container { width:100%; height:6px; background:var(--dark-4); border-radius:3px; overflow:hidden; margin-bottom:4px; }
+.mz-progress-bar { height:100%; background:linear-gradient(90deg, var(--teal), #4ecdc4); border-radius:3px; transition:width 0.4s ease; }
+.mz-lot-info { border-left:3px solid var(--teal); }
+
 /* Campaign timeline (temporal stability v3) */
 .campaign-timeline { display:flex; flex-direction:column; gap:6px; }
 .campaign-item { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--dark-4); border-radius:8px; font-size:12px; }

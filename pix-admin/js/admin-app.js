@@ -276,8 +276,9 @@ class PixAdmin {
     if (viewName === 'relation-maps' && !this.maps.relation) {
       setTimeout(() => this.initRelationMap(), 100);
     }
-    if (viewName === 'management-zones' && !this.maps.mz) {
-      setTimeout(() => this.initMZMap(), 100);
+    if (viewName === 'management-zones') {
+      if (!this.maps.mz) setTimeout(() => this.initMZMap(), 100);
+      setTimeout(() => { this.buildMZCropSelector(); this._updateMZLotInfo(); }, 150);
     }
     if (viewName === 'sampling-points' && !this.maps.sampling) {
       setTimeout(() => this.initSamplingMap(), 100);
@@ -2951,233 +2952,325 @@ class PixAdmin {
     this.toast('Configuración restablecida');
   }
 
-  // ===== MANAGEMENT ZONES v3 WIZARD =====
+  // ===== MANAGEMENT ZONES — GEE ENGINE =====
 
-  mzWizardStep(step) {
-    document.querySelectorAll('.wizard-step').forEach((s, i) => {
-      s.classList.toggle('active', i === step - 1);
-      if (i < step - 1) s.classList.add('done');
-      else s.classList.remove('done');
-    });
-    document.querySelectorAll('.wizard-content').forEach((c, i) => {
-      c.classList.toggle('active', i === step - 1);
-    });
-    // Update config summary on step 5
-    if (step === 5) this._updateMZSummary();
+  /** Build crop type selector cards from GEEZonesEngine config */
+  buildMZCropSelector() {
+    const container = document.getElementById('mzCropCategories');
+    if (!container) return;
+    const configs = typeof GEEZonesEngine !== 'undefined' ? GEEZonesEngine.CROP_INDEX_CONFIGS : {
+      cana:       { label: 'Caña de Azúcar', icon: '🌾' },
+      soja:       { label: 'Soja', icon: '🌱' },
+      maiz_sorgo: { label: 'Maíz / Sorgo', icon: '🌽' },
+      girasol:    { label: 'Girasol / Chía', icon: '🌻' },
+      horticolas: { label: 'Tomate / Papa', icon: '🍅' },
+      perennes:   { label: 'Frutales', icon: '🥑' }
+    };
+    container.innerHTML = Object.entries(configs).map(([key, cfg]) =>
+      `<div class="crop-card" data-crop="${key}" onclick="admin.selectMZCrop('${key}')">
+        <span class="crop-icon">${cfg.icon}</span>
+        <span class="crop-name">${cfg.label}</span>
+      </div>`
+    ).join('');
   }
 
-  _updateMZSummary() {
-    const layers = [];
-    document.querySelectorAll('#mzLayerChecks input:checked').forEach(cb => layers.push(cb.value));
-    const numZones = document.getElementById('mzNumZones').value;
-    const method = document.getElementById('mzMethod').value;
-    const resolution = document.getElementById('mzResolution')?.value || '80';
-    const useTemporal = document.getElementById('mzUseTemporalLayer')?.checked;
-    const useTWI = document.getElementById('mzUseTWI')?.checked;
-    const cropEl = document.getElementById('mzCropProfile');
-    const crop = cropEl ? cropEl.value : 'auto';
+  /** Handle crop card selection */
+  selectMZCrop(cropKey) {
+    this._mzSelectedCrop = cropKey;
+    // Update UI selection
+    document.querySelectorAll('.crop-card').forEach(c => c.classList.toggle('selected', c.dataset.crop === cropKey));
 
-    let html = `<strong>Variables:</strong> ${layers.join(', ') || 'Ninguna'}<br>`;
-    html += `<strong>Cultivo:</strong> ${crop === 'auto' ? this.cropId : crop}<br>`;
-    html += `<strong>Zonas:</strong> ${numZones} | <strong>Método:</strong> ${method.toUpperCase()} | <strong>Res:</strong> ${resolution}<br>`;
-    html += `<strong>Temporal:</strong> ${useTemporal ? 'Sí' : 'No'} | <strong>TWI:</strong> ${useTWI ? 'Sí' : 'No'}`;
-    document.getElementById('mzConfigSummary').innerHTML = html;
-  }
-
-  updateMZCropProfile() {
-    const cropId = document.getElementById('mzCropProfile').value;
-    const effectiveCrop = cropId === 'auto' ? this.cropId : cropId;
-    const profile = typeof ZonesEngine !== 'undefined' ? ZonesEngine.CROP_PROFILES[effectiveCrop] : null;
-    const stageSelect = document.getElementById('mzPhenStage');
-    if (profile && stageSelect) {
-      stageSelect.innerHTML = Object.keys(profile).map(s =>
-        `<option value="${s}">${s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ')}</option>`
-      ).join('');
-      this._updateMZCropIndices();
+    // Show index breakdown
+    const infoEl = document.getElementById('mzIndexInfo');
+    if (infoEl && typeof GEEZonesEngine !== 'undefined') {
+      const breakdown = GEEZonesEngine.getWeightBreakdown(cropKey);
+      const vegTags = breakdown.filter(b => b.source === 'vegetation').map(b =>
+        `<span class="idx-tag">${b.name} ${b.weight}%</span>`).join(' ');
+      const terrTags = breakdown.filter(b => b.source === 'terrain').map(b =>
+        `<span class="terr-tag">${b.name} ${b.weight}%</span>`).join(' ');
+      infoEl.innerHTML = `<div style="margin-bottom:4px"><strong style="color:var(--teal);font-size:10px">VEGETACION:</strong> ${vegTags}</div>`
+        + `<div><strong style="color:#7ab8ff;font-size:10px">TERRENO:</strong> ${terrTags}</div>`;
+      infoEl.style.display = '';
     }
+
+    // Enable generate button if lot is loaded
+    const btn = document.getElementById('mzGenerateBtn');
+    if (btn) btn.disabled = !this.fieldPolygon;
   }
 
-  _updateMZCropIndices() {
-    const cropId = document.getElementById('mzCropProfile').value;
-    const effectiveCrop = cropId === 'auto' ? this.cropId : cropId;
-    const stage = document.getElementById('mzPhenStage')?.value;
-    const profile = typeof ZonesEngine !== 'undefined' ? ZonesEngine.CROP_PROFILES[effectiveCrop] : null;
-    const indices = profile?.[stage] || ['NDVI', 'EVI'];
-    const el = document.getElementById('mzCropIndices');
-    if (el) el.innerHTML = `Índices recomendados: <strong style="color:var(--teal)">${indices.join(', ')}</strong>`;
-  }
-
-  addMZCampaign() {
-    const timeline = document.getElementById('mzCampaigns');
-    if (!timeline) return;
-    const year = 2026 - timeline.children.length;
-    const item = document.createElement('div');
-    item.className = 'campaign-item';
-    item.innerHTML = `<span class="campaign-year">${year > 2020 ? year : 2020}</span><span class="campaign-index">NDVI — Sin datos</span><span class="campaign-status pending"></span>`;
-    timeline.appendChild(item);
-  }
-
-  importCampaignRaster() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.tif,.tiff,.geotiff,.json,.geojson';
-    input.onchange = () => this.toast('Raster de campaña importado (demo)');
-    input.click();
-  }
-
-  loadDemoCampaigns() {
-    // Simulate 3 campaigns loaded
-    const items = document.querySelectorAll('#mzCampaigns .campaign-item');
-    const campaigns = ['2024', '2025', '2026'];
-    items.forEach((item, i) => {
-      if (i < campaigns.length) {
-        item.querySelector('.campaign-year').textContent = campaigns[i];
-        item.querySelector('.campaign-index').textContent = 'NDVI — Demo cargado';
-        item.querySelector('.campaign-status').className = 'campaign-status loaded';
-      }
-    });
-    this._demoCampaignsLoaded = true;
-    this.toast('3 campañas demo cargadas (2024-2026)');
-  }
-
-  importDEM() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.tif,.tiff,.asc,.json';
-    input.onchange = () => this.toast('MDE importado (demo)');
-    input.click();
-  }
-
-  loadDemoDEM() {
-    // Simulate DEM loaded with elevation data
-    this._demLoaded = true;
-    const panel = document.getElementById('mzDEMPanel');
-    if (panel) panel.style.display = '';
-    document.getElementById('demMinElev').textContent = '185';
-    document.getElementById('demMaxElev').textContent = '212';
-    document.getElementById('demDelta').textContent = '27m';
-    this.toast('MDE demo cargado (ALOS 30m)');
-  }
-
-  generateManagementZonesV3() {
-    if (!this.fieldPolygon || this.samples.length === 0) {
-      this.toast('Cargá perímetro y muestras primero', 'warning');
+  /** Update lot info panel from cadastre state */
+  _updateMZLotInfo() {
+    const el = document.getElementById('mzLotDetails');
+    if (!el) return;
+    if (!this.fieldPolygon) {
+      el.innerHTML = '<div style="color:var(--text-muted);font-style:italic">Sin lote cargado. Importe un lote desde el Cadastro de Clientes.</div>';
+      const btn = document.getElementById('mzGenerateBtn');
+      if (btn) btn.disabled = true;
       return;
     }
+    const c = this.clientData || {};
+    const area = this.fieldAreaHa || this._fieldAreaHa || 0;
+    const vertices = this.fieldPolygon ? this.fieldPolygon.length : 0;
+    el.innerHTML = `
+      <div><strong>Cliente:</strong> ${c.nombre || c.name || '—'}</div>
+      <div><strong>Propiedad:</strong> ${c.propiedad || c.property || '—'}</div>
+      <div><strong>Lote:</strong> ${c.lote || c.lot || '—'}</div>
+      <div><strong>Area:</strong> ${area.toFixed(1)} ha | <strong>Vertices:</strong> ${vertices}</div>`;
+    // Enable generate if crop is also selected
+    const btn = document.getElementById('mzGenerateBtn');
+    if (btn) btn.disabled = !this._mzSelectedCrop;
+  }
 
-    // Gather config from wizard
-    const layers = [];
-    document.querySelectorAll('#mzLayerChecks input:checked').forEach(cb => layers.push(cb.value));
-    const numZones = parseInt(document.getElementById('mzNumZones').value) || 3;
-    const method = document.getElementById('mzMethod').value;
-    const resolution = parseInt(document.getElementById('mzResolution')?.value) || 80;
-    const cropId = document.getElementById('mzCropProfile')?.value;
-    const effectiveCrop = cropId === 'auto' ? this.cropId : cropId;
-
-    // Gather weights
-    const weights = {};
-    document.querySelectorAll('#mzWeights input[type="range"]').forEach(s => {
-      weights[s.dataset.var] = parseInt(s.value) / 100;
-    });
-
-    if (layers.length === 0) {
-      this.toast('Seleccioná al menos una variable', 'warning');
+  /** Main async generation method — GEE Engine */
+  async generateZonesGEE() {
+    if (!this.fieldPolygon) {
+      this.toast('Cargá un lote primero desde Cadastro', 'warning');
       return;
     }
-
-    // Check for ZonesEngine availability
-    if (typeof ZonesEngine === 'undefined') {
-      // Fallback: use existing InterpolationEngine for basic zone generation
-      this._generateBasicZones(layers[0], numZones, method, resolution);
+    if (!this._mzSelectedCrop) {
+      this.toast('Seleccioná un tipo de cultivo', 'warning');
       return;
     }
 
     const map = this.maps.mz;
+    if (!map) return;
     const bounds = map.getBounds();
+    const areaHa = this.fieldAreaHa || this._fieldAreaHa || 50;
+    const cropKey = this._mzSelectedCrop;
 
-    const config = {
-      samples: this.samples,
-      boundary: this.fieldPolygon,
-      bounds: bounds,
-      variables: layers,
-      cropId: effectiveCrop,
-      numZones: numZones,
-      method: method,
-      resolution: resolution,
-      weights: weights
+    // UI: show progress
+    const btn = document.getElementById('mzGenerateBtn');
+    const progressContainer = document.getElementById('mzProgressContainer');
+    const progressBar = document.getElementById('mzProgressBar');
+    const progressText = document.getElementById('mzProgressText');
+    btn.disabled = true;
+    btn.textContent = 'Procesando...';
+    progressContainer.style.display = '';
+    progressText.style.display = '';
+    document.getElementById('mzResults').style.display = 'none';
+
+    const onProgress = (step, total, message) => {
+      const pct = Math.round((step / total) * 100);
+      progressBar.style.width = pct + '%';
+      progressText.textContent = `${pct}% — ${message}`;
     };
 
-    // Add temporal stability if enabled
-    if (document.getElementById('mzUseTemporalLayer')?.checked && this._demoCampaignsLoaded) {
-      config.campaignData = 'demo'; // ZonesEngine will generate demo data
-      config.temporalWeight = parseInt(document.getElementById('mzTemporalWeight')?.value || '60') / 100;
-    }
-
-    // Add DEM/TWI if enabled
-    if (document.getElementById('mzUseTWI')?.checked && this._demLoaded) {
-      config.demData = 'demo'; // ZonesEngine will generate demo DEM
-      config.twiWeight = parseInt(document.getElementById('mzTWIWeight')?.value || '40') / 100;
-    }
-
     try {
-      const result = ZonesEngine.generateManagementZones(config);
-      this._lastMZResult = result;
+      let geeResult;
+      let isDemo = false;
 
-      // Render zones on map
+      // Try GEE first, fallback to demo
+      if (typeof GEEZonesEngine !== 'undefined' && GEEZonesEngine._eeReady) {
+        onProgress(1, 8, 'Conectando con Google Earth Engine...');
+        geeResult = await GEEZonesEngine.processField(this.fieldPolygon, cropKey, areaHa, onProgress);
+      } else {
+        // Demo/fallback mode
+        isDemo = true;
+        onProgress(1, 4, 'Modo Demo — generando datos simulados...');
+        const b = {
+          minLat: bounds.getSouth(), maxLat: bounds.getNorth(),
+          minLng: bounds.getWest(), maxLng: bounds.getEast()
+        };
+        // Convert polygon format for ZonesEngine (expects [[lat,lng]])
+        const boundary = this.fieldPolygon.map(c => [c[1], c[0]]);
+        geeResult = GEEZonesEngine.processFieldDemo(b, boundary, areaHa, cropKey);
+        onProgress(2, 4, 'Calculando Score Compuesto...');
+      }
+
+      // Determine zone count by area
+      const numZones = ZonesEngine._zoneCountByArea(areaHa);
+
+      onProgress(isDemo ? 3 : 7, isDemo ? 4 : 8, 'Clasificando zonas por percentiles...');
+
+      // Build config for ZonesEngine
+      const zonesConfig = {
+        satelliteData: geeResult.satelliteData,
+        bounds: {
+          minLat: bounds.getSouth(), maxLat: bounds.getNorth(),
+          minLng: bounds.getWest(), maxLng: bounds.getEast()
+        },
+        boundary: this.fieldPolygon.map(c => [c[1], c[0]]),
+        areaHa: areaHa,
+        numZones: numZones,
+        weights: geeResult.compositeWeights,
+        minZoneAreaHa: 0.3
+      };
+
+      const result = ZonesEngine.generateFromSatellite(zonesConfig);
+      this._lastMZResult = result;
+      this._lastMZResult.numZones = numZones;
+      this._lastMZResult.cropKey = cropKey;
+
+      onProgress(isDemo ? 4 : 8, isDemo ? 4 : 8, 'Renderizando zonas en mapa...');
+
+      // Render on map
       this._clearMZOverlays();
-      ZonesEngine.renderZonesToMap(map, result.zoneGrid, bounds, numZones, {
+      const overlay = ZonesEngine.renderZonesToMap(map, result.zoneGrid, bounds, numZones, {
         opacity: 0.7,
         showLabels: true,
         clipPolygon: this.fieldPolygon
       });
+      this._mzOverlay = overlay;
 
-      // Show flow lines if DEM is present
-      if (result.flowLines && document.getElementById('mzShowFlowLines')?.checked) {
-        this._renderFlowLines(map, result.flowLines);
+      // Show flow lines if available
+      if (result.derivedLayers?.flowLines) {
+        this._renderFlowLines(map, result.derivedLayers.flowLines);
       }
 
       // Update results panel
       this._renderMZStats(result.stats, numZones);
       document.getElementById('mzResults').style.display = '';
-      this.toast(`${numZones} zonas de manejo generadas (${layers.length} variables)`);
+
+      // Show demo indicator if applicable
+      const demoIndicator = document.getElementById('mzDemoIndicator');
+      if (demoIndicator) demoIndicator.style.display = isDemo ? '' : 'none';
+
+      // Show GEE status
+      const statusEl = document.getElementById('mzGeeStatus');
+      const statusIcon = document.getElementById('mzGeeStatusIcon');
+      const statusText = document.getElementById('mzGeeStatusText');
+      if (statusEl) {
+        statusEl.style.display = '';
+        if (isDemo) {
+          statusIcon.textContent = '⚠️';
+          statusText.innerHTML = '<span style="color:#f5a623">Modo Demo</span> — GEE no conectado';
+        } else {
+          statusIcon.textContent = '✅';
+          statusText.innerHTML = `<span style="color:var(--teal)">GEE OK</span> — ${geeResult.imageCount} imágenes, ${geeResult.campaignCount} campañas`;
+        }
+      }
+
+      const cropLabel = geeResult.cropConfig?.label || cropKey;
+      this.toast(`${numZones} zonas generadas — ${cropLabel} (Score Compuesto GEE)`);
+
     } catch (e) {
-      console.error('MZ v3 error:', e);
-      // Fallback to basic
-      this._generateBasicZones(layers[0], numZones, method, resolution);
+      console.error('GEE Zones error:', e);
+      this.toast(`Error: ${e.message}`, 'error');
+    } finally {
+      // Reset UI
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Generar Zonas de Manejo';
+      progressContainer.style.display = 'none';
+      progressText.style.display = 'none';
     }
   }
 
-  _generateBasicZones(variable, numZones, method, resolution) {
-    // Fallback using existing InterpolationEngine
+  /** Generate sampling points from the last zone result */
+  generateSamplingFromZones() {
+    if (!this._lastMZResult) {
+      this.toast('Generá las zonas primero', 'warning');
+      return;
+    }
+
     const map = this.maps.mz;
     if (!map) return;
     const bounds = map.getBounds();
-    const points = this.samples.filter(s => s.soilData[variable] !== undefined).map(s => ({
-      lat: s.lat, lng: s.lng, value: parseFloat(s.soilData[variable])
-    }));
-    if (points.length < 2) { this.toast('Datos insuficientes', 'warning'); return; }
+    const prefix = (document.getElementById('mzSamplingPrefix')?.value || 'PIX').toUpperCase().trim();
 
-    const interpResult = InterpolationEngine.interpolateIDW(points, bounds, { resolution });
-    const zoneResult = InterpolationEngine.kMeansZones(interpResult.grid, numZones);
+    if (typeof SamplingEngine === 'undefined') {
+      this.toast('Motor de muestreo no disponible', 'error');
+      return;
+    }
 
-    this._clearMZOverlays();
-    const overlay = InterpolationEngine.renderZonesToCanvas(map, zoneResult.zones, interpResult.grid, bounds, numZones, {
-      polygon: this.fieldPolygon,
-      showLabels: true
+    try {
+      const config = {
+        zoneGrid: this._lastMZResult.zoneGrid,
+        bounds: {
+          minLat: bounds.getSouth(), maxLat: bounds.getNorth(),
+          minLng: bounds.getWest(), maxLng: bounds.getEast()
+        },
+        numZones: this._lastMZResult.numZones,
+        polygon: this.fieldPolygon,
+        areaHa: this.fieldAreaHa || this._fieldAreaHa || 50,
+        prefix: prefix,
+        edgeBuffer: 20
+      };
+
+      const result = SamplingEngine.generateFromZones(config);
+      this._lastSamplingResult = result;
+
+      // Remove previous sampling layers
+      if (this._mzSamplingLayer) map.removeLayer(this._mzSamplingLayer);
+
+      // Render main points (green) and subsamples (orange)
+      const markers = [];
+
+      if (result.points) {
+        result.points.forEach(pt => {
+          const marker = L.circleMarker([pt.lat, pt.lng], {
+            radius: 8, fillColor: '#7fd633', fillOpacity: 0.9,
+            color: '#fff', weight: 2
+          }).bindTooltip(pt.id || `Z${pt.zone}-P`, { permanent: false, direction: 'top', className: 'sampling-tooltip' });
+          markers.push(marker);
+        });
+      }
+
+      if (result.compositePoints) {
+        result.compositePoints.forEach(pt => {
+          const marker = L.circleMarker([pt.lat, pt.lng], {
+            radius: 4, fillColor: '#f5a623', fillOpacity: 0.85,
+            color: '#fff', weight: 1
+          }).bindTooltip(pt.id || `Z${pt.zone}-S`, { permanent: false, direction: 'top', className: 'sampling-tooltip' });
+          markers.push(marker);
+        });
+      }
+
+      this._mzSamplingLayer = L.layerGroup(markers).addTo(map);
+
+      // Render sampling report
+      this._renderMZSamplingReport(result);
+
+      const totalMain = result.points?.length || 0;
+      const totalSubs = result.compositePoints?.length || 0;
+      this.toast(`${totalMain} puntos principales + ${totalSubs} sub-muestras generadas`);
+
+    } catch (e) {
+      console.error('Sampling error:', e);
+      this.toast(`Error en muestreo: ${e.message}`, 'error');
+    }
+  }
+
+  /** Render sampling report below the button */
+  _renderMZSamplingReport(result) {
+    const el = document.getElementById('mzSamplingReport');
+    if (!el) return;
+
+    const totalMain = result.points?.length || 0;
+    const totalSubs = result.compositePoints?.length || 0;
+    const report = result.report || {};
+
+    el.innerHTML = `
+      <div style="font-weight:700;color:var(--teal);margin-bottom:6px">Reporte de Muestreo</div>
+      <div><strong>Puntos principales:</strong> ${totalMain}</div>
+      <div><strong>Sub-muestras:</strong> ${totalSubs}</div>
+      <div><strong>Total puntos:</strong> ${totalMain + totalSubs}</div>
+      ${report.coverageScore ? `<div><strong>Cobertura:</strong> ${(report.coverageScore * 100).toFixed(0)}%</div>` : ''}
+      ${report.minDistance ? `<div><strong>Dist. mín. entre puntos:</strong> ${report.minDistance.toFixed(0)} m</div>` : ''}
+      <div style="margin-top:6px;font-size:10px;color:var(--text-dim)">
+        Nomenclatura: ${result.points?.[0]?.id || 'PIX-Z1-P1'} (principal) / ${result.compositePoints?.[0]?.id || 'PIX-Z1-S1'} (sub-muestra)
+      </div>`;
+    el.style.display = '';
+  }
+
+  /** Export KML for GPS devices */
+  exportMZKML() {
+    if (!this._lastSamplingResult && !this._lastMZResult) {
+      this.toast('Generá zonas y puntos primero', 'warning');
+      return;
+    }
+    // Build simple KML from sampling points
+    const points = [...(this._lastSamplingResult?.points || []), ...(this._lastSamplingResult?.compositePoints || [])];
+    if (points.length === 0) {
+      this.toast('Generá puntos de muestreo primero', 'warning');
+      return;
+    }
+    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document>\n<name>Puntos de Muestreo</name>\n`;
+    points.forEach(pt => {
+      kml += `<Placemark><name>${pt.id || 'Punto'}</name><Point><coordinates>${pt.lng},${pt.lat},0</coordinates></Point></Placemark>\n`;
     });
-    this._mzOverlay = overlay;
-
-    // Basic stats
-    const statsHtml = zoneResult.stats.map((s, i) => `
-      <div class="zone-stat-card" style="border-left-color:${InterpolationEngine.PALETTES.zones[i] ? `rgb(${InterpolationEngine.PALETTES.zones[i].join(',')})` : 'var(--teal)'}">
-        <div class="zone-label">Zona ${i + 1}</div>
-        <div class="zone-area">${s.count} px</div>
-        <div class="zone-mean">${s.mean?.toFixed(1) || '—'}</div>
-        <div class="zone-cv">CV: ${s.cv?.toFixed(0) || '—'}%</div>
-      </div>`).join('');
-    document.getElementById('mzZoneStats').innerHTML = statsHtml;
-    document.getElementById('mzResults').style.display = '';
-    this.toast(`${numZones} zonas generadas (variable: ${variable})`);
+    kml += `</Document></kml>`;
+    const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+    this._downloadBlob(blob, 'puntos_muestreo.kml');
   }
 
   _clearMZOverlays() {
@@ -3188,6 +3281,7 @@ class PixAdmin {
       if (this._mzOverlay.labels) map.removeLayer(this._mzOverlay.labels);
     }
     if (this._mzFlowLayer) map.removeLayer(this._mzFlowLayer);
+    if (this._mzSamplingLayer) map.removeLayer(this._mzSamplingLayer);
   }
 
   _renderMZStats(stats, numZones) {
@@ -3228,6 +3322,9 @@ class PixAdmin {
     if (layer === 'twi' && this._mzFlowLayer) {
       visible ? this._mzFlowLayer.addTo(map) : map.removeLayer(this._mzFlowLayer);
     }
+    if (layer === 'points' && this._mzSamplingLayer) {
+      visible ? this._mzSamplingLayer.addTo(map) : map.removeLayer(this._mzSamplingLayer);
+    }
   }
 
   exportMZGeoJSON() {
@@ -3239,7 +3336,6 @@ class PixAdmin {
     this._downloadBlob(blob, 'zonas_manejo.geojson');
   }
 
-  exportMZShapefile() { this.toast('Exportación SHP en desarrollo', 'warning'); }
   exportMZCSV() {
     if (!this._lastMZResult?.stats) { this.toast('Generá zonas primero', 'warning'); return; }
     const csv = typeof ZonesEngine !== 'undefined'
@@ -3248,7 +3344,6 @@ class PixAdmin {
     const blob = new Blob([csv], { type: 'text/csv' });
     this._downloadBlob(blob, 'zonas_manejo.csv');
   }
-  exportMZPDF() { this.toast('Exportación PDF en desarrollo', 'warning'); }
 
   // ===== SAMPLING POINTS =====
 

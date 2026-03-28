@@ -315,7 +315,7 @@ class ZonesEngine {
   static _zoneCountByArea(areaHa) {
     if (areaHa < 10) return 2;
     if (areaHa < 30) return 3;
-    if (areaHa < 100) return 4;
+    if (areaHa < 60) return 4;
     return 5;
   }
 

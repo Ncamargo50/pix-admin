@@ -918,229 +918,90 @@
             <div style="font-size:16px;font-weight:700;flex:1">Zonas de Manejo PRO</div>
             <span class="nav-pro-badge" style="font-size:9px">v3</span>
           </div>
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Multi-variable, temporal, planialtimetría y flujo de agua</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Motor GEE: Sentinel-2 multicampaña + DEM + TWI + Flujo de agua</div>
 
-          <!-- Wizard Steps -->
-          <div class="wizard-steps">
-            <div class="wizard-step active" onclick="admin.mzWizardStep(1)"><div class="wizard-step-num">1</div><br>Capas</div>
-            <div class="wizard-step" onclick="admin.mzWizardStep(2)"><div class="wizard-step-num">2</div><br>Cultivo</div>
-            <div class="wizard-step" onclick="admin.mzWizardStep(3)"><div class="wizard-step-num">3</div><br>Temporal</div>
-            <div class="wizard-step" onclick="admin.mzWizardStep(4)"><div class="wizard-step-num">4</div><br>DEM</div>
-            <div class="wizard-step" onclick="admin.mzWizardStep(5)"><div class="wizard-step-num">5</div><br>Generar</div>
-          </div>
-
-          <!-- STEP 1: Variables / Capas -->
-          <div class="wizard-content active" id="mzStep1">
-            <div class="panel-section">
-              <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Variables de Suelo</div>
-              <div style="display:flex;flex-direction:column;gap:6px" id="mzLayerChecks">
-                <label class="layer-toggle"><input type="checkbox" checked value="V"> <span class="layer-toggle-label">V% (Saturación)</span></label>
-                <label class="layer-toggle"><input type="checkbox" checked value="P"> <span class="layer-toggle-label">Fósforo (P)</span></label>
-                <label class="layer-toggle"><input type="checkbox" value="K"> <span class="layer-toggle-label">Potasio (K)</span></label>
-                <label class="layer-toggle"><input type="checkbox" value="MO"> <span class="layer-toggle-label">Materia Orgánica</span></label>
-                <label class="layer-toggle"><input type="checkbox" value="clay"> <span class="layer-toggle-label">Arcilla</span></label>
-                <label class="layer-toggle"><input type="checkbox" value="pH_H2O"> <span class="layer-toggle-label">pH</span></label>
-                <label class="layer-toggle"><input type="checkbox" value="Ca"> <span class="layer-toggle-label">Calcio</span></label>
-                <label class="layer-toggle"><input type="checkbox" value="Mg"> <span class="layer-toggle-label">Magnesio</span></label>
-              </div>
-            </div>
-            <div class="panel-section">
-              <div class="panel-title">Pesos por Variable</div>
-              <div class="weight-slider-group" id="mzWeights">
-                <div class="weight-slider-item"><label>V%</label><input type="range" min="0" max="100" value="100" data-var="V" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="weight-val">100%</span></div>
-                <div class="weight-slider-item"><label>P</label><input type="range" min="0" max="100" value="80" data-var="P" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="weight-val">80%</span></div>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-sm btn-outline" onclick="admin.loadDemoBoundary()">Demo Lote</button>
-              <button class="btn btn-sm btn-outline" onclick="admin.loadDemoSamples()">Demo Muestras</button>
-              <button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="admin.mzWizardStep(2)">Siguiente</button>
+          <!-- LOT INFO (auto-populated from cadastre) -->
+          <div class="panel-section mz-lot-info" id="mzLotInfo">
+            <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> Lote Activo</div>
+            <div id="mzLotDetails" style="font-size:12px;line-height:1.8">
+              <div style="color:var(--text-muted);font-style:italic">Sin lote cargado. Importe un lote desde el Cadastro de Clientes.</div>
             </div>
           </div>
 
-          <!-- STEP 2: Crop Profile -->
-          <div class="wizard-content" id="mzStep2">
-            <div class="panel-section">
-              <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 019.8 6.9C15.5 4.9 20 7 20 7s.7 5.4-3.3 8.7A7 7 0 0111 20z"/></svg> Perfil por Cultivo</div>
-              <div class="gis-control-group" style="margin-bottom:10px">
-                <label class="form-label">Cultivo</label>
-                <select class="form-input" id="mzCropProfile" onchange="admin.updateMZCropProfile()">
-                  <option value="auto">Usar cultivo global</option>
-                  <option value="cana">Caña de Azúcar</option>
-                  <option value="soja">Soja</option>
-                  <option value="maiz">Maíz</option>
-                  <option value="sorgo">Sorgo</option>
-                  <option value="girasol">Girasol</option>
-                  <option value="tomate">Tomate</option>
-                  <option value="papa">Papa</option>
-                </select>
-              </div>
-              <div class="gis-control-group" style="margin-bottom:10px">
-                <label class="form-label">Etapa Fenológica</label>
-                <select class="form-input" id="mzPhenStage">
-                  <option value="vegetativo">Vegetativo</option>
-                </select>
-              </div>
-              <div id="mzCropIndices" style="font-size:11px;color:var(--text-muted);padding:8px;background:var(--dark);border-radius:6px">
-                Índices recomendados: NDVI, EVI
-              </div>
+          <!-- STEP 1: CROP TYPE SELECTOR -->
+          <div class="panel-section">
+            <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M11 20A7 7 0 019.8 6.9C15.5 4.9 20 7 20 7s.7 5.4-3.3 8.7A7 7 0 0111 20z"/></svg> 1. Tipo de Cultivo</div>
+            <div class="crop-category-grid" id="mzCropCategories">
+              <!-- Populated dynamically by admin.buildMZCropSelector() -->
             </div>
+            <div id="mzIndexInfo" class="mz-index-info" style="display:none">
+              <!-- Shows selected crop indices breakdown -->
+            </div>
+          </div>
+
+          <!-- STEP 2: GENERATE ZONES (GEE ENGINE) -->
+          <div class="panel-section">
+            <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> 2. Generar Zonas de Manejo</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;line-height:1.6">
+              Score Compuesto: indices vegetacion + estabilidad temporal + altimetria + TWI + flujo de agua
+            </div>
+            <div id="mzGeeStatus" style="font-size:11px;margin-bottom:8px;display:none">
+              <span id="mzGeeStatusIcon"></span> <span id="mzGeeStatusText"></span>
+            </div>
+            <div class="mz-progress-container" id="mzProgressContainer" style="display:none">
+              <div class="mz-progress-bar" id="mzProgressBar" style="width:0%"></div>
+            </div>
+            <div id="mzProgressText" style="font-size:10px;color:var(--text-muted);margin:4px 0 8px;display:none"></div>
+            <button class="btn btn-primary" id="mzGenerateBtn" style="width:100%" onclick="admin.generateZonesGEE()" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Generar Zonas de Manejo
+            </button>
+          </div>
+
+          <!-- RESULTS (hidden until zones generated) -->
+          <div id="mzResults" style="display:none">
             <div class="panel-section">
-              <div class="panel-title">Algoritmo</div>
-              <div class="gis-control-group" style="margin-bottom:10px">
-                <label class="form-label">N° Zonas</label>
-                <select class="form-input" id="mzNumZones">
-                  <option value="2">2 zonas</option>
-                  <option value="3" selected>3 zonas</option>
-                  <option value="4">4 zonas</option>
-                  <option value="5">5 zonas</option>
-                  <option value="7">7 zonas</option>
-                </select>
+              <div class="panel-title">Resultados</div>
+              <div id="mzDemoIndicator" style="display:none;font-size:10px;color:#f5a623;margin-bottom:6px;padding:4px 8px;background:rgba(245,166,35,0.1);border-radius:4px">MODO DEMO — datos simulados (GEE no conectado)</div>
+              <div class="zone-stats-grid" id="mzZoneStats"></div>
+            </div>
+
+            <!-- Map layers -->
+            <div class="panel-section">
+              <div class="panel-title">Capas del Mapa</div>
+              <label class="layer-toggle"><input type="checkbox" checked onchange="admin.toggleMZLayer('zones',this.checked)"> <span class="layer-toggle-label">Zonas de Manejo</span></label>
+              <label class="layer-toggle"><input type="checkbox" checked onchange="admin.toggleMZLayer('labels',this.checked)"> <span class="layer-toggle-label">Etiquetas de Zona</span></label>
+              <label class="layer-toggle"><input type="checkbox" onchange="admin.toggleMZLayer('twi',this.checked)"> <span class="layer-toggle-label">TWI / Flujo</span></label>
+              <label class="layer-toggle"><input type="checkbox" checked onchange="admin.toggleMZLayer('points',this.checked)"> <span class="layer-toggle-label">Puntos de Muestreo</span></label>
+            </div>
+
+            <!-- STEP 3: SAMPLING POINTS -->
+            <div class="panel-section">
+              <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg> 3. Puntos de Muestreo y Sub-muestras</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">
+                Polo de Inaccesibilidad + FPS (Farthest Point Sampling)
               </div>
               <div class="gis-control-group" style="margin-bottom:10px">
-                <label class="form-label">Método Interpolación</label>
-                <select class="form-input" id="mzMethod">
-                  <option value="idw">IDW</option>
-                  <option value="kriging">Kriging</option>
-                </select>
+                <label class="form-label">Prefijo del Proyecto</label>
+                <input type="text" class="form-input" id="mzSamplingPrefix" value="PIX" placeholder="Ej: HDS, PIX, SA" maxlength="8" style="text-transform:uppercase">
               </div>
-              <div class="gis-control-group">
-                <label class="form-label">Resolución</label>
-                <select class="form-input" id="mzResolution">
-                  <option value="50">50 (rápido)</option>
-                  <option value="80" selected>80 (estándar)</option>
-                  <option value="120">120 (HD)</option>
-                </select>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-sm btn-secondary" onclick="admin.mzWizardStep(1)">Atrás</button>
-              <button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="admin.mzWizardStep(3)">Siguiente</button>
-            </div>
-          </div>
-
-          <!-- STEP 3: Temporal Stability -->
-          <div class="wizard-content" id="mzStep3">
-            <div class="panel-section">
-              <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Estabilidad Temporal</div>
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">
-                Mínimo 3 campañas para análisis de estabilidad. Cargá rasters de índices de vegetación por campaña.
-              </div>
-              <div class="campaign-timeline" id="mzCampaigns">
-                <div class="campaign-item">
-                  <span class="campaign-year">2024</span>
-                  <span class="campaign-index">NDVI — Sin datos</span>
-                  <span class="campaign-status pending"></span>
-                </div>
-                <div class="campaign-item">
-                  <span class="campaign-year">2025</span>
-                  <span class="campaign-index">NDVI — Sin datos</span>
-                  <span class="campaign-status pending"></span>
-                </div>
-                <div class="campaign-item">
-                  <span class="campaign-year">2026</span>
-                  <span class="campaign-index">NDVI — Sin datos</span>
-                  <span class="campaign-status pending"></span>
-                </div>
-              </div>
-              <button class="campaign-add-btn" onclick="admin.addMZCampaign()">+ Agregar Campaña</button>
-              <div style="margin-top:10px;display:flex;gap:6px">
-                <button class="btn btn-sm btn-outline" onclick="admin.importCampaignRaster()">Importar Raster</button>
-                <button class="btn btn-sm btn-outline" onclick="admin.loadDemoCampaigns()">Demo 3 Campañas</button>
-              </div>
-            </div>
-            <div class="panel-section">
-              <div class="panel-title">Configuración Temporal</div>
-              <div class="gis-control-group" style="margin-bottom:8px">
-                <label class="form-label">Umbral Estabilidad (CV%)</label>
-                <div style="display:flex;gap:8px;font-size:11px;color:var(--text-muted)">
-                  <span>Estable &lt;15%</span><span>Moderado 15-30%</span><span>Inestable &gt;30%</span>
-                </div>
-              </div>
-              <label class="layer-toggle"><input type="checkbox" id="mzUseTemporalLayer" checked> <span class="layer-toggle-label">Incluir capa de estabilidad en clustering</span></label>
-              <div class="weight-slider-item" style="margin-top:6px"><label>Peso</label><input type="range" min="0" max="100" value="60" id="mzTemporalWeight" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="weight-val">60%</span></div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-sm btn-secondary" onclick="admin.mzWizardStep(2)">Atrás</button>
-              <button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="admin.mzWizardStep(4)">Siguiente</button>
-            </div>
-          </div>
-
-          <!-- STEP 4: DEM / Planialtimetry -->
-          <div class="wizard-content" id="mzStep4">
-            <div class="panel-section">
-              <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 18L13.5 5 8.5 14 2 8"/></svg> Planialtimetría y Flujo de Agua</div>
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">
-                Cargá un MDE (Modelo Digital de Elevación) para calcular TWI y líneas de flujo.
-              </div>
-              <div style="display:flex;gap:6px;margin-bottom:10px">
-                <button class="btn btn-sm btn-outline" onclick="admin.importDEM()">Importar MDE</button>
-                <button class="btn btn-sm btn-outline" onclick="admin.loadDemoDEM()">Demo ALOS 30m</button>
-              </div>
-              <div class="dem-panel" id="mzDEMPanel" style="display:none">
-                <div class="dem-stats">
-                  <div class="dem-stat"><div class="val" id="demMinElev">—</div><div class="lbl">Mín (m)</div></div>
-                  <div class="dem-stat"><div class="val" id="demMaxElev">—</div><div class="lbl">Máx (m)</div></div>
-                  <div class="dem-stat"><div class="val" id="demDelta">—</div><div class="lbl">Desnivel</div></div>
-                </div>
-              </div>
-            </div>
-            <div class="panel-section">
-              <div class="panel-title">Índice TWI (Topographic Wetness)</div>
-              <label class="layer-toggle"><input type="checkbox" id="mzUseTWI" checked> <span class="layer-toggle-label">Incluir TWI en clustering</span></label>
-              <div class="weight-slider-item" style="margin-top:6px"><label>Peso TWI</label><input type="range" min="0" max="100" value="40" id="mzTWIWeight" oninput="this.nextElementSibling.textContent=this.value+'%'"><span class="weight-val">40%</span></div>
-              <label class="layer-toggle" style="margin-top:6px"><input type="checkbox" id="mzShowFlowLines" checked> <span class="layer-toggle-label">Mostrar líneas de flujo de agua</span></label>
-              <div class="twi-legend" style="margin-top:8px">
-                <div class="twi-item"><div class="twi-color" style="background:#d4a574"></div> Cresta (TWI &lt; 5)</div>
-                <div class="twi-item"><div class="twi-color" style="background:#a8c868"></div> Ladera (TWI 5-8)</div>
-                <div class="twi-item"><div class="twi-color" style="background:#68a8c8"></div> Planicie (TWI 8-11)</div>
-                <div class="twi-item"><div class="twi-color" style="background:#4466aa"></div> Bajo/Acumulación (TWI &gt; 11)</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-sm btn-secondary" onclick="admin.mzWizardStep(3)">Atrás</button>
-              <button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="admin.mzWizardStep(5)">Siguiente</button>
-            </div>
-          </div>
-
-          <!-- STEP 5: Generate -->
-          <div class="wizard-content" id="mzStep5">
-            <div class="panel-section">
-              <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Generar Zonas</div>
-              <div id="mzConfigSummary" style="font-size:11px;color:var(--text-muted);line-height:1.7">
-                Resumen de configuración aparecerá aquí...
-              </div>
-              <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="admin.generateManagementZonesV3()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                Generar Zonas de Manejo
+              <button class="btn btn-primary" id="mzSamplingBtn" style="width:100%" onclick="admin.generateSamplingFromZones()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>
+                Generar Puntos y Sub-muestras
               </button>
-            </div>
-            <div id="mzResults" style="display:none">
-              <div class="panel-section">
-                <div class="panel-title">Resultados</div>
-                <div class="zone-stats-grid" id="mzZoneStats"></div>
-              </div>
-              <div class="panel-section">
-                <div class="panel-title">Capas del Mapa</div>
-                <label class="layer-toggle"><input type="checkbox" checked onchange="admin.toggleMZLayer('zones',this.checked)"> <span class="layer-toggle-label">Zonas de Manejo</span></label>
-                <label class="layer-toggle"><input type="checkbox" checked onchange="admin.toggleMZLayer('labels',this.checked)"> <span class="layer-toggle-label">Etiquetas de Zona</span></label>
-                <label class="layer-toggle"><input type="checkbox" onchange="admin.toggleMZLayer('stability',this.checked)"> <span class="layer-toggle-label">Estabilidad Temporal</span></label>
-                <label class="layer-toggle"><input type="checkbox" onchange="admin.toggleMZLayer('twi',this.checked)"> <span class="layer-toggle-label">TWI / Flujo</span></label>
-                <label class="layer-toggle"><input type="checkbox" checked onchange="admin.toggleMZLayer('points',this.checked)"> <span class="layer-toggle-label">Puntos de Muestreo</span></label>
-              </div>
-              <div class="panel-section">
-                <div class="panel-title">Exportar</div>
-                <div class="export-row">
-                  <button class="export-btn" onclick="admin.exportMZGeoJSON()">GeoJSON</button>
-                  <button class="export-btn" onclick="admin.exportMZShapefile()">SHP</button>
-                  <button class="export-btn" onclick="admin.exportMZCSV()">CSV</button>
-                  <button class="export-btn" onclick="admin.exportMZPDF()">PDF</button>
-                </div>
+              <div id="mzSamplingReport" style="display:none;margin-top:10px;padding:10px;background:var(--dark);border-radius:8px;font-size:11px;line-height:1.8">
+                <!-- Sampling report populated after generation -->
               </div>
             </div>
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button class="btn btn-sm btn-secondary" onclick="admin.mzWizardStep(4)">Atrás</button>
-              <button class="btn btn-sm btn-outline" style="margin-left:auto" onclick="admin.showView('sampling-points')">Ir a Muestreo</button>
+
+            <!-- Export -->
+            <div class="panel-section">
+              <div class="panel-title">Exportar</div>
+              <div class="export-row">
+                <button class="export-btn" onclick="admin.exportMZGeoJSON()">GeoJSON</button>
+                <button class="export-btn" onclick="admin.exportMZCSV()">CSV</button>
+                <button class="export-btn" onclick="admin.exportMZKML()">KML</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1745,6 +1606,7 @@ function pixLogout() {
 <script src="js/report-generator.js"></script>
 <script src="js/kriging.js"></script>
 <script src="js/zones-engine.js?v=5"></script>
+<script src="js/gee-zones-engine.js?v=1"></script>
 <script src="js/sampling-engine.js?v=5"></script>
 <script src="js/admin-app.js"></script>
 <script src="js/agent-admin.js"></script>

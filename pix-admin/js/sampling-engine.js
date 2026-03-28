@@ -197,6 +197,98 @@ class SamplingEngine {
     return (zoneCellCount / Math.max(totalCells, 1)) * areaHa;
   }
 
+  // ==================== POLO DE INACCESIBILIDAD ====================
+
+  /**
+   * Find the "Polo de Inaccesibilidad" — the point within a zone that is
+   * maximally distant from ALL zone boundaries (most interior point).
+   * This is superior to centroid because it guarantees the point is deep
+   * inside the zone, not near edges or narrow parts.
+   *
+   * Algorithm:
+   *   1. Get interior cells of the zone
+   *   2. Get edge cells (cells where at least one 8-neighbor is a different zone)
+   *   3. For each interior cell, compute minimum distance to any edge cell
+   *   4. Return the interior cell with the maximum such minimum distance
+   *
+   * Falls back to centroid if zone is too small or has no interior cells.
+   *
+   * @param {number} zoneIdx - Zone index (0-based)
+   * @param {number[][]} zoneGrid - Zone assignment grid
+   * @param {Object} bounds - { minLat, maxLat, minLng, maxLng }
+   * @param {Array} polygon - Field boundary
+   * @returns {{ lat, lng, cellCount, interiorCount } | null}
+   */
+  static _poloDeInaccesibilidad(zoneIdx, zoneGrid, bounds, polygon) {
+    const b = this._normalizeBounds(bounds);
+    const rows = zoneGrid.length;
+    const cols = (zoneGrid[0] || []).length;
+    const latStep = (b.maxLat - b.minLat) / rows;
+    const lngStep = (b.maxLng - b.minLng) / cols;
+
+    // Collect edge cells for this zone (cells where a neighbor belongs to another zone)
+    const edgeCells = [];
+    let totalCells = 0;
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        if (zoneGrid[i][j] !== zoneIdx) continue;
+        totalCells++;
+        let isEdge = false;
+        for (let di = -1; di <= 1 && !isEdge; di++) {
+          for (let dj = -1; dj <= 1 && !isEdge; dj++) {
+            if (di === 0 && dj === 0) continue;
+            const ni = i + di, nj = j + dj;
+            if (ni < 0 || ni >= rows || nj < 0 || nj >= cols || zoneGrid[ni][nj] !== zoneIdx) {
+              isEdge = true;
+            }
+          }
+        }
+        if (isEdge) {
+          edgeCells.push({
+            lat: b.minLat + (i + 0.5) * latStep,
+            lng: b.minLng + (j + 0.5) * lngStep
+          });
+        }
+      }
+    }
+
+    // Get interior cells (filtered by polygon)
+    const interiorCells = this._getZoneInteriorCells(zoneIdx, zoneGrid, bounds, polygon);
+
+    // Need at least some interior cells and edge cells
+    if (interiorCells.length < 2 || edgeCells.length === 0) return null;
+
+    // For each interior cell, find minimum distance to any edge cell
+    let bestCell = null;
+    let bestMinDist = -1;
+
+    for (const cell of interiorCells) {
+      // Must be inside polygon
+      if (polygon && !this.pointInPolygon(cell.lat, cell.lng, polygon)) continue;
+
+      let minDistToEdge = Infinity;
+      for (const edge of edgeCells) {
+        const d = this._haversine(cell.lat, cell.lng, edge.lat, edge.lng);
+        if (d < minDistToEdge) minDistToEdge = d;
+      }
+
+      if (minDistToEdge > bestMinDist) {
+        bestMinDist = minDistToEdge;
+        bestCell = cell;
+      }
+    }
+
+    if (!bestCell) return null;
+
+    return {
+      lat: Math.round(bestCell.lat * 1e7) / 1e7,
+      lng: Math.round(bestCell.lng * 1e7) / 1e7,
+      cellCount: totalCells,
+      interiorCount: interiorCells.length,
+      distToEdge: Math.round(bestMinDist)
+    };
+  }
+
   // ==================== DENSITY RULES (GIS Skill Standard) ====================
 
   static get MAX_SUBSAMPLES() { return 10; }
@@ -402,8 +494,9 @@ class SamplingEngine {
     const allComposite = [];
 
     for (let z = 0; z < numZones; z++) {
-      // Step 1: Compute zone centroid (validated to interior)
-      const centroid = this._computeZoneCentroid(z, zoneGrid, bounds, polygon);
+      // Step 1: Find Polo de Inaccesibilidad (most interior point), fallback to centroid
+      const polo = this._poloDeInaccesibilidad(z, zoneGrid, bounds, polygon);
+      const centroid = polo || this._computeZoneCentroid(z, zoneGrid, bounds, polygon);
       if (!centroid) continue;
 
       // Step 2: Estimate zone area → determine density rules
