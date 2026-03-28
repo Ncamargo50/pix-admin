@@ -245,10 +245,15 @@ class ZonesEngine {
     }
 
     // --- Step 7: Smooth zones (improved morphological approach) ---
-    let smoothed = this._smoothZoneGrid(zoneGrid, 5, 7);
+    // Production v4.1: Gaussian smoothing → morphological close → area filter
+    // More passes + larger kernel = smoother organic zone boundaries
+    let smoothed = this._smoothZoneGrid(zoneGrid, 8, 9);
 
     // Morphological close (dilate then erode) to fill small gaps
     smoothed = this._morphologicalClose(smoothed, numZones);
+
+    // Second smoothing pass for organic edges (production uses sigma=10 Gaussian)
+    smoothed = this._smoothZoneGrid(smoothed, 4, 7);
 
     // Area filter: merge zones smaller than minZoneAreaHa into largest neighbor
     const pixelAreaHa = areaHa / (rows * cols);

@@ -613,8 +613,9 @@ class GEEZonesEngine {
     const cropConfig = this.CROP_INDEX_CONFIGS[cropKey];
     if (!cropConfig) throw new Error(`Unknown crop: ${cropKey}`);
 
-    // Simulation grid resolution — higher = better zone detail
-    const gridRes = areaHa > 200 ? 80 : areaHa > 50 ? 60 : 40;
+    // Simulation grid resolution — higher = smoother organic zone boundaries
+    // Production uses 2m interpolation; for demo, use high grid for equivalent quality
+    const gridRes = areaHa > 200 ? 150 : areaHa > 100 ? 120 : areaHa > 30 ? 100 : 80;
     const satelliteData = ZonesEngine.simulateSatelliteData(bounds, boundary, areaHa, {
       years: numCampaigns,
       resolution: gridRes,

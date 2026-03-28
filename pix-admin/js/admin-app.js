@@ -2900,7 +2900,7 @@ class PixAdmin {
 
   // ===== MANAGEMENT ZONES — GEE ENGINE =====
 
-  /** Attempt to connect to Google Earth Engine */
+  /** Connect to GEE Python backend (real processing, no demo) */
   async connectGEE() {
     const btn = document.getElementById('mzGeeConnectBtn');
     const dot = document.getElementById('mzGeeStatusDot');
@@ -2909,35 +2909,31 @@ class PixAdmin {
 
     btn.disabled = true;
     btn.textContent = 'Conectando...';
-    txt.textContent = 'Cargando librería ee.js...';
+    txt.textContent = 'Verificando backend GEE Python...';
     dot.style.background = '#f5a623';
 
     try {
-      // Try to init GEE — will load library + authenticate
-      // You can set a token endpoint URL here for production
-      const projectId = 'ee-gisagronomico';  // Your GEE project
-      const connected = await GEEZonesEngine.initGEE(null, projectId);
-
-      if (connected) {
+      // Check if GEE Python backend is running on localhost:9101
+      const resp = await fetch('http://localhost:9102/status', { signal: AbortSignal.timeout(5000) });
+      if (resp.ok) {
+        const data = await resp.json();
+        this._geeBackendReady = true;
         dot.style.background = '#7fd633';
-        txt.innerHTML = '<span style="color:var(--teal)">GEE Conectado</span> — Sentinel-2 + DEM + SAR disponibles';
+        txt.innerHTML = `<span style="color:var(--teal)">GEE REAL Conectado</span> — ${data.project} (Python backend)`;
         btn.textContent = 'Conectado';
         btn.style.borderColor = 'var(--teal)';
         btn.style.color = 'var(--teal)';
-        this.toast('Google Earth Engine conectado correctamente');
+        this.toast('GEE Backend real conectado — procesamiento 100% real');
       } else {
-        dot.style.background = '#f5a623';
-        txt.textContent = 'Motor: Modo Demo (GEE requiere autenticación)';
-        btn.textContent = 'Reintentar';
-        btn.disabled = false;
-        this.toast('GEE no disponible — usando modo demo con datos simulados', 'warning');
+        throw new Error('Backend no responde');
       }
     } catch (e) {
+      this._geeBackendReady = false;
       dot.style.background = '#e74c3c';
-      txt.textContent = 'Error: ' + e.message;
+      txt.textContent = 'Backend GEE no disponible. Ejecute: python gee-backend.py';
       btn.textContent = 'Reintentar';
       btn.disabled = false;
-      this.toast('Error conectando GEE: ' + e.message, 'error');
+      this.toast('Inicie el backend: python pix-admin/gee-backend.py', 'warning');
     }
   }
 
@@ -3063,95 +3059,97 @@ class PixAdmin {
     };
 
     try {
-      let geeResult;
-      let isDemo = false;
-
-      // Try GEE first, fallback to demo
-      if (typeof GEEZonesEngine !== 'undefined' && GEEZonesEngine._eeReady) {
-        onProgress(1, 8, 'Conectando con Google Earth Engine...');
-        geeResult = await GEEZonesEngine.processField(this.fieldPolygon, cropKey, areaHa, onProgress, numCampaigns);
-      } else {
-        // Demo/fallback mode
-        isDemo = true;
-        onProgress(1, 4, 'Modo Demo — generando datos simulados...');
-        const b = polyBounds;
-        // Convert polygon format for ZonesEngine (expects [[lat,lng]])
-        const boundary = this.fieldPolygon.map(c => [c[1], c[0]]);
-        geeResult = GEEZonesEngine.processFieldDemo(b, boundary, areaHa, cropKey, numCampaigns);
-        onProgress(2, 4, 'Calculando Score Compuesto...');
+      // ===== REAL GEE PROCESSING via Python backend =====
+      if (!this._geeBackendReady) {
+        // Try to connect first
+        try {
+          const statusResp = await fetch('http://localhost:9102/status', { signal: AbortSignal.timeout(3000) });
+          if (statusResp.ok) this._geeBackendReady = true;
+        } catch (e) { /* backend not running */ }
       }
 
-      // Determine zone count by area
-      const numZones = ZonesEngine._zoneCountByArea(areaHa);
+      if (!this._geeBackendReady) {
+        this.toast('Backend GEE no disponible. Ejecute: python pix-admin/gee-backend.py', 'error');
+        return;
+      }
 
-      onProgress(isDemo ? 3 : 7, isDemo ? 4 : 8, 'Clasificando zonas por percentiles...');
+      onProgress(1, 5, 'Enviando lote al backend GEE Python (procesamiento real)...');
 
-      // Build config for ZonesEngine
-      const zonesConfig = {
-        satelliteData: geeResult.satelliteData,
-        bounds: polyBounds,
-        boundary: this.fieldPolygon.map(c => [c[1], c[0]]),
-        areaHa: areaHa,
+      // Call Python backend with real GEE processing
+      const response = await fetch('http://localhost:9102/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          polygon: this.fieldPolygon,
+          areaHa: areaHa,
+          numCampaigns: numCampaigns,
+          cropKey: cropKey
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Backend error');
+      }
+
+      onProgress(2, 5, 'Recibiendo resultados del servidor GEE...');
+      const geeResult = await response.json();
+
+      // geeResult contains: zoneGrid, scoreGrid, stats, numZones, scale, campaigns, method
+      const numZones = geeResult.numZones;
+      const zoneGrid = geeResult.zoneGrid;
+
+      // Store result for sampling and export
+      this._lastMZResult = {
+        zoneGrid: zoneGrid,
+        scoreGrid: geeResult.scoreGrid,
+        stats: geeResult.stats,
         numZones: numZones,
-        weights: geeResult.compositeWeights,
-        minZoneAreaHa: GEEZonesEngine.MIN_ZONE_AREA_HA  // 1.5 ha (production v4.1)
+        cropKey: cropKey,
+        geojson: null,  // Will be generated on export
+        metadata: { method: geeResult.method, campaigns: geeResult.campaigns, scale: geeResult.scale }
       };
 
-      const result = ZonesEngine.generateFromSatellite(zonesConfig);
-      this._lastMZResult = result;
-      this._lastMZResult.numZones = numZones;
-      this._lastMZResult.cropKey = cropKey;
+      onProgress(3, 5, 'Renderizando zonas en mapa...');
 
-      onProgress(isDemo ? 4 : 8, isDemo ? 4 : 8, 'Renderizando zonas en mapa...');
-
-      // Fit map to polygon bounds before rendering
+      // Fit map to polygon bounds
       map.fitBounds([
         [polyBounds.minLat, polyBounds.minLng],
         [polyBounds.maxLat, polyBounds.maxLng]
       ], { padding: [20, 20] });
 
-      // Render on map using polygon bounds (not viewport)
+      // Render zones on map
       this._clearMZOverlays();
-      const renderBounds = map.getBounds();  // now correctly fitted to polygon
-      const overlay = ZonesEngine.renderZonesToMap(map, result.zoneGrid, renderBounds, numZones, {
+      const renderBounds = map.getBounds();
+      const overlay = ZonesEngine.renderZonesToMap(map, zoneGrid, renderBounds, numZones, {
         opacity: 0.7,
         showLabels: true,
         clipPolygon: this.fieldPolygon
       });
       this._mzOverlay = overlay;
 
-      // Show flow lines if available
-      if (result.derivedLayers?.flowLines) {
-        this._renderFlowLines(map, result.derivedLayers.flowLines);
-      }
+      onProgress(4, 5, 'Calculando estadísticas...');
 
       // Update results panel
-      this._renderMZStats(result.stats, numZones);
+      this._renderMZStats(geeResult.stats, numZones);
       document.getElementById('mzResults').style.display = '';
 
-      // Show demo indicator if applicable
+      // Hide demo indicator
       const demoIndicator = document.getElementById('mzDemoIndicator');
-      if (demoIndicator) demoIndicator.style.display = isDemo ? '' : 'none';
+      if (demoIndicator) demoIndicator.style.display = 'none';
 
-      // Show GEE status
+      // Show GEE status — REAL
       const statusEl = document.getElementById('mzGeeStatus');
       const statusIcon = document.getElementById('mzGeeStatusIcon');
       const statusText = document.getElementById('mzGeeStatusText');
       if (statusEl) {
         statusEl.style.display = '';
-        if (isDemo) {
-          statusIcon.textContent = '⚠️';
-          statusText.innerHTML = '<span style="color:#f5a623">Modo Demo</span> — GEE no conectado';
-        } else {
-          statusIcon.textContent = '✅';
-          const sarTag = geeResult.hasSAR ? ' + SAR' : '';
-          const suffTag = geeResult.imageSufficiency === 'LOW' ? ' <span style="color:#f5a623">(pocas imágenes)</span>' : '';
-          statusText.innerHTML = `<span style="color:var(--teal)">GEE OK</span> — ${geeResult.imageCount} imágenes S2${sarTag}, ${geeResult.campaignCount} campañas${suffTag}`;
-        }
+        statusIcon.textContent = '✅';
+        statusText.innerHTML = `<span style="color:var(--teal)">GEE REAL v4.1</span> — ${geeResult.campaigns} campañas, ${geeResult.gridSize[0]}x${geeResult.gridSize[1]} grid`;
       }
 
-      const cropLabel = geeResult.cropConfig?.label || cropKey;
-      this.toast(`${numZones} zonas generadas — ${cropLabel} (Score Compuesto GEE)`);
+      onProgress(5, 5, 'Completo.');
+      this.toast(`${numZones} zonas generadas — Caña de Azúcar (GEE REAL v4.1, ${geeResult.campaigns} campañas)`);
 
     } catch (e) {
       console.error('GEE Zones error:', e);
