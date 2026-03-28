@@ -232,17 +232,19 @@ def process_field(polygon_coords, area_ha, num_campaigns=5):
         PESOS_SCORE['dist_drenaje'] * dist_drain_n
     )
 
-    # Interpolate to higher resolution before smoothing (production uses 2m)
-    # Upsample the score grid by 3x for smoother zone boundaries
+    # Interpolate to higher resolution (production uses 2m = 5x upscale from 10m)
     from scipy.ndimage import zoom as ndizoom
-    score_upsampled = ndizoom(score, 3, order=1)  # bilinear 3x upscale
-    mask_upsampled = ndizoom(mask.astype(float), 3, order=0) > 0.5
+    from scipy.ndimage import binary_closing, binary_opening
+    upscale = 5
+    score_upsampled = ndizoom(score, upscale, order=1)  # bilinear 5x
+    mask_upsampled = ndizoom(mask.astype(float), upscale, order=0) > 0.5
 
-    # Gaussian smoothing (production sigma=10 at 2m ≈ sigma=5 pixels at 10m × 3x = sigma=15)
-    score_smooth = gaussian_filter(score_upsampled, sigma=8)
+    # HEAVY Gaussian smoothing — production sigma=10m at 2m resolution = 5 pixels
+    # At our upscaled resolution: sigma = 10 / (scale / upscale) = 10*upscale/scale
+    sigma_pixels = max(10 * upscale / scale, 5)
+    score_smooth = gaussian_filter(score_upsampled, sigma=sigma_pixels)
     score_smooth[~mask_upsampled] = 0
 
-    # Update rows/cols for upsampled grid
     rows_up, cols_up = score_smooth.shape
 
     # Zone classification by percentiles
@@ -255,6 +257,16 @@ def process_field(polygon_coords, area_ha, num_campaigns=5):
 
     zones = np.zeros_like(score_smooth, dtype=int)
     zones[mask_upsampled] = np.digitize(score_smooth[mask_upsampled], cuts) + 1
+
+    # MORPHOLOGICAL CLEANUP — remove fragments, fill holes (critical for clean zones)
+    from scipy.ndimage import median_filter
+    # Median filter removes salt-and-pepper noise (small fragments)
+    zones_clean = median_filter(zones, size=7)
+    # Second pass with larger kernel for really clean zones
+    zones_clean = median_filter(zones_clean, size=11)
+    # Restore mask
+    zones_clean[~mask_upsampled] = 0
+    zones = zones_clean
 
     # Zone statistics
     zone_labels = {3: ['Baja', 'Media', 'Alta'], 4: ['Baja', 'Media-Baja', 'Media-Alta', 'Alta']}
@@ -299,9 +311,9 @@ def process_field(polygon_coords, area_ha, num_campaigns=5):
     field_poly = make_valid(ShapelyPolygon(polygon_coords))
 
     # Production config
-    BUF_M = 20    # buffer suavizado (meters → degrees)
-    SIMP_M = 5    # simplify tolerance (meters → degrees)
-    AREA_MIN_M2 = 1.5 * 10000  # 1.5 ha minimum fragment
+    BUF_M = 25    # buffer suavizado (meters → degrees)
+    SIMP_M = 8    # simplify tolerance (meters → degrees)
+    AREA_MIN_M2 = 2.0 * 10000  # 2.0 ha minimum fragment (aggressive cleanup)
     DEG_PER_M = 1 / 111320  # approximate degrees per meter
 
     zone_colors = ['#CC0000', '#FF8C00', '#FFD700', '#228B22']
