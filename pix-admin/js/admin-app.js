@@ -3133,16 +3133,45 @@ class PixAdmin {
         }),
         onEachFeature: (feature, layer) => {
           const p = feature.properties;
-          layer.bindTooltip(`Z${p.zona} ${p.clase}<br>${p.area_ha} ha (${p.porcentaje}%)<br>Score: ${p.score_prom}`, {
+          layer.bindTooltip(`Z${p.zona} ${p.clase}<br>${p.area_ha} ha (${p.porcentaje}%)`, {
             sticky: true, className: 'zone-tooltip'
           });
-          // Zone label at centroid
-          const center = layer.getBounds().getCenter();
-          const label = L.marker(center, {
+          // Zone label at polygon centroid (not bounding box center)
+          // For the principal point of this zone, use its location as label anchor
+          const zonaPts = (geeResult.samplingPoints || []).filter(pt => pt.zona === p.zona && pt.type === 'principal');
+          let labelLat, labelLng;
+          if (zonaPts.length > 0) {
+            // Place zone label near the principal point (inside the zone for sure)
+            labelLat = zonaPts[0].lat;
+            labelLng = zonaPts[0].lng;
+          } else {
+            // Fallback: compute centroid from GeoJSON coordinates
+            const geom = feature.geometry;
+            let allCoords = [];
+            if (geom.type === 'Polygon') {
+              allCoords = geom.coordinates[0];
+            } else if (geom.type === 'MultiPolygon') {
+              // Use the largest polygon's coordinates
+              let maxLen = 0;
+              for (const poly of geom.coordinates) {
+                if (poly[0].length > maxLen) { maxLen = poly[0].length; allCoords = poly[0]; }
+              }
+            }
+            if (allCoords.length > 0) {
+              let sumLng = 0, sumLat = 0;
+              for (const c of allCoords) { sumLng += c[0]; sumLat += c[1]; }
+              labelLng = sumLng / allCoords.length;
+              labelLat = sumLat / allCoords.length;
+            } else {
+              const b = layer.getBounds().getCenter();
+              labelLat = b.lat; labelLng = b.lng;
+            }
+          }
+          const label = L.marker([labelLat, labelLng], {
             icon: L.divIcon({
               className: 'map-zone-label',
-              html: `<span style="font-size:14px;font-weight:800;color:#fff;text-shadow:0 0 6px rgba(0,0,0,0.8)">Z${p.zona}</span>`,
-              iconSize: [30, 20], iconAnchor: [15, 10]
+              html: `<span style="font-size:13px;font-weight:800;color:#fff;background:rgba(0,0,0,0.6);padding:2px 6px;border-radius:4px">Z${p.zona}</span>`,
+              iconSize: [36, 22], iconAnchor: [18, 28]
             }),
             interactive: false
           });
