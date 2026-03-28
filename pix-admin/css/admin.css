@@ -621,6 +621,7 @@ select.form-input { cursor:pointer; }
 .mz-progress-container { width:100%; height:6px; background:var(--dark-4); border-radius:3px; overflow:hidden; margin-bottom:4px; }
 .mz-progress-bar { height:100%; background:linear-gradient(90deg, var(--teal), #4ecdc4); border-radius:3px; transition:width 0.4s ease; }
 .mz-lot-info { border-left:3px solid var(--teal); }
+.principal-label { background:rgba(15,27,45,0.9)!important; color:#7fd633!important; font-weight:800!important; font-size:11px!important; border:1px solid #7fd633!important; padding:2px 6px!important; border-radius:4px!important; box-shadow:0 2px 6px rgba(0,0,0,0.4)!important; }
 
 /* Campaign timeline (temporal stability v3) */
 .campaign-timeline { display:flex; flex-direction:column; gap:6px; }

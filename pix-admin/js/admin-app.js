@@ -3178,39 +3178,32 @@ class PixAdmin {
           }
         }
 
-        // Render points with permanent labels (like production PDF)
+        // Render points — principals with permanent labels, subs with hover tooltip
         for (const pt of geeResult.samplingPoints) {
           const isPrincipal = pt.type === 'principal';
           const ptId = `${prefix}-${pt.id}`;
 
-          // Circle marker
           const marker = L.circleMarker([pt.lat, pt.lng], {
-            radius: isPrincipal ? 10 : 6,
+            radius: isPrincipal ? 10 : 5,
             fillColor: isPrincipal ? '#7fd633' : '#f5a623',
             fillOpacity: isPrincipal ? 1 : 0.9,
             color: '#fff',
-            weight: isPrincipal ? 3 : 2
+            weight: isPrincipal ? 3 : 1.5
           });
-          pointMarkers.push(marker);
 
-          // Permanent label with nomenclature (like PDF)
-          const labelIcon = L.divIcon({
-            className: 'sampling-label',
-            html: `<span style="
-              font-size:${isPrincipal ? '11' : '9'}px;
-              font-weight:${isPrincipal ? '800' : '600'};
-              color:${isPrincipal ? '#7fd633' : '#f5a623'};
-              background:rgba(15,27,45,0.85);
-              padding:1px 4px;
-              border-radius:3px;
-              white-space:nowrap;
-              border:1px solid ${isPrincipal ? '#7fd633' : '#f5a623'};
-            ">${ptId}</span>`,
-            iconSize: [0, 0],
-            iconAnchor: isPrincipal ? [-12, 5] : [-8, 3]
-          });
-          const label = L.marker([pt.lat, pt.lng], { icon: labelIcon, interactive: false });
-          pointMarkers.push(label);
+          if (isPrincipal) {
+            // Principal: permanent label (always visible, like PDF)
+            marker.bindTooltip(ptId, {
+              permanent: true, direction: 'right', offset: [12, 0],
+              className: 'principal-label'
+            });
+          } else {
+            // Submuestra: hover-only tooltip (avoids clutter)
+            marker.bindTooltip(ptId, {
+              permanent: false, direction: 'top', offset: [0, -8]
+            });
+          }
+          pointMarkers.push(marker);
         }
       }
       this._mzSamplingLayer = L.layerGroup(pointMarkers).addTo(map);
