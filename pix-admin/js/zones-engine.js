@@ -192,17 +192,20 @@ class ZonesEngine {
     // --- Step 5: Compute Score Compuesto Ponderado ---
     const scoreGrid = Array.from({ length: rows }, () => new Float64Array(cols));
 
+    // Helper: safe value (NaN/undefined → 0)
+    const safe = (v) => (Number.isFinite(v) ? v : 0);
+
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         scoreGrid[r][c] =
-          w.ndvi_median    * ndviNorm[r][c] +
-          w.ndre_median    * ndreNorm[r][c] +
-          w.ndvi_stability * ndviStabNorm[r][c] +
-          w.twi            * twiNorm[r][c] +
-          w.flow_inv       * flowInv[r][c] +
-          w.slope_inv      * slopeInv[r][c] +
-          w.rel_elevation  * relElevation[r][c] +
-          w.drain_distance * drainDistInv[r][c];
+          (w.ndvi_median    || 0) * safe(ndviNorm[r][c]) +
+          (w.ndre_median    || 0) * safe(ndreNorm[r][c]) +
+          (w.ndvi_stability || 0) * safe(ndviStabNorm[r][c]) +
+          (w.twi            || 0) * safe(twiNorm[r][c]) +
+          (w.flow_inv       || 0) * safe(flowInv[r][c]) +
+          (w.slope_inv      || 0) * safe(slopeInv[r][c]) +
+          (w.rel_elevation  || 0) * safe(relElevation[r][c]) +
+          (w.drain_distance || 0) * safe(drainDistInv[r][c]);
       }
     }
 

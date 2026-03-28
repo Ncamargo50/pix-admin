@@ -3136,7 +3136,9 @@ class PixAdmin {
           statusText.innerHTML = '<span style="color:#f5a623">Modo Demo</span> — GEE no conectado';
         } else {
           statusIcon.textContent = '✅';
-          statusText.innerHTML = `<span style="color:var(--teal)">GEE OK</span> — ${geeResult.imageCount} imágenes, ${geeResult.campaignCount} campañas`;
+          const sarTag = geeResult.hasSAR ? ' + SAR' : '';
+          const suffTag = geeResult.imageSufficiency === 'LOW' ? ' <span style="color:#f5a623">(pocas imágenes)</span>' : '';
+          statusText.innerHTML = `<span style="color:var(--teal)">GEE OK</span> — ${geeResult.imageCount} imágenes S2${sarTag}, ${geeResult.campaignCount} campañas${suffTag}`;
         }
       }
 

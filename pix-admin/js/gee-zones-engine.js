@@ -23,8 +23,8 @@ class GEEZonesEngine {
     cana: {
       label: 'Caña de Azúcar',
       icon: '🌾',
-      indices: { NDRE: 0.25, RECI: 0.15, CIre: 0.10, EVI: 0.05, NDMI: 0.05 },
-      description: 'NDRE dominante — sensible a clorofila y nitrógeno en red-edge'
+      indices: { NDRE: 0.20, kNDVI: 0.10, RECI: 0.15, CIre: 0.10, NDMI: 0.05 },
+      description: 'NDRE + kNDVI — red-edge dominante, kNDVI anti-saturación para LAI alto'
     },
     soja: {
       label: 'Soja',
@@ -35,8 +35,8 @@ class GEEZonesEngine {
     maiz_sorgo: {
       label: 'Maíz / Sorgo',
       icon: '🌽',
-      indices: { NDVI: 0.25, NDRE: 0.15, EVI: 0.10, LSWI: 0.05, CIre: 0.05 },
-      description: 'NDVI + EVI — dosel denso, EVI corrige saturación'
+      indices: { kNDVI: 0.20, NDRE: 0.15, EVI: 0.10, LSWI: 0.10, CIre: 0.05 },
+      description: 'kNDVI anti-saturación + EVI — dosel denso, LSWI agua foliar'
     },
     girasol: {
       label: 'Girasol / Chía',
@@ -145,11 +145,12 @@ class GEEZonesEngine {
   /**
    * Compute a vegetation index on a Sentinel-2 SR image.
    * @param {ee.Image} img - S2 SR image with bands B2-B12
-   * @param {string} name - Index name (NDVI, NDRE, EVI, SAVI, GNDVI, NDMI, NDWI, LSWI, RECI, CIre)
+   * @param {string} name - Index name from SUPPORTED_INDICES
    * @returns {ee.Image} Single-band image named after the index
    */
   static _computeIndex(img, name) {
     const formulas = {
+      // --- Classic vegetation indices ---
       NDVI:  () => img.normalizedDifference(['B8', 'B4']).rename(name),
       NDRE:  () => img.normalizedDifference(['B8', 'B5']).rename(name),
       EVI:   () => img.expression(
@@ -163,9 +164,57 @@ class GEEZonesEngine {
       GNDVI: () => img.normalizedDifference(['B8', 'B3']).rename(name),
       NDMI:  () => img.normalizedDifference(['B8A', 'B11']).rename(name),
       NDWI:  () => img.normalizedDifference(['B3', 'B8']).rename(name),
-      LSWI:  () => img.normalizedDifference(['B8', 'B11']).rename(name),  // NIR broadband (B8) vs SWIR1
+      LSWI:  () => img.normalizedDifference(['B8', 'B11']).rename(name),
       RECI:  () => img.expression('NIR / RE1 - 1', { NIR: img.select('B8'), RE1: img.select('B5') }).rename(name),
-      CIre:  () => img.expression('NIR / RE2 - 1', { NIR: img.select('B8'), RE2: img.select('B7') }).rename(name)
+      CIre:  () => img.expression('NIR / RE2 - 1', { NIR: img.select('B8'), RE2: img.select('B7') }).rename(name),
+
+      // --- Advanced indices 2025+ (Skill v2.0) ---
+
+      // kNDVI: Kernel NDVI — overcomes saturation at high LAI (>4)
+      // Formula: tanh(NDVI²) — captures multiple scattering, SHAP-validated for yield prediction
+      kNDVI: () => {
+        const ndvi = img.normalizedDifference(['B8', 'B4']);
+        return ndvi.pow(2).tanh().rename(name);
+      },
+
+      // IRECI: Inverted Red-Edge Chlorophyll Index — chlorophyll + biophysical retrieval
+      // Formula: (B7 - B4) / (B5 / B6) — more robust than NDRE for high biomass
+      IRECI: () => img.expression(
+        '(RE3 - RED) / (RE1 / RE2)',
+        { RE3: img.select('B7'), RED: img.select('B4'), RE1: img.select('B5'), RE2: img.select('B6') }
+      ).rename(name),
+
+      // S2REP: Sentinel-2 Red-Edge Position (nm) — chlorophyll via inflection point
+      // Formula: 705 + 35 * ((B4+B7)/2 - B5) / (B6 - B5)
+      S2REP: () => img.expression(
+        '705 + 35 * (((RED + RE3) / 2) - RE1) / (RE2 - RE1 + 0.001)',
+        { RED: img.select('B4'), RE1: img.select('B5'), RE2: img.select('B6'), RE3: img.select('B7') }
+      ).rename(name),
+
+      // MCARI: Modified Chlorophyll Absorption Ratio Index — R²=0.81 for chlorophyll
+      // Formula: [(B5-B4) - 0.2*(B5-B3)] * (B5/B4)
+      MCARI: () => img.expression(
+        '((RE1 - RED) - 0.2 * (RE1 - GREEN)) * (RE1 / (RED + 0.001))',
+        { RE1: img.select('B5'), RED: img.select('B4'), GREEN: img.select('B3') }
+      ).rename(name),
+
+      // PSRI: Plant Senescence Reflectance Index — carotenoid/chlorophyll ratio
+      PSRI: () => img.expression(
+        '(RED - BLUE) / (RE2 + 0.001)',
+        { RED: img.select('B4'), BLUE: img.select('B2'), RE2: img.select('B6') }
+      ).rename(name),
+
+      // BSI: Bare Soil Index — for soil exposure detection and SOC mapping
+      BSI: () => img.expression(
+        '((SWIR + RED) - (NIR + BLUE)) / ((SWIR + RED) + (NIR + BLUE) + 0.001)',
+        { SWIR: img.select('B11'), RED: img.select('B4'), NIR: img.select('B8'), BLUE: img.select('B2') }
+      ).rename(name),
+
+      // OSAVI: Optimized SAVI (L=0.16) — better for mixed veg/soil scenes
+      OSAVI: () => img.expression(
+        '((NIR - RED) / (NIR + RED + 0.16)) * 1.16',
+        { NIR: img.select('B8'), RED: img.select('B4') }
+      ).rename(name)
     };
 
     const fn = formulas[name];
@@ -205,7 +254,7 @@ class GEEZonesEngine {
 
     const indexNames = Object.keys(cropConfig.indices);
     const progress = onProgress || (() => {});
-    const STEPS = 8;
+    const STEPS = 10;  // 10 steps: geometry, S2, indices, campaigns, DEM, SAR, download, campaigns-dl, format, done
 
     // --- Step 1: Build geometry ---
     progress(1, STEPS, 'Configurando geometría del lote...');
@@ -283,71 +332,103 @@ class GEEZonesEngine {
     const dem = ee.Image('COPERNICUS/DEM/GLO30').select('DEM').clip(geometry);
     const terrain = ee.Terrain.products(dem);
     const slope = terrain.select('slope');
-    const aspect = terrain.select('aspect');
 
-    // TWI = ln(contributing_area / tan(slope_rad + epsilon))
-    // Without true flow accumulation, use pixel area * constant as proxy
-    // pixelArea = scale^2 (m²), assume uniform contributing area = scale * 10 cells
+    // TWI with real flow accumulation from MERIT Hydro when available
     const slopeRad = slope.multiply(Math.PI / 180);
-    const pixelContribArea = scale * scale * 10;  // proxy for contributing area (m²)
-    const twi = slopeRad.add(0.001).tan().pow(-1).multiply(pixelContribArea).log().rename('TWI');
-
-    // Flow accumulation: try MERIT Hydro, fallback to slope-based proxy.
-    // GEE is lazy — ee.Image() won't throw. We use a server-side conditional
-    // by checking if the MERIT collection has data in the region.
     const meritExists = ee.ImageCollection('MERIT/Hydro/v1_0_1')
       .filterBounds(geometry).size();
     const meritFlow = ee.Image('MERIT/Hydro/v1_0_1').select('upa').clip(geometry);
-    // Slope-based proxy: inverted normalized slope as flow tendency
     const slopeProxy = slope.unitScale(
       ee.Number(slope.reduceRegion({ reducer: ee.Reducer.min(), geometry, scale: 30 }).get('slope')),
       ee.Number(slope.reduceRegion({ reducer: ee.Reducer.max(), geometry, scale: 30 }).get('slope'))
     ).multiply(-1).add(1);
-    const flowAcc = ee.Algorithms.If(meritExists.gt(0), meritFlow, slopeProxy);
-    const flowAccImg = ee.Image(flowAcc).rename('flow');
+    const flowAccImg = ee.Image(ee.Algorithms.If(meritExists.gt(0), meritFlow, slopeProxy)).rename('flow');
 
-    // --- Step 6: Stack all layers and download ---
-    progress(6, STEPS, 'Descargando datos del servidor GEE...');
+    // TWI: use real contributing area from MERIT when available, proxy otherwise
+    // Real TWI = ln(contributing_area_m² / tan(slope_rad + eps))
+    const contribArea = ee.Image(ee.Algorithms.If(
+      meritExists.gt(0),
+      meritFlow.multiply(1e6),  // upa is km² → convert to m²
+      ee.Image.constant(scale * scale * 10)  // proxy: 10 pixels upstream
+    ));
+    const twi = contribArea.divide(slopeRad.add(0.001).tan()).log().rename('TWI');
 
-    // Build multi-band image for download
-    const allBands = medianComposite
+    // --- Step 6: Sentinel-1 SAR — RVI radar (cloud-independent) ---
+    progress(6, STEPS, 'Integrando Sentinel-1 SAR (RVI radar)...');
+
+    let sarRVI;
+    try {
+      const s1 = ee.ImageCollection('COPERNICUS/S1_GRD')
+        .filterBounds(geometry)
+        .filterDate(start, now)
+        .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+        .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH'))
+        .filter(ee.Filter.eq('instrumentMode', 'IW'))
+        .select(['VV', 'VH']);
+
+      const s1Count = await s1.size().getInfo();
+      if (s1Count >= 3) {
+        // RVI = 4 * VH / (VV + VH) — range 0 (bare) to 1 (dense veg)
+        const s1Median = s1.median().clip(geometry);
+        const vv = s1Median.select('VV').pow(10).divide(10);  // dB to linear
+        const vh = s1Median.select('VH').pow(10).divide(10);
+        sarRVI = vh.multiply(4).divide(vv.add(vh)).rename('SAR_RVI');
+      }
+    } catch (e) {
+      console.warn('GEEZonesEngine: SAR processing skipped:', e.message);
+    }
+
+    // --- Step 7: OPTIMIZED single download (all layers in one call) ---
+    progress(7, STEPS, 'Descargando todos los datos del servidor GEE...');
+
+    // Stack ALL campaigns + median + terrain into ONE multi-band image
+    let downloadStack = medianComposite
       .addBands(stdComposite)
       .addBands(dem.rename('DEM'))
       .addBands(slope.rename('slope'))
       .addBands(twi)
       .addBands(flowAccImg);
 
-    // Download as 2D arrays via sampleRectangle
-    const sampled = await allBands
+    // Add SAR RVI if available
+    if (sarRVI) {
+      downloadStack = downloadStack.addBands(sarRVI);
+    }
+
+    // Add individual campaign bands (avoids 4 extra sampleRectangle calls!)
+    for (let i = 0; i < campaigns.length; i++) {
+      const renamed = campaigns[i].select(indexNames).regexpRename('(.*)', `$1_c${i}`);
+      downloadStack = downloadStack.addBands(renamed);
+    }
+
+    // SINGLE download — all data in one call (was 5 calls before!)
+    const sampled = await downloadStack
       .reproject({ crs: 'EPSG:4326', scale })
       .sampleRectangle({ region: geometry, defaultValue: 0 })
       .getInfo();
 
-    // Also download each campaign separately for temporal analysis
-    progress(7, STEPS, 'Procesando campañas temporales...');
+    // --- Step 8: Extract campaign grids from unified download ---
+    progress(8, STEPS, 'Procesando campañas temporales...');
+    const props = sampled.properties;
     const campaignGrids = {};
     for (const idx of indexNames) {
       campaignGrids[idx] = [];
-    }
-
-    for (let i = 0; i < campaigns.length; i++) {
-      const campSampled = await campaigns[i]
-        .reproject({ crs: 'EPSG:4326', scale })
-        .sampleRectangle({ region: geometry, defaultValue: 0 })
-        .getInfo();
-
-      for (const idx of indexNames) {
-        const band = campSampled.properties[idx];
-        if (band) {
-          campaignGrids[idx].push(band);
-        }
+      for (let i = 0; i < campaigns.length; i++) {
+        const band = props[`${idx}_c${i}`];
+        if (band) campaignGrids[idx].push(band);
+      }
+      // Fallback: use median if no campaign data extracted
+      if (campaignGrids[idx].length === 0 && props[idx]) {
+        campaignGrids[idx] = [props[idx]];
       }
     }
 
-    // --- Step 7: Format for ZonesEngine ---
-    progress(8, STEPS, 'Formateando datos para motor de zonas...');
+    // --- Step 9: Validate image sufficiency ---
+    if (count < 8) {
+      console.warn(`GEEZonesEngine: Only ${count} images — below recommended minimum of 8 for statistical sufficiency`);
+    }
 
-    const props = sampled.properties;
+    // --- Step 10: Format for ZonesEngine ---
+    progress(10, STEPS, 'Formateando datos para motor de zonas...');
 
     // Extract primary index campaigns (use first 3 indices as NDVI/NDRE/EVI slots)
     // ZonesEngine expects: ndviCampaigns, ndreCampaigns, eviCampaigns
@@ -397,7 +478,10 @@ class GEEZonesEngine {
       scale,
       imageCount: count,
       campaignCount: campaigns.length,
-      indexNames
+      indexNames,
+      hasSAR: !!sarRVI,
+      sarRVI: sarRVI ? props['SAR_RVI'] : null,
+      imageSufficiency: count >= 8 ? 'OK' : 'LOW'
     };
   }
 
