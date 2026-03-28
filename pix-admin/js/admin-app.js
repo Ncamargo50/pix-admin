@@ -2914,7 +2914,7 @@ class PixAdmin {
 
     try {
       // Check if GEE Python backend is running on localhost:9101
-      const resp = await fetch('http://localhost:9102/status', { signal: AbortSignal.timeout(5000) });
+      const resp = await fetch('http://localhost:9103/status', { signal: AbortSignal.timeout(5000) });
       if (resp.ok) {
         const data = await resp.json();
         this._geeBackendReady = true;
@@ -3063,7 +3063,7 @@ class PixAdmin {
       if (!this._geeBackendReady) {
         // Try to connect first
         try {
-          const statusResp = await fetch('http://localhost:9102/status', { signal: AbortSignal.timeout(3000) });
+          const statusResp = await fetch('http://localhost:9103/status', { signal: AbortSignal.timeout(3000) });
           if (statusResp.ok) this._geeBackendReady = true;
         } catch (e) { /* backend not running */ }
       }
@@ -3076,7 +3076,7 @@ class PixAdmin {
       onProgress(1, 5, 'Enviando lote al backend GEE Python (procesamiento real)...');
 
       // Call Python backend with real GEE processing
-      const response = await fetch('http://localhost:9102/process', {
+      const response = await fetch('http://localhost:9103/process', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -3124,10 +3124,10 @@ class PixAdmin {
       const zonesLayer = L.geoJSON(geeResult.zonesGeoJSON, {
         style: (feature) => ({
           fillColor: feature.properties.color || zoneColors[feature.properties.zona - 1] || '#888',
-          fillOpacity: 0.55,
+          fillOpacity: 0.65,
           color: '#fff',
-          weight: 2,
-          opacity: 0.8
+          weight: 2.5,
+          opacity: 0.9
         }),
         onEachFeature: (feature, layer) => {
           const p = feature.properties;

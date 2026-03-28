@@ -496,8 +496,8 @@ class GEEHandler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    server = http.server.HTTPServer(('localhost', 9102), GEEHandler)
-    print(f'GEE Backend running on http://localhost:9102')
+    server = http.server.HTTPServer(('localhost', 9103), GEEHandler)
+    print(f'GEE Backend running on http://localhost:9103')
     print(f'POST /process — process field with real GEE data')
     print(f'GET /status — check server status')
     server.serve_forever()
