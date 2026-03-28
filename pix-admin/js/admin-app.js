@@ -2990,11 +2990,12 @@ class PixAdmin {
     const campSection = document.getElementById('mzCampaignSection');
     if (campSection) campSection.style.display = '';
     const campInfo = document.getElementById('mzCampaignInfo');
-    if (campInfo && cropConfig) {
-      const v = cropConfig.ventana;
+    const cropCfg = typeof GEEZonesEngine !== 'undefined' ? GEEZonesEngine.CROP_INDEX_CONFIGS[cropKey] : null;
+    if (campInfo && cropCfg) {
+      const v = cropCfg.ventana;
       const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
       const ventanaStr = v ? `${meses[v.mesInicio]}-${meses[v.mesFin]}` : 'Anual';
-      campInfo.textContent = `Ranking Percentil Multi-Campaña v4.1 — Ventana: ${ventanaStr} (${cropConfig.fenologia})`;
+      campInfo.textContent = `Ranking Percentil Multi-Campaña v4.1 — Ventana: ${ventanaStr} (${cropCfg.fenologia})`;
     }
 
     // Enable generate button if lot is loaded
