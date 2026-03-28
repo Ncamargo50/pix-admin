@@ -501,10 +501,13 @@ class GEEZonesEngine {
     const cropConfig = this.CROP_INDEX_CONFIGS[cropKey];
     if (!cropConfig) throw new Error(`Unknown crop: ${cropKey}`);
 
-    // Use existing simulation
+    // Use existing simulation — resolution = grid rows (not meters!)
+    // Higher grid for better zone delineation and sampling point placement
+    const gridRes = areaHa > 200 ? 80 : areaHa > 50 ? 60 : 40;
     const satelliteData = ZonesEngine.simulateSatelliteData(bounds, boundary, areaHa, {
-      numCampaigns: 4,
-      resolution: areaHa > 100 ? 20 : 10
+      years: 4,
+      resolution: gridRes,
+      cellSize: 10
     });
 
     const indexNames = Object.keys(cropConfig.indices);
