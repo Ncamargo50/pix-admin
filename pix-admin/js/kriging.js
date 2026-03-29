@@ -892,11 +892,11 @@ class KrigingEngine {
 
         const solution = KrigingEngine._solveLinearSystem(K, b);
 
-        if (!solution) return null; // caller handles fallback
+        if (!solution) return null; // singular matrix — caller falls back to IDW
 
-        // Validate weights
+        // Validate all weights are finite (catches post-solve numerical instability)
         for (let i = 0; i <= n; i++) {
-            if (!isFinite(solution[i])) return null;
+            if (!isFinite(solution[i]) || Math.abs(solution[i]) > 1e10) return null;
         }
 
         // Kriging estimate

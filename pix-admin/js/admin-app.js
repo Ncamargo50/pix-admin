@@ -949,7 +949,7 @@ class PixAdmin {
   _updateBoundaryStatus() {
     const el = document.getElementById('boundaryStatus');
     if (!el) return;
-    if (this.fieldPolygon) {
+    if (this.fieldPolygon && Array.isArray(this.fieldPolygon) && this.fieldPolygon.length > 0) {
       el.innerHTML = `<span style="color:var(--success)">&#x2713;</span> ${Math.round(this.fieldAreaHa * 10) / 10} ha · ${this.fieldPolygon.length} vértices`;
       el.className = 'boundary-status active';
     } else {
@@ -1306,9 +1306,10 @@ class PixAdmin {
     if (!result) return;
 
     for (const s of result.samples) {
-      const name = s.meta._sampleId || `Lab ${this.samples.length + 1}`;
+      const nextId = this.samples.reduce((max, s) => Math.max(max, s.id || 0), 0) + 1;
+      const name = s.meta._sampleId || `Lab ${nextId}`;
       this.samples.push({
-        id: this.samples.length + 1,
+        id: nextId,
         name,
         lat: parseFloat(s.meta._lat) || null,
         lng: parseFloat(s.meta._lng) || null,
@@ -1482,10 +1483,10 @@ class PixAdmin {
     if (this.overlays[mapKey]) { map.removeLayer(this.overlays[mapKey]); this.overlays[mapKey] = null; }
     if (this[`_${mapKey}Markers`]) {
       const _mm = this[`_${mapKey}Markers`];
-      if (_mm._clusterGroup) { map.removeLayer(_mm._clusterGroup); } else { _mm.forEach(m => map.removeLayer(m)); }
+      if (_mm._clusterGroup) { map.removeLayer(_mm._clusterGroup); } else if (Array.isArray(_mm)) { _mm.forEach(m => map.removeLayer(m)); }
       this[`_${mapKey}Markers`] = [];
     }
-    if (this[`_${mapKey}Labels`]) { this[`_${mapKey}Labels`].forEach(m => map.removeLayer(m)); this[`_${mapKey}Labels`] = []; }
+    if (Array.isArray(this[`_${mapKey}Labels`])) { this[`_${mapKey}Labels`].forEach(m => map.removeLayer(m)); this[`_${mapKey}Labels`] = []; }
   }
 
   updateNutrientMap() {
@@ -1710,10 +1711,10 @@ class PixAdmin {
     if (!map) return;
     if (this._gisOverlay) { map.removeLayer(this._gisOverlay); this._gisOverlay = null; }
     if (this._gisMarkers) {
-      if (this._gisMarkers._clusterGroup) { map.removeLayer(this._gisMarkers._clusterGroup); } else { this._gisMarkers.forEach(m => map.removeLayer(m)); }
+      if (this._gisMarkers._clusterGroup) { map.removeLayer(this._gisMarkers._clusterGroup); } else if (Array.isArray(this._gisMarkers)) { this._gisMarkers.forEach(m => map.removeLayer(m)); }
       this._gisMarkers = [];
     }
-    if (this._gisLabels) { this._gisLabels.forEach(m => map.removeLayer(m)); this._gisLabels = []; }
+    if (Array.isArray(this._gisLabels)) { this._gisLabels.forEach(m => map.removeLayer(m)); this._gisLabels = []; }
   }
 
   // Import field boundary (KML/GeoJSON)
@@ -1756,15 +1757,15 @@ class PixAdmin {
   }
 
   _setFieldBoundary(geojson, sourceName) {
-    this._fieldBoundary = geojson;
-    this._boundaryPolygon = InterpolationEngine.getPolygonCoords(geojson);
-    const areaHa = InterpolationEngine.polygonAreaHa(this._boundaryPolygon);
-    this._fieldAreaHa = Math.round(areaHa * 10) / 10;
-
-    // Sync with legacy property names used by nutrient-maps, prescription, and report views
+    // Single source of truth for field boundary (consolidated from legacy dual-property pattern)
     this.fieldBoundary = geojson;
-    this.fieldPolygon = this._boundaryPolygon;
-    this.fieldAreaHa = areaHa;
+    this.fieldPolygon = InterpolationEngine.getPolygonCoords(geojson);
+    const areaHa = InterpolationEngine.polygonAreaHa(this.fieldPolygon);
+    this.fieldAreaHa = Math.round(areaHa * 10) / 10;
+    // Legacy aliases — kept for backward compat with existing code paths
+    this._fieldBoundary = this.fieldBoundary;
+    this._boundaryPolygon = this.fieldPolygon;
+    this._fieldAreaHa = this.fieldAreaHa;
     const fName = geojson.features?.[0]?.properties?.name || sourceName || 'Lote';
 
     // Update client data area
@@ -1774,7 +1775,7 @@ class PixAdmin {
 
     // Update UI
     const infoEl = document.getElementById('gisFieldInfo');
-    if (infoEl) infoEl.innerHTML = `<strong>${fName}</strong> — ${this._fieldAreaHa} ha`;
+    if (infoEl) infoEl.innerHTML = `<strong>${escapeHtml(fName)}</strong> — ${this.fieldAreaHa} ha`;
     const badge = document.getElementById('gisBoundaryBadge');
     if (badge) { badge.style.display = 'inline-flex'; badge.textContent = `${this._fieldAreaHa} ha`; }
     const statusEl = document.getElementById('boundaryStatus');
@@ -2480,7 +2481,7 @@ class PixAdmin {
     // Clear old layers
     if (this._relationOverlay) { this.maps.relation.removeLayer(this._relationOverlay); this._relationOverlay = null; }
     if (this._relationMarkers) {
-      if (this._relationMarkers._clusterGroup) { this.maps.relation.removeLayer(this._relationMarkers._clusterGroup); } else { this._relationMarkers.forEach(m => this.maps.relation.removeLayer(m)); }
+      if (this._relationMarkers._clusterGroup) { this.maps.relation.removeLayer(this._relationMarkers._clusterGroup); } else if (Array.isArray(this._relationMarkers)) { this._relationMarkers.forEach(m => this.maps.relation.removeLayer(m)); }
       this._relationMarkers = [];
     }
 
@@ -3659,7 +3660,9 @@ class PixAdmin {
 
     if (this._lastMZResult.geojson) {
       // GEE real — already has zona, clase, color, area_ha, porcentaje
-      zonasGeoJSON = JSON.parse(JSON.stringify(this._lastMZResult.geojson));
+      zonasGeoJSON = typeof structuredClone === 'function'
+        ? structuredClone(this._lastMZResult.geojson)
+        : JSON.parse(JSON.stringify(this._lastMZResult.geojson));
     } else if (this._lastMZResult.zoneGrid && typeof ZonesEngine !== 'undefined') {
       // Demo mode — generate from grid and enrich with stats
       const bounds = GEEZonesEngine.boundsFromPolygon(this.fieldPolygon, true);
@@ -3860,8 +3863,8 @@ class PixAdmin {
             <span class="os-card-id">OS #${String(o.id).padStart(3, '0')}</span>
             <span class="os-badge" style="background:${STATUS_COLORS[o.status]}20;color:${STATUS_COLORS[o.status]}">${STATUS_LABELS[o.status]}</span>
           </div>
-          <div class="os-card-client">${o.client?.nombre || 'Sin cliente'}</div>
-          <div class="os-card-field">${o.client?.propiedad || ''} — ${o.field?.lote || 'Sin lote'}</div>
+          <div class="os-card-client">${escapeHtml(o.client?.nombre || 'Sin cliente')}</div>
+          <div class="os-card-field">${escapeHtml(o.client?.propiedad || '')} — ${escapeHtml(o.field?.lote || 'Sin lote')}</div>
           <div class="os-card-meta">
             <span>${PRIORITY_ICONS[o.assignment?.priority] || '🟡'} ${o.assignment?.priority || 'media'}</span>
             <span>${o.config?.analysisType || 'Quimico'}</span>
@@ -3925,8 +3928,8 @@ class PixAdmin {
         <div class="os-form-section">
           <h4>Cliente</h4>
           <div class="form-row">
-            <div class="form-group"><label>Nombre</label><input class="form-input" id="osClientName" value="${order.client.nombre}" placeholder="Nombre del cliente"></div>
-            <div class="form-group"><label>Propiedad</label><input class="form-input" id="osClientProp" value="${order.client.propiedad}" placeholder="Hacienda / Fazenda"></div>
+            <div class="form-group"><label>Nombre</label><input class="form-input" id="osClientName" value="${escapeHtml(order.client.nombre)}" placeholder="Nombre del cliente"></div>
+            <div class="form-group"><label>Propiedad</label><input class="form-input" id="osClientProp" value="${escapeHtml(order.client.propiedad)}" placeholder="Hacienda / Fazenda"></div>
           </div>
           <div class="form-group"><label>Ubicacion</label><input class="form-input" id="osClientUbic" value="${order.client.ubicacion}" placeholder="Departamento, localidad"></div>
         </div>
@@ -4029,7 +4032,7 @@ class PixAdmin {
     const modal = document.getElementById('osShareModal');
     document.getElementById('osShareBody').innerHTML = `
       <div class="os-share-options">
-        <h4 style="margin:0 0 16px">OS #${String(order.id).padStart(3, '0')} — ${order.client.nombre || 'Sin cliente'}</h4>
+        <h4 style="margin:0 0 16px">OS #${String(order.id).padStart(3, '0')} — ${escapeHtml(order.client.nombre || 'Sin cliente')}</h4>
 
         <div class="os-share-option">
           <div class="os-share-label">Descargar JSON</div>

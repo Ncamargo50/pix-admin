@@ -1206,7 +1206,7 @@ class ZonesEngine {
     let entropy = 0;
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < c; j++) {
-        if (U[i][j] > 0) entropy -= U[i][j] * Math.log(U[i][j]);
+        if (U[i][j] > 1e-15) entropy -= U[i][j] * Math.log(U[i][j]);
       }
     }
     const nce = entropy / n;
@@ -1484,7 +1484,8 @@ class ZonesEngine {
         const dzdx = ((z3 + 2 * z6 + z9) - (z1 + 2 * z4 + z7)) / (8 * cellSize);
         const dzdy = ((z7 + 2 * z8 + z9) - (z1 + 2 * z2 + z3)) / (8 * cellSize);
 
-        slopeGrid[r][c] = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy));
+        const gradient = Math.sqrt(dzdx * dzdx + dzdy * dzdy);
+        slopeGrid[r][c] = isFinite(gradient) ? Math.atan(gradient) : 0;
       }
     }
 
