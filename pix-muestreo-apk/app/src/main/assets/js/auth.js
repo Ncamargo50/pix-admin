@@ -154,7 +154,77 @@ class PixAuth {
     return classes[role] || '';
   }
 
-  // ===== REMOTE USER SYNC VIA GOOGLE DRIVE =====
+  // ===== REMOTE USER SYNC VIA API (primary) + GOOGLE DRIVE (fallback) =====
+
+  /** API endpoint for user sync — configurable via settings */
+  _userApiUrl = null;
+
+  async getApiUrl() {
+    if (this._userApiUrl) return this._userApiUrl;
+    const saved = await pixDB.getSetting('userApiUrl');
+    return saved || 'http://pixadvisor.local:9105';
+  }
+
+  /**
+   * Sync users from PIX User API → merge into local IndexedDB.
+   * Falls back to Google Drive if API unreachable.
+   */
+  async syncUsersFromAPI() {
+    const apiUrl = await this.getApiUrl();
+    try {
+      const resp = await fetch(`${apiUrl}/api/users/sync`, {
+        signal: AbortSignal.timeout(5000)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const remoteData = await resp.json();
+
+      if (!remoteData?.users?.length) return { synced: 0, status: 'no_data', source: 'api' };
+
+      const result = await this._mergeRemoteUsers(remoteData.users);
+      console.log(`[Auth] API sync: ${result.created} created, ${result.updated} updated`);
+      return { ...result, status: 'ok', source: 'api' };
+    } catch (e) {
+      console.warn('[Auth] API sync failed, trying Drive fallback:', e.message);
+      // Fallback to Drive sync
+      return this.syncUsersFromDrive();
+    }
+  }
+
+  /**
+   * Merge remote users into local IndexedDB.
+   * Shared logic for both API and Drive sync.
+   */
+  async _mergeRemoteUsers(remoteUsers) {
+    const localUsers = await this.getAllUsers();
+    const localMap = {};
+    localUsers.forEach(u => { localMap[u.id] = u; });
+
+    let created = 0, updated = 0, deactivated = 0;
+
+    for (const remote of remoteUsers) {
+      const local = localMap[remote.id];
+      if (!local) {
+        await pixDB.putUser({
+          ...remote,
+          active: remote.active !== false,
+          _syncedFrom: 'api'
+        });
+        created++;
+      } else {
+        const remoteTime = new Date(remote.updatedAt || 0).getTime();
+        const localTime = new Date(local.updatedAt || 0).getTime();
+        if (remoteTime > localTime) {
+          Object.assign(local, remote, { _syncedFrom: 'api' });
+          local.active = remote.active !== false;
+          await pixDB.putUser(local);
+          updated++;
+          if (!remote.active) deactivated++;
+        }
+      }
+    }
+
+    return { synced: created + updated, created, updated, deactivated };
+  }
 
   /**
    * Sync users from Google Drive → merge into local IndexedDB.

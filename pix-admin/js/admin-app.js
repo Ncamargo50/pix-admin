@@ -2904,20 +2904,35 @@ class PixAdmin {
     this.toast(`Cliente "${client.name}" seleccionado para reportes`);
   }
 
-  // ===== COLLABORATOR MANAGEMENT (syncs to PIX Muestreo APK via Drive) =====
+  // ===== COLLABORATOR MANAGEMENT (via PIX User API — port 9105) =====
+
+  _userApiUrl = 'http://localhost:9105';
 
   async renderCollaborators() {
     const container = document.getElementById('collaboratorsList');
     if (!container) return;
 
-    // Load collaborators from IndexedDB
+    // Load collaborators from API (instant, not Drive)
     let users = [];
     try {
-      const allState = await this._dbGet('state', 'collaborators');
-      users = allState?.value || [];
-    } catch (e) {}
+      const resp = await fetch(`${this._userApiUrl}/api/users`, { timeout: 5000 });
+      if (resp.ok) {
+        const data = await resp.json();
+        users = data.users || [];
+        this._userApiOnline = true;
+      }
+    } catch (e) {
+      this._userApiOnline = false;
+      // Fallback: load from local cache
+      try {
+        const cached = await this._dbGet('state', 'collaborators');
+        users = cached?.value || [];
+      } catch (_) {}
+    }
 
     this._collaborators = users;
+    // Cache locally for offline access
+    try { await this._dbPut('state', { key: 'collaborators', value: users }); } catch (_) {}
 
     if (users.length === 0) {
       container.innerHTML = `
@@ -2955,7 +2970,7 @@ class PixAdmin {
         `).join('')}
       </div>
       <div style="margin-top:12px;font-size:11px;color:var(--text-dim);text-align:center">
-        ${users.length} colaborador${users.length !== 1 ? 'es' : ''} | Última sync: ${this._lastCollabSync || 'nunca'}
+        ${users.length} colaborador${users.length !== 1 ? 'es' : ''} | API: ${this._userApiOnline ? '<span style="color:var(--success)">Online</span>' : '<span style="color:var(--danger)">Offline (cache)</span>'}
       </div>`;
   }
 
@@ -2977,11 +2992,21 @@ class PixAdmin {
 
   async toggleCollaborator(index) {
     if (!this._collaborators?.[index]) return;
-    this._collaborators[index].active = !this._collaborators[index].active;
-    this._collaborators[index].updatedAt = new Date().toISOString();
-    await this._dbPut('state', { key: 'collaborators', value: this._collaborators });
+    const user = this._collaborators[index];
+    const newActive = !user.active;
+    try {
+      const resp = await fetch(`${this._userApiUrl}/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: newActive })
+      });
+      if (!resp.ok) throw new Error('API error');
+    } catch (e) {
+      this.toast('Error al cambiar estado: ' + e.message, 'error');
+      return;
+    }
     this.renderCollaborators();
-    this.toast(this._collaborators[index].active ? 'Colaborador activado' : 'Colaborador desactivado');
+    this.toast(newActive ? 'Colaborador activado' : 'Colaborador desactivado');
   }
 
   async saveCollaborator() {
@@ -3001,59 +3026,50 @@ class PixAdmin {
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    if (!this._collaborators) this._collaborators = [];
-    const now = new Date().toISOString();
-
-    if (this._editingCollabIndex !== null && this._collaborators[this._editingCollabIndex]) {
-      // Edit existing
-      const user = this._collaborators[this._editingCollabIndex];
-      user.name = name;
-      user.email = email;
-      user.role = role;
-      if (password) user.passwordHash = await sha256(password);
-      user.updatedAt = now;
-    } else {
-      // Create new
-      if (!password) { this.toast('Contraseña obligatoria para nuevo colaborador', 'warning'); return; }
-      this._collaborators.push({
-        id: 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6),
-        name,
-        email,
-        passwordHash: await sha256(password),
-        role,
-        active: true,
-        createdAt: now,
-        updatedAt: now
-      });
-    }
-
-    await this._dbPut('state', { key: 'collaborators', value: this._collaborators });
-    document.getElementById('collabModal').style.display = 'none';
-    this._editingCollabIndex = null;
-    this.renderCollaborators();
-    this.toast('Colaborador guardado');
-  }
-
-  async syncCollaboratorsToDrive() {
-    if (!this._collaborators || this._collaborators.length === 0) {
-      this.toast('No hay colaboradores para sincronizar', 'warning');
+    try {
+      if (this._editingCollabIndex !== null && this._collaborators?.[this._editingCollabIndex]) {
+        // Edit existing via API PUT
+        const user = this._collaborators[this._editingCollabIndex];
+        const body = { name, email, role };
+        if (password) body.password = password;
+        const resp = await fetch(`${this._userApiUrl}/api/users/${user.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.error); }
+      } else {
+        // Create new via API POST
+        if (!password) { this.toast('Contraseña obligatoria para nuevo colaborador', 'warning'); return; }
+        const resp = await fetch(`${this._userApiUrl}/api/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password, role })
+        });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.error); }
+      }
+    } catch (e) {
+      this.toast('Error API: ' + e.message, 'error');
       return;
     }
 
-    // Build the users.json payload
-    const payload = {
-      _type: 'pix_users_sync',
-      version: 1,
-      updatedAt: new Date().toISOString(),
-      users: this._collaborators
-    };
-
-    // Download as JSON file (user can upload to Drive manually, or share)
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    this._downloadBlob(blob, `users_${new Date().toISOString().slice(0, 10)}.json`);
-    this._lastCollabSync = new Date().toLocaleString('es');
+    document.getElementById('collabModal').style.display = 'none';
+    this._editingCollabIndex = null;
     this.renderCollaborators();
-    this.toast(`${this._collaborators.length} colaboradores exportados — subir users.json a Google Drive / PIX Muestreo`);
+    this.toast('Colaborador guardado (API)');
+  }
+
+  async syncCollaboratorsToDrive() {
+    // Check API health
+    try {
+      const resp = await fetch(`${this._userApiUrl}/api/health`, { timeout: 3000 });
+      if (resp.ok) {
+        this.toast('API de usuarios online — sync automático activo', 'success');
+        this.renderCollaborators();
+        return;
+      }
+    } catch (e) {}
+    this.toast('API offline — ejecute: python pix-admin/user-api.py', 'warning');
   }
 
   // ===== SETTINGS =====

@@ -1622,17 +1622,22 @@ function showApp() {
   app.init();
   app.applyRolePermissions();
 
-  // Background user sync from Drive (non-blocking)
+  // Background user sync from API (primary) or Drive (fallback) — non-blocking
   setTimeout(async () => {
     try {
-      const result = await pixAuth.syncUsersFromDrive();
+      const result = await pixAuth.syncUsersFromAPI();
       if (result.synced > 0) {
-        app.toast(`Usuarios sincronizados: ${result.created || 0} nuevos, ${result.updated || 0} actualizados`, 'info');
+        app.toast(`Usuarios sincronizados (${result.source}): ${result.created || 0} nuevos, ${result.updated || 0} actualizados`, 'info');
       }
     } catch (e) {
       console.warn('[App] Background user sync skipped:', e.message);
     }
-  }, 3000); // 3s delay to not block app startup
+  }, 2000);
+
+  // Periodic sync every 60 seconds (keeps credentials fresh)
+  setInterval(async () => {
+    try { await pixAuth.syncUsersFromAPI(); } catch (_) {}
+  }, 60000);
 }
 
 function skipInstall() {
