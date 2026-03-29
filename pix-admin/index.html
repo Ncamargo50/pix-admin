@@ -1022,6 +1022,33 @@
                 <button class="export-btn" onclick="admin.exportMZKML()">KML</button>
               </div>
             </div>
+
+            <!-- Enviar a PIX Muestreo -->
+            <div class="panel-section" id="mzSendSection" style="display:none">
+              <div class="panel-title" style="color:#0d9488">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+                Enviar a PIX Muestreo
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <input class="form-input" id="mzSendCollector" placeholder="Nombre del colaborador / técnico" style="font-size:12px;padding:8px 10px">
+                <div style="display:flex;gap:6px">
+                  <select class="form-input" id="mzSendPriority" style="flex:1;font-size:11px;padding:7px 8px">
+                    <option value="media">Prioridad: Media</option>
+                    <option value="alta">Prioridad: Alta</option>
+                    <option value="baja">Prioridad: Baja</option>
+                  </select>
+                  <input class="form-input" type="date" id="mzSendDueDate" style="flex:1;font-size:11px;padding:7px 8px">
+                </div>
+                <textarea class="form-input" id="mzSendNotes" rows="2" placeholder="Instrucciones para el muestreo a campo..." style="font-size:11px;padding:8px 10px;resize:vertical"></textarea>
+                <button class="action-btn" onclick="admin.sendMZToPixMuestreo()" style="width:100%;background:linear-gradient(135deg,#0d9488,#065f46);color:#fff;border:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.2s" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                  Enviar Orden de Servicio
+                </button>
+                <div style="font-size:10px;color:var(--text-dim);text-align:center">
+                  Genera archivo .json con mapa + puntos para PIX Muestreo APK
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1627,7 +1654,7 @@ function pixLogout() {
 <script src="js/zones-engine.js?v=5"></script>
 <script src="js/gee-zones-engine.js?v=1"></script>
 <script src="js/sampling-engine.js?v=5"></script>
-<script src="js/admin-app.js"></script>
+<script src="js/admin-app.js?v=10"></script>
 <script src="js/agent-admin.js"></script>
 <script>
 // Pre-fetch DRIS/IBRA norms so they are ready before any leaf analysis is requested.

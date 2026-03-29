@@ -3280,6 +3280,14 @@ class PixAdmin {
       onProgress(5, 5, 'Completo.');
       this.toast(`${numZones} zonas generadas — Caña (GEE REAL, ${geeResult.campaigns} campañas, ${mainPts.length}P + ${subPts.length}S)`);
 
+      // Show "Send to PIX Muestreo" panel if we have sampling points
+      if (mainPts.length > 0) {
+        const mzRes = document.getElementById('mzResults');
+        if (mzRes) mzRes.style.display = '';
+        const sendSection = document.getElementById('mzSendSection');
+        if (sendSection) sendSection.style.display = '';
+      }
+
     } catch (e) {
       console.error('GEE Zones error:', e);
       this.toast(`Error: ${e.message}`, 'error');
@@ -3359,6 +3367,12 @@ class PixAdmin {
       const totalMain = result.points?.length || 0;
       const totalSubs = result.compositePoints?.length || 0;
       this.toast(`${totalMain} puntos principales + ${totalSubs} sub-muestras generadas`);
+
+      // Show "Send to PIX Muestreo" panel (mzResults must also be visible)
+      const mzRes2 = document.getElementById('mzResults');
+      if (mzRes2) mzRes2.style.display = '';
+      const sendSection = document.getElementById('mzSendSection');
+      if (sendSection) sendSection.style.display = '';
 
     } catch (e) {
       console.error('Sampling error:', e);
@@ -3597,6 +3611,181 @@ class PixAdmin {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  // ===== SEND TO PIX MUESTREO =====
+
+  sendMZToPixMuestreo() {
+    // Validate data exists
+    if (!this._lastMZResult) {
+      this.toast('Genera zonas de manejo primero', 'warning');
+      return;
+    }
+    if (!this._lastSamplingResult && !this._lastMZResult.samplingPoints) {
+      this.toast('Genera puntos de muestreo primero', 'warning');
+      return;
+    }
+
+    // --- 1. Collect zone GeoJSON (complete map with colors/classes) ---
+    const zoneColors = ['#CC0000', '#FF8C00', '#FFD700', '#228B22'];
+    let zonasGeoJSON;
+
+    if (this._lastMZResult.geojson) {
+      // GEE real — already has zona, clase, color, area_ha, porcentaje
+      zonasGeoJSON = JSON.parse(JSON.stringify(this._lastMZResult.geojson));
+    } else if (this._lastMZResult.zoneGrid && typeof ZonesEngine !== 'undefined') {
+      // Demo mode — generate from grid and enrich with stats
+      const bounds = GEEZonesEngine.boundsFromPolygon(this.fieldPolygon, true);
+      zonasGeoJSON = ZonesEngine.zonesToGeoJSON(
+        this._lastMZResult.zoneGrid, bounds,
+        this._lastMZResult.numZones, this._lastMZResult.stats
+      );
+      // Enrich features with color and clase from stats
+      const stats = this._lastMZResult.stats || {};
+      zonasGeoJSON.features.forEach((f, i) => {
+        const z = f.properties.zone ? f.properties.zone - 1 : i;
+        f.properties.color = zoneColors[z] || '#888';
+        f.properties.zona = z + 1;
+        f.properties.clase = stats[z]?.clase || stats[z]?.potential || ['Baja', 'Media', 'Media-Alta', 'Alta'][z] || `Zona ${z + 1}`;
+        f.properties.name = `Zona ${z + 1} — ${f.properties.clase}`;
+        f.properties.area_ha = stats[z]?.area_ha || f.properties.areaFraction;
+        f.properties.porcentaje = stats[z]?.porcentaje || f.properties.areaFraction;
+      });
+    } else {
+      zonasGeoJSON = { type: 'FeatureCollection', features: [] };
+    }
+
+    // --- 2. Collect ALL sampling points (principal + subsamples) ---
+    let allPoints = [];
+
+    if (this._lastMZResult.samplingPoints && this._lastMZResult.samplingPoints.length > 0) {
+      // GEE backend — points already have type/zona/lat/lng/id
+      allPoints = this._lastMZResult.samplingPoints.map(pt => ({
+        id: pt.id || `Z${pt.zona}-${pt.type === 'principal' ? 'P' : 'S'}`,
+        name: pt.id || pt.name || '',
+        lat: pt.lat,
+        lng: pt.lng,
+        zona: typeof pt.zona === 'number' ? `Zona ${pt.zona}` : (pt.zona || ''),
+        tipo: pt.type === 'principal' ? 'principal' : 'submuestra',
+        status: 'pendiente',
+        parentId: pt.parentId || null
+      }));
+    } else if (this._lastSamplingResult) {
+      // Demo/local engine — collect from points + compositePoints
+      const mainPts = this._lastSamplingResult.points || [];
+      const subPts = this._lastSamplingResult.compositePoints || [];
+
+      mainPts.forEach(pt => {
+        allPoints.push({
+          id: pt.id || `Z${pt.zone}-P`,
+          name: pt.id || '',
+          lat: pt.lat,
+          lng: pt.lng,
+          zona: `Zona ${pt.zone || 1}`,
+          tipo: 'principal',
+          status: 'pendiente'
+        });
+      });
+
+      subPts.forEach(pt => {
+        allPoints.push({
+          id: pt.id || `Z${pt.zone}-S`,
+          name: pt.id || '',
+          lat: pt.lat,
+          lng: pt.lng,
+          zona: `Zona ${pt.zone || 1}`,
+          tipo: 'submuestra',
+          status: 'pendiente',
+          parentId: pt.parentId || null
+        });
+      });
+    }
+
+    if (allPoints.length === 0) {
+      this.toast('No hay puntos de muestreo para enviar', 'warning');
+      return;
+    }
+
+    // --- 3. Read form inputs ---
+    const collector = document.getElementById('mzSendCollector')?.value?.trim() || '';
+    const priority = document.getElementById('mzSendPriority')?.value || 'media';
+    const dueDate = document.getElementById('mzSendDueDate')?.value || '';
+    const notes = document.getElementById('mzSendNotes')?.value?.trim() || '';
+
+    if (!collector) {
+      this.toast('Ingresa el nombre del colaborador/técnico', 'warning');
+      document.getElementById('mzSendCollector')?.focus();
+      return;
+    }
+
+    // --- 4. Build PIX Muestreo compatible Project JSON ---
+    const lote = this.clientData?.lote || this.clientData?.propiedad || 'Lote';
+    const propiedad = this.clientData?.propiedad || '';
+    const cliente = this.clientData?.nombre || '';
+    const areaHa = this.fieldAreaHa || this._fieldAreaHa || 0;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const projectJSON = {
+      project: {
+        name: `Muestreo — ${lote}${propiedad ? ` (${propiedad})` : ''}`,
+        client: cliente,
+        date: today,
+        totalLotes: 1,
+        totalPoints: allPoints.length
+      },
+      lotes: [{
+        id: lote,
+        name: lote,
+        area_ha: areaHa,
+        zonas: zonasGeoJSON,
+        puntos: allPoints
+      }],
+      serviceOrder: {
+        collector: collector,
+        priority: priority,
+        dueDate: dueDate,
+        notes: notes,
+        createdAt: new Date().toISOString(),
+        createdBy: 'pix-admin',
+        numZones: this._lastMZResult.numZones || zonasGeoJSON.features.length,
+        cropKey: this._lastMZResult.cropKey || 'cana',
+        totalPrincipal: allPoints.filter(p => p.tipo === 'principal').length,
+        totalSubmuestra: allPoints.filter(p => p.tipo === 'submuestra').length
+      }
+    };
+
+    // --- 5. Save as service order in admin ---
+    const osId = this._nextOSId();
+    const orderData = {
+      id: osId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      client: { nombre: cliente, propiedad: propiedad, ubicacion: this.clientData?.ubicacion || '' },
+      field: { lote: lote, areaHa: areaHa, boundary: this.fieldBoundary || null },
+      config: { analysisType: 'quimico', depths: ['0-20'], pointCount: allPoints.length, labDestino: '', codigoIBRA: '' },
+      assignment: { collector: collector, priority: priority, dueDate: dueDate, notes: notes },
+      points: allPoints,
+      zonas: zonasGeoJSON,
+      status: 'pending',
+      history: [{ action: 'created_from_mz', timestamp: new Date().toISOString(), user: 'admin' }],
+      syncStatus: 'local',
+      _pixMuestreoJSON: projectJSON
+    };
+    this.serviceOrders.push(orderData);
+    this._saveOrders();
+
+    // --- 6. Download JSON file ---
+    const filename = `OS_${String(osId).padStart(3, '0')}_${lote.replace(/[^a-zA-Z0-9]/g, '_')}_${today}.json`;
+    const blob = new Blob([JSON.stringify(projectJSON, null, 2)], { type: 'application/json' });
+    this._downloadBlob(blob, filename);
+
+    // --- 7. Show confirmation + share modal ---
+    const totalP = allPoints.filter(p => p.tipo === 'principal').length;
+    const totalS = allPoints.filter(p => p.tipo === 'submuestra').length;
+    this.toast(`OS #${osId} creada: ${totalP}P + ${totalS}S para ${collector} — descargando ${filename}`);
+
+    // Show share modal for additional sharing options
+    setTimeout(() => this.shareServiceOrder(osId), 500);
   }
 
   // ===== SERVICE ORDERS (OS) =====
