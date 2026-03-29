@@ -7,7 +7,7 @@ set KS_PATH=C:\Users\Usuario\Downloads\PIX-MUESTREO\pixadvisor.keystore
 set KS_ALIAS=pixadvisor
 set KS_PASS=pixadvisor123
 set OUTPUT_DIR=D:\PIXADVISOR_AGENT_WORKSPACE\pix-muestreo-apk\app\build\outputs\apk\release
-set FINAL_APK=C:\Users\Usuario\Downloads\PIX-Muestreo-v3.2.1.apk
+set FINAL_APK=C:\Users\Usuario\Downloads\PIX-Muestreo-v3.3.apk
 
 echo JAVA_HOME=%JAVA_HOME%
 echo ANDROID_HOME=%ANDROID_HOME%

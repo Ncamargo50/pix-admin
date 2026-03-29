@@ -422,6 +422,86 @@ class DriveSync {
 
     return { synced: totalSynced };
   }
+
+  // ===== USER SYNC VIA DRIVE =====
+
+  /**
+   * Upload users.json to PIX Muestreo Drive folder.
+   * Contains all collaborator credentials (hashed passwords).
+   * @param {Array} users - Array of user objects from IndexedDB
+   */
+  async uploadUsersJSON(users) {
+    const folderId = await this.ensureFolder();
+    const payload = {
+      _type: 'pix_users_sync',
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      users: users.map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        passwordHash: u.passwordHash,
+        role: u.role,
+        active: u.active !== false,
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt || new Date().toISOString()
+      }))
+    };
+
+    // Check if users.json already exists — update instead of creating duplicate
+    const q = encodeURIComponent(`name='users.json' and '${folderId}' in parents and trashed=false`);
+    const searchResp = await this._fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`);
+    const searchData = await searchResp.json();
+
+    if (searchData.files && searchData.files.length > 0) {
+      // Update existing file
+      const fileId = searchData.files[0].id;
+      await this._fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload, null, 2)
+      });
+    } else {
+      // Create new file
+      await this.uploadJSON('users.json', payload);
+    }
+
+    console.log(`[Drive] Users synced: ${users.length} users uploaded`);
+    return { uploaded: users.length };
+  }
+
+  /**
+   * Download users.json from PIX Muestreo Drive folder.
+   * @returns {Object|null} Parsed users.json or null if not found
+   */
+  async downloadUsersJSON() {
+    try {
+      const folderId = await this.ensureFolder();
+      const q = encodeURIComponent(`name='users.json' and '${folderId}' in parents and trashed=false`);
+      const searchResp = await this._fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,modifiedTime)`);
+      const searchData = await searchResp.json();
+
+      if (!searchData.files || searchData.files.length === 0) {
+        console.log('[Drive] No users.json found in Drive');
+        return null;
+      }
+
+      const fileId = searchData.files[0].id;
+      const resp = await this._fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+      const data = await resp.json();
+
+      if (data._type !== 'pix_users_sync') {
+        console.warn('[Drive] users.json has invalid format');
+        return null;
+      }
+
+      console.log(`[Drive] Users downloaded: ${data.users?.length || 0} users`);
+      return data;
+    } catch (e) {
+      console.warn('[Drive] Failed to download users:', e.message);
+      return null;
+    }
+  }
 }
 
 const driveSync = new DriveSync();

@@ -1621,6 +1621,18 @@ function showApp() {
   document.getElementById('installOverlay').style.display = 'none';
   app.init();
   app.applyRolePermissions();
+
+  // Background user sync from Drive (non-blocking)
+  setTimeout(async () => {
+    try {
+      const result = await pixAuth.syncUsersFromDrive();
+      if (result.synced > 0) {
+        app.toast(`Usuarios sincronizados: ${result.created || 0} nuevos, ${result.updated || 0} actualizados`, 'info');
+      }
+    } catch (e) {
+      console.warn('[App] Background user sync skipped:', e.message);
+    }
+  }, 3000); // 3s delay to not block app startup
 }
 
 function skipInstall() {

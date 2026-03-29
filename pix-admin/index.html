@@ -185,6 +185,7 @@
         </button>
         <div class="nav-group-items">
           <button class="nav-sub-link" data-view="manage-crops" onclick="admin.showView('manage-crops')">Cultivos</button>
+          <button class="nav-sub-link" data-view="manage-collaborators" onclick="admin.showView('manage-collaborators')">Colaboradores</button>
           <button class="nav-sub-link" data-view="settings" onclick="admin.showView('settings')">Ajustes del Sistema</button>
         </div>
       </div>
@@ -1552,6 +1553,45 @@
           <div style="margin-top:16px;display:flex;gap:8px">
             <button class="btn btn-primary" onclick="admin.saveSettings()">Guardar Configuración</button>
             <button class="btn btn-secondary" onclick="admin.resetSettings()">Restablecer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== COLLABORATORS MANAGEMENT ===== -->
+      <div id="view-manage-collaborators" class="view" style="padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <div>
+            <div style="font-size:22px;font-weight:700">Gestión de Colaboradores</div>
+            <div style="font-size:13px;color:var(--text-muted)">Crear y gestionar credenciales para PIX Muestreo APK</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="admin.syncCollaboratorsToDrive()" title="Sincronizar a Drive">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9"/></svg>
+              Sync a Drive
+            </button>
+            <button class="btn btn-primary" onclick="admin.showCollaboratorForm()">+ Nuevo Colaborador</button>
+          </div>
+        </div>
+        <div id="collaboratorsList"></div>
+
+        <!-- Collaborator Form Modal -->
+        <div id="collabModal" class="modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center">
+          <div style="background:var(--dark-2);border-radius:16px;padding:24px;width:420px;max-width:92vw;border:1px solid var(--border)">
+            <div style="font-size:18px;font-weight:700;margin-bottom:16px" id="collabModalTitle">Nuevo Colaborador</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <input type="text" class="form-input" id="collabName" placeholder="Nombre completo" aria-label="Nombre">
+              <input type="email" class="form-input" id="collabEmail" placeholder="Email (para login)" aria-label="Email">
+              <input type="password" class="form-input" id="collabPassword" placeholder="Contraseña" aria-label="Contraseña">
+              <select class="form-input" id="collabRole" aria-label="Rol">
+                <option value="tecnico">Técnico</option>
+                <option value="admin">Administrador</option>
+                <option value="cliente">Cliente</option>
+              </select>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('collabModal').style.display='none'">Cancelar</button>
+                <button class="btn btn-primary" style="flex:1" onclick="admin.saveCollaborator()">Guardar</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

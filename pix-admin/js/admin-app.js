@@ -213,7 +213,7 @@ class PixAdmin {
       'engine-idw': 'engine-group', 'engine-kriging': 'engine-group', 'engine-variogram': 'engine-group', 'engine-validation': 'engine-group',
       'nutrient-maps': 'maps-group', 'relation-maps': 'maps-group', 'prescription': 'maps-group',
       'interpretation': 'reports-group', 'report-protocol': 'reports-group', 'report-financial': 'reports-group', 'report-export': 'reports-group',
-      'manage-crops': 'config-group', 'settings': 'config-group'
+      'manage-crops': 'config-group', 'manage-collaborators': 'config-group', 'settings': 'config-group'
     };
     const groupId = viewGroupMap[viewName];
     if (groupId) {
@@ -313,6 +313,7 @@ class PixAdmin {
 
     // View-specific actions
     if (viewName === 'service-orders') this.renderServiceOrders();
+    if (viewName === 'manage-collaborators') this.renderCollaborators();
     if (viewName === 'samples') this.renderSamplesTable();
     if (viewName === 'interpretation') this.generateFullReport();
     if (viewName === 'soil-interpretation') this._renderSoilInterpretation();
@@ -2901,6 +2902,158 @@ class PixAdmin {
     this.clientData.propiedad = client.property;
     this.clientData.ubicacion = client.location;
     this.toast(`Cliente "${client.name}" seleccionado para reportes`);
+  }
+
+  // ===== COLLABORATOR MANAGEMENT (syncs to PIX Muestreo APK via Drive) =====
+
+  async renderCollaborators() {
+    const container = document.getElementById('collaboratorsList');
+    if (!container) return;
+
+    // Load collaborators from IndexedDB
+    let users = [];
+    try {
+      const allState = await this._dbGet('state', 'collaborators');
+      users = allState?.value || [];
+    } catch (e) {}
+
+    this._collaborators = users;
+
+    if (users.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:48px 24px;color:var(--text-muted)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin-bottom:12px;opacity:0.3"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <div style="font-size:16px;font-weight:600;margin-bottom:4px">Sin colaboradores</div>
+          <div style="font-size:13px">Crea colaboradores para asignar muestreo a campo</div>
+        </div>`;
+      return;
+    }
+
+    const roleLabels = { admin: 'Admin', tecnico: 'Técnico', cliente: 'Cliente' };
+    const roleColors = { admin: '#ef4444', tecnico: '#0d9488', cliente: '#3b82f6' };
+
+    container.innerHTML = `
+      <div style="display:grid;gap:10px">
+        ${users.map((u, i) => `
+          <div class="card" style="cursor:default;display:flex;align-items:center;gap:14px;padding:14px 16px">
+            <div style="width:42px;height:42px;border-radius:50%;background:${roleColors[u.role] || '#666'};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0">
+              ${escapeHtml((u.name || '?')[0].toUpperCase())}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:14px">${escapeHtml(u.name)}</div>
+              <div style="font-size:12px;color:var(--text-muted)">${escapeHtml(u.email)}</div>
+            </div>
+            <span style="font-size:11px;padding:3px 8px;border-radius:6px;background:${roleColors[u.role]}22;color:${roleColors[u.role]};font-weight:600">${roleLabels[u.role] || u.role}</span>
+            <span style="font-size:11px;color:${u.active !== false ? 'var(--success)' : 'var(--danger)'}">${u.active !== false ? 'Activo' : 'Inactivo'}</span>
+            <button class="btn btn-sm" style="padding:6px" onclick="admin.editCollaborator(${i})" title="Editar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="btn btn-sm" style="padding:6px;color:${u.active !== false ? 'var(--danger)' : 'var(--success)'}" onclick="admin.toggleCollaborator(${i})" title="${u.active !== false ? 'Desactivar' : 'Activar'}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">${u.active !== false ? '<path d="M18 6L6 18M6 6l12 12"/>' : '<polyline points="20 6 9 17 4 12"/>'}</svg>
+            </button>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top:12px;font-size:11px;color:var(--text-dim);text-align:center">
+        ${users.length} colaborador${users.length !== 1 ? 'es' : ''} | Última sync: ${this._lastCollabSync || 'nunca'}
+      </div>`;
+  }
+
+  showCollaboratorForm(editIndex = null) {
+    const modal = document.getElementById('collabModal');
+    const isEdit = editIndex !== null && this._collaborators?.[editIndex];
+
+    document.getElementById('collabModalTitle').textContent = isEdit ? 'Editar Colaborador' : 'Nuevo Colaborador';
+    document.getElementById('collabName').value = isEdit ? this._collaborators[editIndex].name : '';
+    document.getElementById('collabEmail').value = isEdit ? this._collaborators[editIndex].email : '';
+    document.getElementById('collabPassword').value = '';
+    document.getElementById('collabRole').value = isEdit ? this._collaborators[editIndex].role : 'tecnico';
+
+    this._editingCollabIndex = editIndex;
+    modal.style.display = 'flex';
+  }
+
+  editCollaborator(index) { this.showCollaboratorForm(index); }
+
+  async toggleCollaborator(index) {
+    if (!this._collaborators?.[index]) return;
+    this._collaborators[index].active = !this._collaborators[index].active;
+    this._collaborators[index].updatedAt = new Date().toISOString();
+    await this._dbPut('state', { key: 'collaborators', value: this._collaborators });
+    this.renderCollaborators();
+    this.toast(this._collaborators[index].active ? 'Colaborador activado' : 'Colaborador desactivado');
+  }
+
+  async saveCollaborator() {
+    const name = document.getElementById('collabName').value.trim();
+    const email = document.getElementById('collabEmail').value.trim().toLowerCase();
+    const password = document.getElementById('collabPassword').value;
+    const role = document.getElementById('collabRole').value;
+
+    if (!name || !email) {
+      this.toast('Nombre y email son obligatorios', 'warning');
+      return;
+    }
+
+    // SHA-256 hash the password
+    async function sha256(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    if (!this._collaborators) this._collaborators = [];
+    const now = new Date().toISOString();
+
+    if (this._editingCollabIndex !== null && this._collaborators[this._editingCollabIndex]) {
+      // Edit existing
+      const user = this._collaborators[this._editingCollabIndex];
+      user.name = name;
+      user.email = email;
+      user.role = role;
+      if (password) user.passwordHash = await sha256(password);
+      user.updatedAt = now;
+    } else {
+      // Create new
+      if (!password) { this.toast('Contraseña obligatoria para nuevo colaborador', 'warning'); return; }
+      this._collaborators.push({
+        id: 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6),
+        name,
+        email,
+        passwordHash: await sha256(password),
+        role,
+        active: true,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+
+    await this._dbPut('state', { key: 'collaborators', value: this._collaborators });
+    document.getElementById('collabModal').style.display = 'none';
+    this._editingCollabIndex = null;
+    this.renderCollaborators();
+    this.toast('Colaborador guardado');
+  }
+
+  async syncCollaboratorsToDrive() {
+    if (!this._collaborators || this._collaborators.length === 0) {
+      this.toast('No hay colaboradores para sincronizar', 'warning');
+      return;
+    }
+
+    // Build the users.json payload
+    const payload = {
+      _type: 'pix_users_sync',
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      users: this._collaborators
+    };
+
+    // Download as JSON file (user can upload to Drive manually, or share)
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    this._downloadBlob(blob, `users_${new Date().toISOString().slice(0, 10)}.json`);
+    this._lastCollabSync = new Date().toLocaleString('es');
+    this.renderCollaborators();
+    this.toast(`${this._collaborators.length} colaboradores exportados — subir users.json a Google Drive / PIX Muestreo`);
   }
 
   // ===== SETTINGS =====
