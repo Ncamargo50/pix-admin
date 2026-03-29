@@ -225,6 +225,8 @@ class PixAdmin {
 
   showView(viewName) {
     this.currentView = viewName;
+    // Cleanup stale modals from previous views
+    document.querySelectorAll('.modal.active, [id$="Modal"].active').forEach(m => m.classList.remove('active'));
     // Deactivate all views (both .view and .view-fullmap)
     document.querySelectorAll('.view, .view-fullmap').forEach(v => v.classList.remove('active'));
     const viewEl = document.getElementById(`view-${viewName}`);

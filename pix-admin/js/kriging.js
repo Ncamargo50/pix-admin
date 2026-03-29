@@ -79,17 +79,105 @@ class KrigingEngine {
 
     /**
      * Haversine distance between two lat/lng points in metres.
+     * For distances < 10m, uses fast Euclidean approximation (more precise at fine scale).
      */
     static _haversineDistance(lat1, lng1, lat2, lng2) {
-        const R = 6371000; // Earth radius in metres
+        const R = 6371000;
         const toRad = Math.PI / 180;
-        const dLat = (lat2 - lat1) * toRad;
-        const dLng = (lng2 - lng1) * toRad;
+        // Fast Euclidean for very close points (< ~0.0001° ≈ 11m)
+        const dLat = lat2 - lat1;
+        const dLng = lng2 - lng1;
+        if (Math.abs(dLat) < 0.0001 && Math.abs(dLng) < 0.0001) {
+            const mLat = (lat1 + lat2) / 2 * toRad;
+            const dx = dLng * toRad * R * Math.cos(mLat);
+            const dy = dLat * toRad * R;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        const dLatR = dLat * toRad;
+        const dLngR = dLng * toRad;
         const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.sin(dLatR / 2) * Math.sin(dLatR / 2) +
             Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) *
-            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            Math.sin(dLngR / 2) * Math.sin(dLngR / 2);
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // ================================================================
+    // KD-Tree for O(n log n) Nearest-Neighbor Search
+    // ================================================================
+
+    /**
+     * Build a simple 2D kd-tree from point array for fast nearest-neighbor queries.
+     * @param {Array<{lat:number, lng:number, value:number}>} points
+     * @returns {Object} kd-tree root node
+     */
+    static _buildKDTree(points) {
+        const indexed = points.map((p, i) => ({ ...p, _idx: i }));
+        return this._kdBuild(indexed, 0);
+    }
+
+    static _kdBuild(pts, depth) {
+        if (pts.length === 0) return null;
+        if (pts.length === 1) return { point: pts[0], left: null, right: null, axis: depth % 2 };
+        const axis = depth % 2; // 0=lat, 1=lng
+        const key = axis === 0 ? 'lat' : 'lng';
+        pts.sort((a, b) => a[key] - b[key]);
+        const mid = Math.floor(pts.length / 2);
+        return {
+            point: pts[mid],
+            left: this._kdBuild(pts.slice(0, mid), depth + 1),
+            right: this._kdBuild(pts.slice(mid + 1), depth + 1),
+            axis
+        };
+    }
+
+    /**
+     * Find k nearest neighbors from kd-tree.
+     * @param {Object} tree - kd-tree root
+     * @param {number} lat - query lat
+     * @param {number} lng - query lng
+     * @param {number} k - number of neighbors
+     * @returns {Array<{index:number, distance:number}>} sorted by distance
+     */
+    static _kdNearest(tree, lat, lng, k) {
+        const best = []; // max-heap by distance (worst at top)
+        this._kdSearch(tree, lat, lng, k, best);
+        return best.sort((a, b) => a.distance - b.distance);
+    }
+
+    static _kdSearch(node, lat, lng, k, best) {
+        if (!node) return;
+        const d = this._haversineDistance(lat, lng, node.point.lat, node.point.lng);
+
+        // Insert into best list if closer than worst, or list not full
+        if (best.length < k) {
+            best.push({ index: node.point._idx, distance: d });
+            if (best.length === k) best.sort((a, b) => b.distance - a.distance); // max-heap order
+        } else if (d < best[0].distance) {
+            best[0] = { index: node.point._idx, distance: d };
+            best.sort((a, b) => b.distance - a.distance);
+        }
+
+        // Decide which subtree to search first
+        const key = node.axis === 0 ? 'lat' : 'lng';
+        const query = node.axis === 0 ? lat : lng;
+        const diff = query - node.point[key];
+        const first = diff < 0 ? node.left : node.right;
+        const second = diff < 0 ? node.right : node.left;
+
+        this._kdSearch(first, lat, lng, k, best);
+
+        // Check if we need to search the other subtree
+        // Convert coordinate difference to approximate metres for comparison
+        const toRad = Math.PI / 180;
+        const R = 6371000;
+        const splitDist = node.axis === 0
+            ? Math.abs(diff) * toRad * R
+            : Math.abs(diff) * toRad * R * Math.cos(lat * toRad);
+
+        if (best.length < k || splitDist < best[0].distance) {
+            this._kdSearch(second, lat, lng, k, best);
+        }
     }
 
     /**
@@ -485,6 +573,10 @@ class KrigingEngine {
             };
         }
 
+        // Build kd-tree for O(n log n) nearest-neighbor search (replaces O(n²) brute force)
+        const kdTree = points.length > 10 ? KrigingEngine._buildKDTree(points) : null;
+        const kNeighbors = Math.min(maxPoints, points.length);
+
         for (let i = 0; i < resolution; i++) {
             grid[i] = new Array(resolution);
             const cellLat = bounds.minLat + (i + 0.5) * latStep;
@@ -492,16 +584,19 @@ class KrigingEngine {
             for (let j = 0; j < resolution; j++) {
                 const cellLng = bounds.minLng + (j + 0.5) * lngStep;
 
-                // Find distances to all points
-                const dists = [];
-                for (let p = 0; p < points.length; p++) {
-                    const d = KrigingEngine._haversineDistance(cellLat, cellLng, points[p].lat, points[p].lng);
-                    dists.push({ index: p, distance: d });
+                // Find nearest points — kd-tree O(k log n) or brute-force for small sets
+                let nearest;
+                if (kdTree) {
+                    nearest = KrigingEngine._kdNearest(kdTree, cellLat, cellLng, kNeighbors);
+                } else {
+                    const dists = [];
+                    for (let p = 0; p < points.length; p++) {
+                        const d = KrigingEngine._haversineDistance(cellLat, cellLng, points[p].lat, points[p].lng);
+                        dists.push({ index: p, distance: d });
+                    }
+                    dists.sort((a, b) => a.distance - b.distance);
+                    nearest = dists.slice(0, kNeighbors);
                 }
-
-                // Sort by distance and take nearest maxPoints
-                dists.sort((a, b) => a.distance - b.distance);
-                const nearest = dists.slice(0, Math.min(maxPoints, points.length));
 
                 // Check for coincident point (distance ~ 0)
                 if (nearest[0].distance < 0.01) {
@@ -1134,16 +1229,32 @@ class KrigingEngine {
      * metric space.  The Haversine approximation is applied first to convert
      * lat/lng offsets to metres, then the rotation + scaling is applied.
      *
-     * Transformation (geometric anisotropy):
-     *   x' =  Δeast·cos(θ) + Δnorth·sin(θ)
-     *   y' = (-Δeast·sin(θ) + Δnorth·cos(θ)) / ratio
+     * ANGLE CONVENTION (geographic/compass azimuth):
+     *   θ = 0°   → major axis points NORTH (lat direction)
+     *   θ = 90°  → major axis points EAST (lng direction)
+     *   θ = 180° → major axis points SOUTH
+     *   θ is measured CLOCKWISE from North, matching standard geographic azimuth.
+     *   Input is in RADIANS: use (degrees * Math.PI / 180) to convert.
      *
-     * @param {number} lat1  - Reference point latitude
-     * @param {number} lng1  - Reference point longitude
-     * @param {number} lat2  - Target point latitude
-     * @param {number} lng2  - Target point longitude
-     * @param {number} angle - Anisotropy major-axis azimuth in RADIANS (measured from North, clockwise)
-     * @param {number} ratio - Anisotropy ratio (range_major / range_minor >= 1)
+     * Transformation (geometric anisotropy):
+     *   1. Convert lat/lng → metric (Δeast, Δnorth) via Haversine approximation
+     *   2. Rotate so major axis aligns with x':
+     *      x' =  Δeast·cos(θ) + Δnorth·sin(θ)
+     *   3. Compress minor axis:
+     *      y' = (-Δeast·sin(θ) + Δnorth·cos(θ)) / ratio
+     *   4. Distance = √(x'² + y'²) — used in variogram evaluation
+     *
+     * EXAMPLES:
+     *   - River running N-S: angle=0° (or π), ratio=2-3
+     *   - Slope gradient NW-SE: angle=135° (or 3π/4), ratio=1.5-2
+     *   - Isotropic (no directional preference): ratio=1 (angle ignored)
+     *
+     * @param {number} lat1  - Reference point latitude (decimal degrees)
+     * @param {number} lng1  - Reference point longitude (decimal degrees)
+     * @param {number} lat2  - Target point latitude (decimal degrees)
+     * @param {number} lng2  - Target point longitude (decimal degrees)
+     * @param {number} angle - Major-axis azimuth in RADIANS (0=North, π/2=East, clockwise)
+     * @param {number} ratio - Anisotropy ratio (range_major / range_minor, >= 1; 1=isotropic)
      * @returns {{x:number, y:number}} Transformed coordinates in metres
      */
     static _transformCoordsAnisotropic(lat1, lng1, lat2, lng2, angle, ratio) {

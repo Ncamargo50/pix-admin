@@ -293,7 +293,7 @@
           <div class="form-row" style="margin-bottom:16px">
             <div class="form-group">
               <label class="form-label">Identificación de muestra</label>
-              <input type="text" class="form-input" id="soilSampleId" placeholder="Ej: P1, Lote 5A, Zona Alta">
+              <input type="text" class="form-input" id="soilSampleId" placeholder="Ej: P1, Lote 5A, Zona Alta" aria-label="ID de muestra">
             </div>
             <div class="form-group">
               <label class="form-label">Profundidad</label>
@@ -366,27 +366,27 @@
             <div class="form-grid-4">
               <div class="form-group">
                 <label class="form-label">Nombre / Empresa</label>
-                <input type="text" class="form-input" id="client_nombre" placeholder="Ej: Agropecuaria San José" oninput="admin.clientData.nombre=this.value">
+                <input type="text" class="form-input" id="client_nombre" placeholder="Ej: Agropecuaria San José" aria-label="Nombre del cliente" oninput="admin.clientData.nombre=this.value">
               </div>
               <div class="form-group">
                 <label class="form-label">Propiedad / Hacienda</label>
-                <input type="text" class="form-input" id="client_propiedad" placeholder="Ej: Fazenda Santa María" oninput="admin.clientData.propiedad=this.value">
+                <input type="text" class="form-input" id="client_propiedad" placeholder="Ej: Fazenda Santa María" aria-label="Propiedad" oninput="admin.clientData.propiedad=this.value">
               </div>
               <div class="form-group">
                 <label class="form-label">Ubicación</label>
-                <input type="text" class="form-input" id="client_ubicacion" placeholder="Ej: Itapúa, Paraguay" oninput="admin.clientData.ubicacion=this.value">
+                <input type="text" class="form-input" id="client_ubicacion" placeholder="Ej: Itapúa, Paraguay" aria-label="Ubicación" oninput="admin.clientData.ubicacion=this.value">
               </div>
               <div class="form-group">
                 <label class="form-label">Lote / Talhão</label>
-                <input type="text" class="form-input" id="client_lote" placeholder="Ej: Lote 5A, Zona Alta" oninput="admin.clientData.lote=this.value">
+                <input type="text" class="form-input" id="client_lote" placeholder="Ej: Lote 5A, Zona Alta" aria-label="Lote" oninput="admin.clientData.lote=this.value">
               </div>
               <div class="form-group">
                 <label class="form-label">Área (ha)</label>
-                <input type="text" class="form-input" id="client_area" placeholder="Ej: 120 ha" oninput="admin.clientData.area=this.value">
+                <input type="text" class="form-input" id="client_area" placeholder="Ej: 120 ha" aria-label="Área" oninput="admin.clientData.area=this.value">
               </div>
               <div class="form-group">
                 <label class="form-label">Responsable Técnico</label>
-                <input type="text" class="form-input" id="client_responsable" placeholder="Ej: Ing. Agr. Juan Pérez" oninput="admin.clientData.responsable=this.value">
+                <input type="text" class="form-input" id="client_responsable" placeholder="Ej: Ing. Agr. Juan Pérez" aria-label="Responsable técnico" oninput="admin.clientData.responsable=this.value">
               </div>
               <div class="form-group">
                 <label class="form-label">Laboratorio</label>
@@ -561,7 +561,7 @@
               <div class="gis-control-row">
                 <div class="gis-control-group" style="flex:1">
                   <label class="form-label">Meta (t/ha)</label>
-                  <input type="number" class="form-input" id="gisVrtYield" placeholder="100">
+                  <input type="number" class="form-input" id="gisVrtYield" placeholder="100" aria-label="Meta de rendimiento" min="1" max="500">
                 </div>
                 <div class="gis-control-group" style="flex:1">
                   <label class="form-label">Fuente</label>
@@ -694,7 +694,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Meta rendimiento</label>
-                <input type="number" class="form-input" id="prescYield" placeholder="t/ha">
+                <input type="number" class="form-input" id="prescYield" placeholder="t/ha" aria-label="Meta de rendimiento prescripción" min="1" max="500">
               </div>
               <div class="form-group">
                 <label class="form-label">Fuente fertilizante</label>
@@ -1030,14 +1030,14 @@
                 Enviar a PIX Muestreo
               </div>
               <div style="display:flex;flex-direction:column;gap:6px">
-                <input type="text" class="form-input" id="mzSendCollector" placeholder="Nombre del colaborador / técnico" style="font-size:12px;padding:8px 10px">
+                <input type="text" class="form-input" id="mzSendCollector" placeholder="Nombre del colaborador / técnico" aria-label="Nombre del colaborador" style="font-size:12px;padding:8px 10px">
                 <div style="display:flex;gap:6px">
-                  <select class="form-input" id="mzSendPriority" style="flex:1;font-size:11px;padding:7px 8px">
+                  <select class="form-input" id="mzSendPriority" aria-label="Prioridad de la orden" style="flex:1;font-size:11px;padding:7px 8px">
                     <option value="media">Prioridad: Media</option>
                     <option value="alta">Prioridad: Alta</option>
                     <option value="baja">Prioridad: Baja</option>
                   </select>
-                  <input class="form-input" type="date" id="mzSendDueDate" style="flex:1;font-size:11px;padding:7px 8px">
+                  <input class="form-input" type="date" id="mzSendDueDate" aria-label="Fecha límite" style="flex:1;font-size:11px;padding:7px 8px">
                 </div>
                 <textarea class="form-input" id="mzSendNotes" rows="2" placeholder="Instrucciones para el muestreo a campo..." style="font-size:11px;padding:8px 10px;resize:vertical"></textarea>
                 <button class="action-btn" onclick="admin.sendMZToPixMuestreo()" style="width:100%;background:linear-gradient(135deg,#0d9488,#065f46);color:#fff;border:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.2s" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
@@ -1652,13 +1652,13 @@ function pixLogout() {
 <script src="js/utils.js"></script>
 <script src="js/crops-data.js"></script>
 <script src="js/engine.js"></script>
-<script src="js/interpolation.js"></script>
+<script src="js/interpolation.js?v=13"></script>
 <script src="js/report-generator.js"></script>
-<script src="js/kriging.js"></script>
-<script src="js/zones-engine.js?v=5"></script>
-<script src="js/gee-zones-engine.js?v=1"></script>
-<script src="js/sampling-engine.js?v=5"></script>
-<script src="js/admin-app.js?v=12"></script>
+<script src="js/kriging.js?v=13"></script>
+<script src="js/zones-engine.js?v=13"></script>
+<script src="js/gee-zones-engine.js?v=13"></script>
+<script src="js/sampling-engine.js?v=13"></script>
+<script src="js/admin-app.js?v=13"></script>
 <script src="js/agent-admin.js"></script>
 <script>
 // Pre-fetch DRIS/IBRA norms so they are ready before any leaf analysis is requested.

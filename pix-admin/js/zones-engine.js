@@ -1129,12 +1129,34 @@ class ZonesEngine {
    *
    * @param {number[][]} data - Feature vectors
    * @param {number} c - Number of clusters
-   * @param {number} [m=2] - Fuzziness exponent (>1, typically 2)
+   * @param {number} [m='auto'] - Fuzziness exponent (>1). 'auto' selects adaptively based on data spread.
+   *   Typical range 1.5-2.5: lower=crisper zones (sparse data), higher=softer transitions (dense/overlapping).
    * @param {number} [maxIter=100] - Maximum iterations
    * @param {number} [epsilon=1e-5] - Convergence threshold
-   * @returns {{ assignments: number[], centroids: number[][], membership: number[][], fpi: number, nce: number, iterations: number }}
+   * @returns {{ assignments: number[], centroids: number[][], membership: number[][], fpi: number, nce: number, iterations: number, m_used: number }}
    */
-  static fuzzyCMeans(data, c, m = 2, maxIter = 100, epsilon = 1e-5) {
+  static fuzzyCMeans(data, c, m = 'auto', maxIter = 100, epsilon = 1e-5) {
+    // Adaptive m selection: analyze data spread to choose optimal fuzziness
+    if (m === 'auto' || m === 0) {
+      // Compute coefficient of variation of all pairwise distances (sampled)
+      const sample = data.length > 200 ? data.filter((_, i) => i % Math.ceil(data.length / 200) === 0) : data;
+      let sumD = 0, sumD2 = 0, nPairs = 0;
+      for (let i = 0; i < sample.length; i++) {
+        for (let j = i + 1; j < sample.length; j++) {
+          const d = this._distSq(sample[i], sample[j]);
+          sumD += d; sumD2 += d * d; nPairs++;
+        }
+      }
+      if (nPairs > 0) {
+        const meanD = sumD / nPairs;
+        const varD = sumD2 / nPairs - meanD * meanD;
+        const cv = meanD > 0 ? Math.sqrt(Math.max(varD, 0)) / meanD : 0;
+        // High CV (spread data) → lower m (crisper); Low CV (overlapping) → higher m (softer)
+        m = Math.max(1.5, Math.min(2.5, 2.0 + (0.5 - cv) * 1.0));
+      } else {
+        m = 2.0;
+      }
+    }
     const n = data.length;
     const dim = data[0].length;
     const rng = this._seededRandom(42);
@@ -1211,7 +1233,7 @@ class ZonesEngine {
     }
     const nce = entropy / n;
 
-    return { assignments, centroids, membership: U, fpi, nce, iterations };
+    return { assignments, centroids, membership: U, fpi, nce, iterations, m_used: m };
   }
 
   /**
