@@ -30,50 +30,50 @@ class GEEZonesEngine {
     cana: {
       label: 'Caña de Azúcar',
       icon: '🌾',
-      indices: { NDRE: 0.25, RECI: 0.15, CIre: 0.10, IRECI: 0.08, EVI: 0.07, NDMI: 0.05, MSI: 0.05 },
+      indices: { NDRE: 0.15, RECI: 0.08, CIre: 0.06, IRECI: 0.05, MTCI: 0.10, S2REP: 0.08, kNDVI: 0.08, CCCI: 0.05, NDMI: 0.05, MSI: 0.05 },
       fenologia: 'ELONGACION',
       ventana: { mesInicio: 5, mesFin: 9 },  // Mayo-Septiembre
-      description: '7 indices produccion v4.1 — NDRE primario, etapa elongacion (mayo-sept)'
+      description: '10 indices v4.2 — NDRE+MTCI+kNDVI anti-saturación, etapa elongación'
     },
     soja: {
       label: 'Soja',
       icon: '🌱',
-      indices: { NDVI: 0.25, NDRE: 0.15, SAVI: 0.10, GNDVI: 0.05, NDWI: 0.05 },
+      indices: { NDVI: 0.20, NDRE: 0.12, OSAVI: 0.08, GNDVI: 0.08, CCCI: 0.07, NDMI: 0.05, EVI2: 0.05 },
       fenologia: 'R3_R6',
       ventana: { mesInicio: 1, mesFin: 4 },  // Enero-Abril (llenado)
-      description: 'NDVI + NDRE — ciclo corto, ventana reproductiva'
+      description: 'v4.2 NDVI+OSAVI+CCCI — ciclo corto, N y estrés hídrico'
     },
     maiz_sorgo: {
       label: 'Maíz / Sorgo',
       icon: '🌽',
-      indices: { kNDVI: 0.20, NDRE: 0.15, EVI: 0.10, LSWI: 0.10, CIre: 0.05 },
+      indices: { kNDVI: 0.18, NDRE: 0.12, EVI: 0.08, MTCI: 0.08, LSWI: 0.07, CIre: 0.06, S2REP: 0.06 },
       fenologia: 'VT_R1',
       ventana: { mesInicio: 1, mesFin: 4 },  // Enero-Abril (floración-llenado)
-      description: 'kNDVI anti-saturación + EVI — dosel denso'
+      description: 'v4.2 kNDVI+MTCI anti-saturación — dosel denso'
     },
     girasol: {
       label: 'Girasol / Chía',
       icon: '🌻',
-      indices: { NDVI: 0.20, NDRE: 0.20, EVI: 0.10, NDMI: 0.10 },
+      indices: { NDVI: 0.18, NDRE: 0.15, EVI2: 0.08, NDMI: 0.10, OSAVI: 0.07, NBR2: 0.07 },
       fenologia: 'R1_R4',
       ventana: { mesInicio: 2, mesFin: 5 },
-      description: 'Balance NDVI/NDRE — estrés hídrico con NDMI'
+      description: 'v4.2 NDVI/NDRE + NBR2 estrés hídrico'
     },
     horticolas: {
       label: 'Tomate / Papa / Pimentón',
       icon: '🍅',
-      indices: { NDVI: 0.20, GNDVI: 0.15, NDRE: 0.15, NDMI: 0.10 },
+      indices: { NDVI: 0.15, GNDVI: 0.12, NDRE: 0.12, OSAVI: 0.10, NDMI: 0.08, BSI: 0.08 },
       fenologia: 'FRUCTIFICACION',
       ventana: { mesInicio: 3, mesFin: 8 },
-      description: 'GNDVI — parcelas pequeñas con suelo expuesto'
+      description: 'v4.2 OSAVI+BSI — parcelas con suelo expuesto'
     },
     perennes: {
       label: 'Palta / Maracuyá / Frutales',
       icon: '🥑',
-      indices: { NDVI: 0.20, GNDVI: 0.10, NDRE: 0.15, NDMI: 0.10, CIre: 0.05 },
+      indices: { NDVI: 0.15, GNDVI: 0.08, NDRE: 0.12, kNDVI: 0.10, NDMI: 0.10, CIre: 0.05, S2REP: 0.05 },
       fenologia: 'VEGETATIVO',
       ventana: { mesInicio: 1, mesFin: 12 },  // Todo el año (perenne)
-      description: 'Multi-índice — vigor perenne + estrés hídrico'
+      description: 'v4.2 kNDVI+S2REP — vigor perenne anti-saturación'
     }
   };
 
@@ -297,6 +297,45 @@ class GEEZonesEngine {
       // MSI: Moisture Stress Index — SWIR/NIR ratio (inverse of NDMI, higher=more stress)
       MSI: () => img.expression(
         'SWIR / NIR', { SWIR: img.select('B11'), NIR: img.select('B8A') }
+      ).rename(name),
+
+      // --- v4.2 indices (research-backed, division-by-zero protected) ---
+
+      // MTCI: MERIS Terrestrial Chlorophyll Index — linear chlorophyll response, no saturation
+      // Dash & Curran (2004). Clamp denominator to avoid div/0 when B5 ~ B4.
+      MTCI: () => img.expression(
+        '(RE2 - RE1) / max(RE1 - RED, 0.001)',
+        { RE2: img.select('B6'), RE1: img.select('B5'), RED: img.select('B4') }
+      ).rename(name),
+
+      // S2REP already defined above
+
+      // CCCI: Canopy Chlorophyll Content Index — chlorophyll normalized by canopy cover (N proxy)
+      // Barnes et al. (2000). Clamp NDVI > 0.001 to avoid div/0 on bare soil/water.
+      CCCI: () => {
+        const ndre = img.normalizedDifference(['B8A', 'B5']);
+        const ndvi = img.normalizedDifference(['B8', 'B4']).max(0.001);
+        return ndre.divide(ndvi).rename(name);
+      },
+
+      // RENDVI: Red Edge Normalized Difference — B6(740nm) vs B5(705nm)
+      // Complementary to NDRE with finer sensitivity to N variation.
+      RENDVI: () => img.normalizedDifference(['B6', 'B5']).rename(name),
+
+      // NBR2: Normalized Burn Ratio 2 — SWIR1/SWIR2 for post-harvest residue & water stress
+      NBR2: () => img.normalizedDifference(['B11', 'B12']).rename(name),
+
+      // EVI2: Enhanced Vegetation Index 2 — no blue band needed, robust under atmospheric noise
+      // Jiang et al. (2008).
+      EVI2: () => img.expression(
+        '2.5 * (NIR - RED) / (NIR + 2.4 * RED + 1)',
+        { NIR: img.select('B8'), RED: img.select('B4') }
+      ).rename(name),
+
+      // MSAVI2: Modified SAVI with self-adjusting L factor — minimal soil background
+      MSAVI2: () => img.expression(
+        '(2 * NIR + 1 - sqrt((2 * NIR + 1) ** 2 - 8 * (NIR - RED))) / 2',
+        { NIR: img.select('B8'), RED: img.select('B4') }
       ).rename(name)
     };
 
