@@ -126,8 +126,10 @@ class PixAdmin {
         this._dbPut('state', { key: 'fieldPolygon', value: this.fieldPolygon }),
         this._dbPut('state', { key: 'fieldAreaHa', value: this.fieldAreaHa }),
       ]);
-      // Save service orders to IndexedDB (single source of truth)
-      for (const o of this.serviceOrders) { await this._dbPut('serviceOrders', o); }
+      // Save service orders to IndexedDB (single source of truth) — parallel for performance
+      if (this.serviceOrders.length > 0) {
+        await Promise.all(this.serviceOrders.map(o => this._dbPut('serviceOrders', o)));
+      }
       // Sync localStorage as fallback only
       try { localStorage.setItem('pix_service_orders', JSON.stringify(this.serviceOrders)); } catch (_) {}
     } catch (e) { console.error('Save state failed:', e); }
@@ -1305,11 +1307,11 @@ class PixAdmin {
     const result = this._labImportResult;
     if (!result) return;
 
+    let nextId = this.samples.reduce((max, s) => Math.max(max, s.id || 0), 0) + 1;
     for (const s of result.samples) {
-      const nextId = this.samples.reduce((max, s) => Math.max(max, s.id || 0), 0) + 1;
       const name = s.meta._sampleId || `Lab ${nextId}`;
       this.samples.push({
-        id: nextId,
+        id: nextId++,
         name,
         lat: parseFloat(s.meta._lat) || null,
         lng: parseFloat(s.meta._lng) || null,
