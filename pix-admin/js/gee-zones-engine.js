@@ -375,6 +375,9 @@ class GEEZonesEngine {
 
     const cropConfig = this.CROP_INDEX_CONFIGS[cropKey];
     if (!cropConfig) throw new Error(`Unknown crop: ${cropKey}`);
+    if (!cropConfig.indices || Object.keys(cropConfig.indices).length === 0) {
+      throw new Error(`Crop config '${cropKey}' has no indices defined`);
+    }
 
     const indexNames = Object.keys(cropConfig.indices);
     const progress = onProgress || (() => {});

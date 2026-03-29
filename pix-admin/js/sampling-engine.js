@@ -615,7 +615,7 @@ class SamplingEngine {
   static gridSampling(bounds, polygon, density, options = {}) {
     const b = this._normalizeBounds(bounds);
     const edgeBuffer = options.edgeBuffer ?? 20;
-    const spacingM = Math.sqrt(10000 / density);
+    const spacingM = density > 0 ? Math.sqrt(10000 / density) : 100; // 100m default if density=0
     const dLat = this._metersToDegLat(spacingM);
     const midLat = (b.minLat + b.maxLat) / 2;
     const dLng = this._metersToDegLng(spacingM, midLat);

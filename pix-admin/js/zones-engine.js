@@ -387,11 +387,12 @@ class ZonesEngine {
     }
 
     // Normalize and invert: stability = 1 - (std / maxStd)
+    // If maxStd ≈ 0, all pixels are identical (e.g., cloud-masked) → set stability to 0.5 (neutral)
     const result = Array.from({ length: rows }, () => new Float64Array(cols));
-    const denom = maxStd > 0 ? maxStd : 1;
+    const denom = maxStd > 1e-10 ? maxStd : 0;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        result[r][c] = 1 - (stdGrid[r][c] / denom);
+        result[r][c] = denom > 0 ? 1 - (stdGrid[r][c] / denom) : 0.5;
       }
     }
     return result;
@@ -1681,10 +1682,12 @@ class ZonesEngine {
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        // Prevent division by zero and log of zero
+        // Prevent division by zero and log of zero/negative
         const tanSlope = Math.max(Math.tan(slopeGrid[r][c]), 0.001);
-        const specificArea = flowGrid[r][c] * cellSize;
+        const specificArea = Math.max(flowGrid[r][c] * cellSize, 0.001);
         twiGrid[r][c] = Math.log(specificArea / tanSlope);
+        // Guard against Infinity/NaN from extreme values
+        if (!isFinite(twiGrid[r][c])) twiGrid[r][c] = 0;
 
         // Classify
         const twi = twiGrid[r][c];

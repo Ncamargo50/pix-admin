@@ -63,7 +63,11 @@ class PixAdmin {
         if (!db.objectStoreNames.contains('clients')) db.createObjectStore('clients', { keyPath: 'id', autoIncrement: true });
       };
       req.onsuccess = e => { this._db = e.target.result; resolve(); };
-      req.onerror = e => { console.warn('Admin DB failed:', e); resolve(); };
+      req.onerror = e => {
+        console.error('Admin DB failed:', e);
+        this._db = null;
+        resolve(); // resolve to not block init, but _db stays null — _dbPut guards this
+      };
     });
   }
 
@@ -109,19 +113,24 @@ class PixAdmin {
 
   // Save current state to IndexedDB (persists across refreshes)
   async saveState() {
+    if (!this._db) { console.warn('DB not available, state not saved'); return; }
     try {
-      await this._dbPut('state', { key: 'samples', value: this.samples });
-      await this._dbPut('state', { key: 'clientData', value: this.clientData });
-      await this._dbPut('state', { key: 'cropId', value: this.cropId });
-      await this._dbPut('state', { key: 'yieldTarget', value: this.yieldTarget });
-      await this._dbPut('state', { key: 'soilData', value: this.soilData });
-      await this._dbPut('state', { key: 'leafData', value: this.leafData });
-      await this._dbPut('state', { key: 'fieldBoundary', value: this.fieldBoundary });
-      await this._dbPut('state', { key: 'fieldPolygon', value: this.fieldPolygon });
-      await this._dbPut('state', { key: 'fieldAreaHa', value: this.fieldAreaHa });
-      // Save service orders to IndexedDB too
+      await Promise.all([
+        this._dbPut('state', { key: 'samples', value: this.samples }),
+        this._dbPut('state', { key: 'clientData', value: this.clientData }),
+        this._dbPut('state', { key: 'cropId', value: this.cropId }),
+        this._dbPut('state', { key: 'yieldTarget', value: this.yieldTarget }),
+        this._dbPut('state', { key: 'soilData', value: this.soilData }),
+        this._dbPut('state', { key: 'leafData', value: this.leafData }),
+        this._dbPut('state', { key: 'fieldBoundary', value: this.fieldBoundary }),
+        this._dbPut('state', { key: 'fieldPolygon', value: this.fieldPolygon }),
+        this._dbPut('state', { key: 'fieldAreaHa', value: this.fieldAreaHa }),
+      ]);
+      // Save service orders to IndexedDB (single source of truth)
       for (const o of this.serviceOrders) { await this._dbPut('serviceOrders', o); }
-    } catch (e) { console.warn('Save state failed:', e); }
+      // Sync localStorage as fallback only
+      try { localStorage.setItem('pix_service_orders', JSON.stringify(this.serviceOrders)); } catch (_) {}
+    } catch (e) { console.error('Save state failed:', e); }
   }
 
   async _restoreState() {
@@ -263,25 +272,39 @@ class PixAdmin {
     document.getElementById('headerTitle').textContent = t;
     document.getElementById('headerSubtitle').textContent = s;
 
-    // Map initializations
-    if (viewName === 'gis-dashboard' && !this.maps.gis) {
-      setTimeout(() => this.initGISMap(), 100);
+    // Map initializations — guarded to prevent duplicate instances
+    if (viewName === 'gis-dashboard' && !this.maps.gis && !this._initingMap?.gis) {
+      this._initingMap = this._initingMap || {};
+      this._initingMap.gis = true;
+      setTimeout(() => { this.initGISMap(); this._initingMap.gis = false; }, 100);
     }
-    if (viewName === 'nutrient-maps' && !this.maps.nutrient) {
-      setTimeout(() => this.initNutrientMap(), 100);
+    if (viewName === 'nutrient-maps' && !this.maps.nutrient && !this._initingMap?.nutrient) {
+      this._initingMap = this._initingMap || {};
+      this._initingMap.nutrient = true;
+      setTimeout(() => { this.initNutrientMap(); this._initingMap.nutrient = false; }, 100);
     }
-    if (viewName === 'prescription' && !this.maps.prescription) {
-      setTimeout(() => this.initPrescMap(), 100);
+    if (viewName === 'prescription' && !this.maps.prescription && !this._initingMap?.prescription) {
+      this._initingMap = this._initingMap || {};
+      this._initingMap.prescription = true;
+      setTimeout(() => { this.initPrescMap(); this._initingMap.prescription = false; }, 100);
     }
-    if (viewName === 'relation-maps' && !this.maps.relation) {
-      setTimeout(() => this.initRelationMap(), 100);
+    if (viewName === 'relation-maps' && !this.maps.relation && !this._initingMap?.relation) {
+      this._initingMap = this._initingMap || {};
+      this._initingMap.relation = true;
+      setTimeout(() => { this.initRelationMap(); this._initingMap.relation = false; }, 100);
     }
     if (viewName === 'management-zones') {
-      if (!this.maps.mz) setTimeout(() => this.initMZMap(), 100);
+      if (!this.maps.mz && !this._initingMap?.mz) {
+        this._initingMap = this._initingMap || {};
+        this._initingMap.mz = true;
+        setTimeout(() => { this.initMZMap(); this._initingMap.mz = false; }, 100);
+      }
       setTimeout(() => { this.buildMZCropSelector(); this._updateMZLotInfo(); }, 150);
     }
-    if (viewName === 'sampling-points' && !this.maps.sampling) {
-      setTimeout(() => this.initSamplingMap(), 100);
+    if (viewName === 'sampling-points' && !this.maps.sampling && !this._initingMap?.sampling) {
+      this._initingMap = this._initingMap || {};
+      this._initingMap.sampling = true;
+      setTimeout(() => { this.initSamplingMap(); this._initingMap.sampling = false; }, 100);
     }
 
     // View-specific actions
@@ -1298,13 +1321,17 @@ class PixAdmin {
     }
 
     // Also load first sample into soilData for report
+    if (!result.samples || result.samples.length === 0) {
+      this.toast('Archivo importado sin muestras', 'warning');
+      return;
+    }
     this.soilData = { ...result.samples[0].soilData };
 
     // Fill form with first sample
     this._fillSoilFormFromData(result.samples[0].soilData);
 
     // Fill client data from metadata if available
-    const meta0 = result.samples[0].meta;
+    const meta0 = result.samples[0].meta || {};
     if (meta0._owner && !this.clientData.nombre) this.clientData.nombre = meta0._owner;
     if (meta0._property && !this.clientData.propiedad) this.clientData.propiedad = meta0._property;
     if (meta0._lote && !this.clientData.lote) this.clientData.lote = meta0._lote;
@@ -3951,6 +3978,7 @@ class PixAdmin {
   }
 
   closeOSModal() { document.getElementById('osModal').classList.remove('active'); }
+  closeOSShareModal() { document.getElementById('osShareModal').classList.remove('active'); }
 
   saveServiceOrder(id, isEdit) {
     const depths = [...document.querySelectorAll('.os-depth-chips input:checked')].map(c => c.value);

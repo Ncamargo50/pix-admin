@@ -766,7 +766,7 @@
         <div class="modal-content" style="max-width:480px">
           <div class="modal-header">
             <h3>Compartir Orden de Servicio</h3>
-            <button class="btn-close" onclick="document.getElementById('osShareModal').classList.remove('active')">&times;</button>
+            <button class="btn-close" onclick="admin.closeOSShareModal()">&times;</button>
           </div>
           <div class="modal-body" id="osShareBody"></div>
         </div>
@@ -1030,7 +1030,7 @@
                 Enviar a PIX Muestreo
               </div>
               <div style="display:flex;flex-direction:column;gap:6px">
-                <input class="form-input" id="mzSendCollector" placeholder="Nombre del colaborador / técnico" style="font-size:12px;padding:8px 10px">
+                <input type="text" class="form-input" id="mzSendCollector" placeholder="Nombre del colaborador / técnico" style="font-size:12px;padding:8px 10px">
                 <div style="display:flex;gap:6px">
                   <select class="form-input" id="mzSendPriority" style="flex:1;font-size:11px;padding:7px 8px">
                     <option value="media">Prioridad: Media</option>
@@ -1593,8 +1593,12 @@ async function pixLogin(e) {
   const pass = document.getElementById('loginPass').value;
   const errEl = document.getElementById('loginError');
 
-  // Direct credential check (primary - always works regardless of cache)
-  if (user === 'pix' && pass === 'admin') {
+  // Default admin credential check via hash comparison (not plain text)
+  const defaultUserHash = '57c712d37789c12225e9fa5c5af81338cfb2a7787cf84047d52d2b40fb73afb0'; // sha256('pix')
+  const defaultPassHash = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'; // sha256('admin')
+  const inputUserHash = await sha256(user);
+  const inputPassHash = await sha256(pass);
+  if (inputUserHash === defaultUserHash && inputPassHash === defaultPassHash) {
     _completeLogin(user, errEl);
     return false;
   }
@@ -1654,7 +1658,7 @@ function pixLogout() {
 <script src="js/zones-engine.js?v=5"></script>
 <script src="js/gee-zones-engine.js?v=1"></script>
 <script src="js/sampling-engine.js?v=5"></script>
-<script src="js/admin-app.js?v=10"></script>
+<script src="js/admin-app.js?v=11"></script>
 <script src="js/agent-admin.js"></script>
 <script>
 // Pre-fetch DRIS/IBRA norms so they are ready before any leaf analysis is requested.

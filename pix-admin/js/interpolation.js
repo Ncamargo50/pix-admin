@@ -141,8 +141,8 @@ class InterpolationEngine {
         let num = 0, den = 0, exact = false;
         for (const pt of allPoints) {
           const dist = this._haversine(cellLat, cellLng, pt.lat, pt.lng);
-          if (dist < 0.1) { grid[i][j] = pt.value; exact = true; break; }
-          const w = (pt.weight || 1.0) / Math.pow(dist, power);
+          if (dist < 1.0) { grid[i][j] = pt.value; exact = true; break; }
+          const w = (pt.weight || 1.0) / Math.pow(Math.max(dist, 1.0), power);
           num += w * pt.value;
           den += w;
         }

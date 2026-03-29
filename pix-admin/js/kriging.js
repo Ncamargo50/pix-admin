@@ -295,6 +295,13 @@ class KrigingEngine {
             }
         }
 
+        // Validate: sill must be > nugget for a valid variogram
+        if (bestParams.sill <= bestParams.nugget) {
+            console.warn('Kriging: invalid variogram fit (sill <= nugget), using safe defaults');
+            bestParams.sill = Math.max(maxSemivariance * 0.8, bestParams.nugget + 0.01);
+            bestParams.range = maxLag * 0.5;
+        }
+
         return {
             nugget: bestParams.nugget,
             sill: bestParams.sill,
@@ -1027,7 +1034,7 @@ class KrigingEngine {
             for (let i = 0; i < resolution; i++) {
                 valueGrid[i] = new Array(resolution).fill(fillValue);
                 varianceGrid[i] = new Array(resolution).fill(C0);
-                stdDevGrid[i] = new Array(resolution).fill(Math.sqrt(C0));
+                stdDevGrid[i] = new Array(resolution).fill(Math.sqrt(Math.max(C0, 0)));
             }
             return {
                 valueGrid, varianceGrid, stdDevGrid,
@@ -1671,7 +1678,7 @@ class KrigingEngine {
         for (const r of residuals) {
             const x = toX(r.actual);
             const y = toY(r.predicted);
-            const errorNorm = Math.abs(r.error) / maxAbsError; // 0 to 1
+            const errorNorm = maxAbsError > 1e-10 ? Math.abs(r.error) / maxAbsError : 0; // 0 to 1
 
             // Green (low error) -> Yellow -> Red (high error)
             const red = Math.round(255 * Math.min(errorNorm * 2, 1));
@@ -1739,7 +1746,7 @@ class KrigingEngine {
      */
     static _boxMuller() {
         let u1 = 0;
-        while (u1 === 0) u1 = Math.random();
+        while (u1 < 1e-15) u1 = Math.random(); // Guard against log(0)
         const u2 = Math.random();
         return Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
     }
