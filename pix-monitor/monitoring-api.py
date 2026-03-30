@@ -535,6 +535,28 @@ def compute_monitoring(field):
     except Exception as e:
         print(f'[GEE] Baseline error: {e}')
 
+    # ── CLOUD DETECTION: inform when no usable image ──
+    cloud_blocked = recent_count == 0
+    cloud_message = None
+    if cloud_blocked:
+        cloud_message = (f'Semana {datetime.now(timezone.utc).strftime("%Y-W%U")}: '
+                        f'Sin imagen disponible — cobertura de nubes impidio el monitoreo. '
+                        f'Se reintentara en el proximo ciclo de 7 dias.')
+        print(f'[Monitor] NUBES: {field.get("name")} — sin imagen cloud-free esta semana')
+
+    # ── HARVEST DETECTION: auto-pause when NDVI drops below bare soil ──
+    harvest_detected = False
+    harvest_message = None
+    HARVEST_NDVI_THRESHOLD = 0.15  # NDVI < 0.15 = suelo desnudo / post-cosecha
+    if not cloud_blocked and current_values.get('NDVI') is not None:
+        if current_values['NDVI'] < HARVEST_NDVI_THRESHOLD and crop != 'pastura':
+            # Verify it's not just emergence (check days since planting)
+            if days > 60:  # Only auto-pause after at least 60 days
+                harvest_detected = True
+                harvest_message = (f'Cosecha detectada: NDVI={current_values["NDVI"]:.3f} '
+                                  f'(< {HARVEST_NDVI_THRESHOLD}). Monitoreo pausado automaticamente.')
+                print(f'[Monitor] COSECHA DETECTADA: {field.get("name")} — NDVI={current_values["NDVI"]:.3f}, auto-pausing')
+
     result = {
         "stage": stage_key,
         "stageDesc": stage_cfg['desc'],
@@ -548,7 +570,11 @@ def compute_monitoring(field):
         "zScore": z_score,
         "anomalies": anomalies,
         "imagesFound": recent_count,
-        "cloudFree": recent_count > 0,
+        "cloudFree": not cloud_blocked,
+        "cloudBlocked": cloud_blocked,
+        "cloudMessage": cloud_message,
+        "harvestDetected": harvest_detected,
+        "harvestMessage": harvest_message,
         "checkedAt": now_iso()
     }
 
@@ -1005,26 +1031,133 @@ class MonitorHandler(BaseHTTPRequestHandler):
             field['monitoring']['currentStage'] = result.get('stage')
             field['monitoring']['checkCount'] = field['monitoring'].get('checkCount', 0) + 1
 
+            # ── AUTO-PAUSE on harvest detection ──
+            if result.get('harvestDetected'):
+                field['monitoring']['active'] = False
+                field['monitoring']['pausedReason'] = 'harvest_detected'
+                field['monitoring']['pausedAt'] = now_iso()
+                db['alerts'].append({
+                    'id': gen_id('harvest-'),
+                    'fieldId': field['id'],
+                    'date': now_iso(),
+                    'type': 'harvest',
+                    'severity': 'info',
+                    'description': result.get('harvestMessage', 'Cosecha detectada — monitoreo pausado'),
+                    'status': 'active'
+                })
+
             # Save anomalies
             if result.get('anomalies'):
                 for a in result['anomalies']:
                     db['alerts'].append(a)
 
-            # Save time series point
+            # Save time series point (including cloud-blocked weeks)
             ts_key = field['id']
             if ts_key not in db.get('timeseries', {}):
                 db['timeseries'][ts_key] = []
             db['timeseries'][ts_key].append({
                 'date': now_iso(),
+                'week': datetime.now(timezone.utc).strftime('%Y-W%U'),
                 'stage': result.get('stage'),
                 'values': result.get('currentValues', {}),
                 'zScore': result.get('zScore'),
-                'images': result.get('imagesFound', 0)
+                'images': result.get('imagesFound', 0),
+                'cloudBlocked': result.get('cloudBlocked', False),
+                'cloudMessage': result.get('cloudMessage'),
+                'harvestDetected': result.get('harvestDetected', False)
             })
 
             save_db(db)
-            print(f'[Monitor] Check complete: stage={result.get("stage")}, Z={result.get("zScore")}, anomalies={len(result.get("anomalies", []))}')
+            status_msg = 'NUBES' if result.get('cloudBlocked') else f'stage={result.get("stage")}, Z={result.get("zScore")}'
+            if result.get('harvestDetected'): status_msg = 'COSECHA DETECTADA — auto-pause'
+            print(f'[Monitor] Check: {field.get("name")} → {status_msg}, anomalias={len(result.get("anomalies", []))}')
             self._json(result)
+
+        elif path.endswith('/pause'):
+            # Admin manual pause
+            field_id = path.split('/')[-2]
+            db = load_db()
+            field = next((f for f in db['fields'] if f['id'] == field_id), None)
+            if not field:
+                self._error('Field not found', 404)
+                return
+            field['monitoring']['active'] = False
+            field['monitoring']['pausedReason'] = 'admin_manual'
+            field['monitoring']['pausedAt'] = now_iso()
+            save_db(db)
+            print(f'[Monitor] PAUSED by admin: {field["name"]}')
+            self._json({'paused': True, 'field': field['name']})
+
+        elif path.endswith('/resume'):
+            # Admin manual resume
+            field_id = path.split('/')[-2]
+            db = load_db()
+            field = next((f for f in db['fields'] if f['id'] == field_id), None)
+            if not field:
+                self._error('Field not found', 404)
+                return
+            field['monitoring']['active'] = True
+            field['monitoring']['pausedReason'] = None
+            field['monitoring']['pausedAt'] = None
+            save_db(db)
+            print(f'[Monitor] RESUMED by admin: {field["name"]}')
+            self._json({'resumed': True, 'field': field['name']})
+
+        elif path.endswith('/whatsapp'):
+            # Generate WhatsApp link with report
+            field_id = path.split('/')[-2]
+            db = load_db()
+            field = next((f for f in db['fields'] if f['id'] == field_id), None)
+            if not field:
+                self._error('Field not found', 404)
+                return
+            client = next((c for c in db['clients'] if c['id'] == field.get('clientId')), None)
+            phone = client.get('contact', '').replace('+', '').replace(' ', '').replace('-', '') if client else ''
+            alerts = [a for a in db['alerts'] if a.get('fieldId') == field_id and a.get('status') == 'active']
+            ts = db.get('timeseries', {}).get(field_id, [])
+
+            # Generate report first
+            try:
+                report = generate_report(field, client, alerts, ts)
+            except Exception as e:
+                report = {'pdf': 'error', 'kmz': 'error'}
+
+            # Build WhatsApp message
+            crop_name = CROP_PHENOLOGY.get(field.get('crop'), {}).get('name', field.get('crop', ''))
+            stage = field.get('monitoring', {}).get('currentStage', '')
+            msg_lines = [
+                f'*PIX Monitor — Reporte Semanal*',
+                f'',
+                f'*Cliente:* {client.get("name", "—") if client else "—"}',
+                f'*Lote:* {field.get("name", "—")}',
+                f'*Cultivo:* {crop_name}',
+                f'*Etapa:* {stage}',
+                f'*Fecha:* {datetime.now().strftime("%d/%m/%Y")}',
+                f'',
+            ]
+            if alerts:
+                msg_lines.append(f'*⚠ {len(alerts)} ALERTAS DETECTADAS:*')
+                for i, a in enumerate(alerts):
+                    msg_lines.append(f'  {i+1}. {a.get("description", "Anomalia")}')
+                msg_lines.append('')
+            else:
+                msg_lines.append('✅ Sin anomalias detectadas. Cultivo en estado normal.')
+                msg_lines.append('')
+            msg_lines.append(f'📄 PDF: {report.get("pdf", "—")}')
+            msg_lines.append(f'🗺 KMZ (Avenza Maps): {report.get("kmz", "—")}')
+            msg_lines.append(f'')
+            msg_lines.append(f'_Pixadvisor — Agricultura de Precision_')
+            msg_lines.append(f'_www.pixadvisor.network_')
+
+            message = '\n'.join(msg_lines)
+            wa_url = f'https://wa.me/{phone}?text={__import__("urllib.parse", fromlist=["quote"]).quote(message)}' if phone else None
+
+            self._json({
+                'whatsappUrl': wa_url,
+                'phone': phone,
+                'message': message,
+                'report': report
+            })
 
         elif path.startswith('/api/reports/'):
             field_id = path.split('/')[-1]

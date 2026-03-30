@@ -510,7 +510,15 @@ async function loadDashboard() {
               ${alertCount > 0 ? `<div style="color:var(--danger);font-size:12px;font-weight:600;margin-top:2px">${alertCount} alertas</div>` : ''}
             </div>
           </div>
-          ${!isActive ? `<button class="btn btn-primary btn-sm btn-block" style="margin-top:10px" onclick="event.stopPropagation();activateMonitoring('${f.id}')">Activar Monitoreo</button>` : `<button class="btn btn-secondary btn-sm btn-block" style="margin-top:10px" onclick="event.stopPropagation();runCheck('${f.id}')">Verificar Ahora</button>`}
+          ${!isActive
+          ? `<button class="btn btn-primary btn-sm btn-block" style="margin-top:10px" onclick="event.stopPropagation();activateMonitoring('${f.id}')">Activar Monitoreo</button>`
+          : `<div style="display:flex;gap:6px;margin-top:10px">
+              <button class="btn btn-secondary btn-sm" style="flex:1" onclick="event.stopPropagation();runCheck('${f.id}')">Verificar</button>
+              <button class="btn btn-sm" style="flex:1;background:var(--warning);color:#000" onclick="event.stopPropagation();pauseMonitoring('${f.id}')">Pausar</button>
+              <button class="btn btn-sm" style="background:var(--info);color:#fff" onclick="event.stopPropagation();sendWhatsApp('${f.id}')">WhatsApp</button>
+            </div>`}
+        ${f.monitoring?.pausedReason === 'harvest_detected' ? '<div style="color:var(--warning);font-size:11px;margin-top:6px;font-weight:600">🌾 Cosecha detectada — monitoreo pausado automaticamente</div>' : ''}
+        ${f.monitoring?.pausedReason === 'admin_manual' ? '<div style="display:flex;gap:6px;margin-top:6px"><span style="color:var(--text-dim);font-size:11px">Pausado manualmente</span><button class="btn btn-sm btn-primary" style="padding:2px 10px;font-size:11px" onclick="event.stopPropagation();resumeMonitoring(\''+f.id+'\')">Reanudar</button></div>' : ''}
         </div>`;
     }).join('');
   } catch(e) {
@@ -634,11 +642,27 @@ async function runCheck(fieldId) {
     const result = await apiPost(`/fields/${fieldId}/check`, {});
     if (result.error) { toast('Error: ' + result.error, 'error'); return; }
     const anomCount = result.anomalies?.length || 0;
+
+    // Cloud blocked
+    if (result.cloudBlocked) {
+      toast(`☁ ${result.cloudMessage || 'Nubes impidieron el monitoreo esta semana'}`, 'warning');
+      loadDashboard();
+      return;
+    }
+
+    // Harvest detected
+    if (result.harvestDetected) {
+      toast(`🌾 ${result.harvestMessage || 'Cosecha detectada — monitoreo pausado'}`, 'warning');
+      loadDashboard();
+      return;
+    }
+
+    // Pasture metrics
     const pm = result.pastureMetrics;
     if (pm) {
-      toast(`Pastura: ${pm.biomass_kgDM_ha} kg MS/ha | Crecimiento: ${pm.growth_rate_kgDM_ha_day ?? '—'} kg/dia | Carga: ${pm.stocking_rate_rotational_UA_ha} UA/ha | ${pm.recommendation}`, 'success');
+      toast(`🐄 ${pm.biomass_kgDM_ha} kg MS/ha | Crec: ${pm.growth_rate_kgDM_ha_day ?? '—'} kg/dia | Carga: ${pm.stocking_rate_rotational_UA_ha} UA/ha`, 'success');
     } else {
-      toast(`Check completo: Etapa ${result.stageDesc}, Z=${result.zScore ?? '—'}, ${anomCount} anomalias`);
+      toast(`Check: ${result.stageDesc} | Z=${result.zScore ?? '—'} | ${anomCount} anomalias`);
     }
     loadDashboard();
   } catch(e) {
@@ -762,6 +786,39 @@ async function selectMapField(fieldId) {
     </div>` : ''}
     ${tsHtml}
   `;
+}
+
+// ── PAUSE / RESUME ──
+async function pauseMonitoring(fieldId) {
+  if (!confirm('Pausar monitoreo de este lote?')) return;
+  await apiPost(`/fields/${fieldId}/pause`, {});
+  toast('Monitoreo pausado');
+  loadDashboard();
+}
+
+async function resumeMonitoring(fieldId) {
+  await apiPost(`/fields/${fieldId}/resume`, {});
+  toast('Monitoreo reanudado');
+  loadDashboard();
+}
+
+// ── WHATSAPP ──
+async function sendWhatsApp(fieldId) {
+  toast('Generando reporte para WhatsApp...', 'info');
+  try {
+    const result = await apiPost(`/fields/${fieldId}/whatsapp`, {});
+    if (result.whatsappUrl) {
+      window.open(result.whatsappUrl, '_blank');
+      toast('WhatsApp abierto con reporte');
+    } else {
+      toast('Sin numero de WhatsApp del cliente. Configure el contacto.', 'warning');
+      // Show message to copy
+      if (result.message) {
+        const el = document.getElementById('dashFields') || document.getElementById('mapFieldInfo');
+        if (el) el.insertAdjacentHTML('afterbegin', `<div class="card" style="border-left:3px solid var(--info);margin-bottom:12px"><div class="card-title">Mensaje para WhatsApp</div><pre style="font-size:11px;color:var(--text-muted);white-space:pre-wrap;margin-top:6px">${esc(result.message)}</pre><button class="btn btn-sm btn-secondary" style="margin-top:8px" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);toast('Copiado')">Copiar mensaje</button></div>`);
+      }
+    }
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
 // ── REPORTS ──
