@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <meta name="theme-color" content="#0a1220">
+  <title>PIX Monitor - Monitoreo Satelital de Cultivos</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --teal:#7FD633;--teal-dark:#5ca825;--blue:#00A4CC;
+      --dark:#0a1220;--dark-2:#111d2e;--dark-3:#1a2b3f;--surface:#162236;--surface-2:#1e3048;
+      --text:#F1F5F9;--text-muted:#8899AB;--text-dim:#5A6B7D;
+      --success:#34D058;--warning:#F5A623;--danger:#EF4444;--info:#3b82f6;
+      --gradient:linear-gradient(135deg,#7FD633 0%,#00A4CC 100%);
+      --border:rgba(255,255,255,0.06);--border-hover:rgba(255,255,255,0.12);
+      --sidebar-w:260px;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%;font-family:'Inter',-apple-system,sans-serif;background:var(--dark);color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased}
+    a{color:var(--teal);text-decoration:none}
+    input,select,textarea,button{font-family:inherit}
+
+    /* Layout */
+    .app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:56px 1fr;height:100vh;height:100dvh}
+    .topbar{grid-column:1/-1;background:var(--dark-2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;z-index:100}
+    .topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:var(--gradient);opacity:0.3}
+    .topbar h1{font-size:17px;font-weight:700;letter-spacing:0.3px}
+    .topbar .subtitle{font-size:11px;color:var(--text-muted)}
+    .topbar .right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-muted)}
+
+    .sidebar{background:var(--dark-2);border-right:1px solid var(--border);overflow-y:auto;padding:12px 0}
+    .sidebar .nav-section{padding:0 12px;margin-bottom:8px}
+    .sidebar .nav-label{font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;padding:12px 12px 6px}
+    .nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border:none;background:none;color:var(--text-muted);font-size:13px;font-weight:500;cursor:pointer;border-radius:8px;transition:all 0.15s}
+    .nav-btn:hover{background:rgba(127,214,51,0.06);color:var(--text)}
+    .nav-btn.active{background:rgba(127,214,51,0.1);color:var(--teal);font-weight:600}
+    .nav-btn svg{width:18px;height:18px;flex-shrink:0}
+    .nav-badge{background:var(--danger);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;margin-left:auto;font-weight:600}
+
+    .main{overflow:hidden;position:relative;background:var(--dark)}
+    .view{display:none;position:absolute;inset:0;overflow-y:auto}
+    .view.active{display:flex;flex-direction:column}
+
+    /* Map view */
+    .map-view{display:none;position:absolute;inset:0}
+    .map-view.active{display:grid;grid-template-columns:1fr 380px}
+    #mainMap{height:100%;width:100%}
+    .map-panel{overflow-y:auto;padding:16px;background:var(--dark-2);border-left:1px solid var(--border)}
+
+    /* Cards */
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;transition:border-color 0.2s}
+    .card:hover{border-color:var(--border-hover)}
+    .card-title{font-size:15px;font-weight:600}
+    .card-sub{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+    /* Buttons */
+    .btn{padding:8px 16px;border-radius:8px;border:none;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px}
+    .btn-primary{background:var(--gradient);color:#fff}
+    .btn-primary:hover{opacity:0.9}
+    .btn-secondary{background:var(--dark-3);color:var(--text-muted);border:1px solid var(--border)}
+    .btn-danger{background:var(--danger);color:#fff}
+    .btn-sm{padding:6px 12px;font-size:12px}
+    .btn-block{width:100%;justify-content:center}
+
+    /* Forms */
+    .form-group{margin-bottom:12px}
+    .form-label{font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;display:block}
+    .form-input{width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none;transition:border-color 0.2s}
+    .form-input:focus{border-color:var(--teal);box-shadow:0 0 0 2px rgba(127,214,51,0.15)}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+    /* Stats */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
+    .stat-value{font-size:24px;font-weight:700;color:var(--teal)}
+    .stat-label{font-size:11px;color:var(--text-muted);margin-top:2px}
+    .stat-card.danger .stat-value{color:var(--danger)}
+    .stat-card.warning .stat-value{color:var(--warning)}
+
+    /* Alert cards */
+    .alert-card{background:var(--surface);border-left:3px solid var(--warning);border-radius:0 10px 10px 0;padding:12px 14px;margin-bottom:8px}
+    .alert-card.critical{border-left-color:var(--danger)}
+    .alert-card.info{border-left-color:var(--info)}
+    .alert-header{display:flex;justify-content:space-between;align-items:center}
+    .alert-title{font-size:13px;font-weight:600}
+    .alert-date{font-size:11px;color:var(--text-dim)}
+    .alert-body{font-size:12px;color:var(--text-muted);margin-top:4px}
+    .severity-badge{font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600}
+    .severity-badge.critical{background:rgba(239,68,68,0.15);color:var(--danger)}
+    .severity-badge.warning{background:rgba(245,166,35,0.15);color:var(--warning)}
+
+    /* Crop selector */
+    .crop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .crop-chip{padding:12px;border-radius:10px;border:2px solid var(--border);background:var(--surface);text-align:center;cursor:pointer;transition:all 0.2s;font-size:12px;font-weight:500}
+    .crop-chip:hover{border-color:var(--teal)}
+    .crop-chip.active{border-color:var(--teal);background:rgba(127,214,51,0.08)}
+    .crop-chip .emoji{font-size:24px;display:block;margin-bottom:4px}
+
+    /* Stage indicator */
+    .stage-bar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin:8px 0;background:var(--dark-3)}
+    .stage-segment{height:100%;transition:width 0.3s}
+    .stage-active{background:var(--teal)}
+    .stage-past{background:rgba(127,214,51,0.3)}
+    .stage-future{background:var(--dark-3)}
+
+    /* Panel sections */
+    .panel-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+    .panel-section{margin-bottom:20px}
+
+    /* Table */
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{text-align:left;padding:8px 10px;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase}
+    td{padding:8px 10px;border-bottom:1px solid var(--border)}
+
+    /* Login */
+    .login-overlay{position:fixed;inset:0;background:var(--dark);z-index:9999;display:flex;align-items:center;justify-content:center}
+    .login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 32px;width:380px;max-width:92vw;text-align:center}
+    .login-card h2{font-size:22px;font-weight:700;margin:12px 0 4px}
+    .login-card p{color:var(--text-muted);font-size:13px;margin-bottom:24px}
+    .login-card .form-input{margin-bottom:10px}
+    .login-error{color:var(--danger);font-size:12px;margin-bottom:8px;display:none}
+
+    /* Toast */
+    .toast{position:fixed;bottom:24px;right:24px;background:var(--surface);color:var(--text);padding:12px 18px;border-radius:10px;font-size:13px;z-index:9000;box-shadow:0 8px 24px rgba(0,0,0,0.3);border:1px solid var(--border);transform:translateY(80px);opacity:0;transition:all 0.3s}
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast.success{border-left:3px solid var(--success)}
+    .toast.error{border-left:3px solid var(--danger)}
+    .toast.warning{border-left:3px solid var(--warning)}
+
+    /* Modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:8000;display:none;align-items:center;justify-content:center}
+    .modal.active{display:flex}
+    .modal-content{background:var(--dark-2);border:1px solid var(--border);border-radius:16px;padding:24px;width:500px;max-width:94vw;max-height:90vh;overflow-y:auto}
+    .modal-title{font-size:18px;font-weight:700;margin-bottom:16px}
+
+    /* Responsive */
+    @media(max-width:900px){
+      .app{grid-template-columns:1fr}
+      .sidebar{display:none}
+      .map-view.active{grid-template-columns:1fr}
+      .map-panel{display:none}
+      .stats-grid{grid-template-columns:repeat(2,1fr)}
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:6px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-card">
+    <div style="font-size:48px;margin-bottom:8px">🛰️</div>
+    <h2>PIX Monitor</h2>
+    <p>Monitoreo Satelital de Cultivos</p>
+    <input type="text" class="form-input" id="loginEmail" placeholder="Email o usuario">
+    <input type="password" class="form-input" id="loginPass" placeholder="Contraseña" onkeydown="if(event.key==='Enter')pixMonitorLogin()">
+    <div class="login-error" id="loginError">Credenciales incorrectas</div>
+    <button class="btn btn-primary btn-block" onclick="pixMonitorLogin()" style="padding:12px;font-size:15px;border-radius:10px;margin-top:4px">Ingresar</button>
+    <p style="color:var(--text-dim);font-size:11px;margin-top:16px">Pixadvisor — Agricultura de Precision</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="appContainer" style="display:none">
+  <!-- Topbar -->
+  <header class="topbar" style="position:relative">
+    <div style="font-size:22px">🛰️</div>
+    <div>
+      <h1>PIX Monitor</h1>
+      <div class="subtitle">Monitoreo Satelital de Cultivos — Sentinel-2</div>
+    </div>
+    <div class="right">
+      <span id="apiStatus" style="display:flex;align-items:center;gap:4px">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--text-dim)" id="apiDot"></span>
+        <span id="apiText">Conectando...</span>
+      </span>
+      <span id="userName"></span>
+      <button class="btn btn-sm btn-secondary" onclick="pixMonitorLogout()">Salir</button>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">General</div>
+      <button class="nav-btn active" data-view="dashboard" onclick="showView('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-btn" data-view="map" onclick="showView('map')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        Mapa de Monitoreo
+      </button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Cadastro</div>
+      <button class="nav-btn" data-view="clients" onclick="showView('clients')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clientes
+      </button>
+      <button class="nav-btn" data-view="fields" onclick="showView('fields')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Lotes
+      </button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Monitoreo</div>
+      <button class="nav-btn" data-view="alerts" onclick="showView('alerts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Alertas
+        <span class="nav-badge" id="alertBadge" style="display:none">0</span>
+      </button>
+      <button class="nav-btn" data-view="reports" onclick="showView('reports')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Reportes
+      </button>
+    </div>
+    <div class="nav-section" style="margin-top:auto;padding-top:12px;border-top:1px solid var(--border)">
+      <a class="nav-btn" href="/pix-admin/" target="_blank" style="color:var(--text-dim);font-size:12px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Abrir PIX Admin
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div id="view-dashboard" class="view active" style="padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <div style="font-size:20px;font-weight:700">Dashboard de Monitoreo</div>
+          <div style="font-size:13px;color:var(--text-muted)">Estado de salud de los cultivos monitoreados</div>
+        </div>
+        <button class="btn btn-primary" onclick="showView('fields')">+ Nuevo Lote</button>
+      </div>
+      <div class="stats-grid" id="dashStats">
+        <div class="stat-card"><div class="stat-value" id="statFields">0</div><div class="stat-label">Lotes activos</div></div>
+        <div class="stat-card"><div class="stat-value" id="statArea">0</div><div class="stat-label">Hectareas</div></div>
+        <div class="stat-card danger"><div class="stat-value" id="statAlerts">0</div><div class="stat-label">Alertas</div></div>
+        <div class="stat-card"><div class="stat-value" id="statChecks">0</div><div class="stat-label">Chequeos</div></div>
+      </div>
+      <div id="dashFields"></div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div id="view-clients" class="view" style="padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:20px;font-weight:700">Clientes</div>
+        <button class="btn btn-primary" onclick="showModal('clientModal')">+ Nuevo Cliente</button>
+      </div>
+      <div id="clientsList"></div>
+    </div>
+
+    <!-- FIELDS -->
+    <div id="view-fields" class="view" style="padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:20px;font-weight:700">Lotes Monitoreados</div>
+        <button class="btn btn-primary" onclick="showModal('fieldModal')">+ Cadastrar Lote</button>
+      </div>
+      <div id="fieldsList"></div>
+    </div>
+
+    <!-- ALERTS -->
+    <div id="view-alerts" class="view" style="padding:20px">
+      <div style="font-size:20px;font-weight:700;margin-bottom:16px">Alertas de Anomalias</div>
+      <div id="alertsList"></div>
+    </div>
+
+    <!-- REPORTS -->
+    <div id="view-reports" class="view" style="padding:20px">
+      <div style="font-size:20px;font-weight:700;margin-bottom:16px">Reportes</div>
+      <p style="color:var(--text-muted);font-size:14px">Selecciona un lote para generar un reporte PDF georeferenciado con rutas de anomalias para Avenza Maps.</p>
+      <div id="reportsList" style="margin-top:16px"></div>
+    </div>
+
+    <!-- MAP VIEW -->
+    <div id="view-map" class="map-view">
+      <div id="mainMap"></div>
+      <div class="map-panel">
+        <div class="panel-section">
+          <div class="panel-title">🛰️ Monitoreo Satelital</div>
+          <select class="form-input" id="mapFieldSelect" onchange="selectMapField(this.value)" style="margin-bottom:10px">
+            <option value="">Seleccionar lote...</option>
+          </select>
+        </div>
+        <div id="mapFieldInfo"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- CLIENT MODAL -->
+<div class="modal" id="clientModal">
+  <div class="modal-content">
+    <div class="modal-title">Nuevo Cliente</div>
+    <div class="form-group"><label class="form-label">Nombre</label><input class="form-input" id="clientName" placeholder="Nombre del cliente"></div>
+    <div class="form-group"><label class="form-label">Contacto</label><input class="form-input" id="clientContact" placeholder="Telefono/WhatsApp"></div>
+    <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="clientEmail" placeholder="email@ejemplo.com"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('clientModal')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveClient()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIELD MODAL -->
+<div class="modal" id="fieldModal">
+  <div class="modal-content" style="width:600px">
+    <div class="modal-title">Cadastrar Lote para Monitoreo</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Nombre del Lote</label><input class="form-input" id="fieldName" placeholder="Ej: Lote 25"></div>
+      <div class="form-group"><label class="form-label">Cliente</label><select class="form-input" id="fieldClient"></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Area (ha)</label><input class="form-input" type="number" id="fieldArea" placeholder="45"></div>
+      <div class="form-group"><label class="form-label">Fecha de Siembra</label><input class="form-input" type="date" id="fieldPlanting"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cultivo</label>
+      <div class="crop-grid" id="cropSelector"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Perimetro (GeoJSON)</label>
+      <textarea class="form-input" id="fieldBoundary" rows="4" placeholder='Pegar GeoJSON del perimetro del lote...' style="font-family:monospace;font-size:11px"></textarea>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Pegar coordenadas en formato GeoJSON Polygon o subir archivo .geojson</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('fieldModal')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveField()">Cadastrar Lote</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ============================================================
+// PIX Monitor — Frontend Application
+// ============================================================
+
+const API = 'http://localhost:9102/api';
+const USER_API = 'http://localhost:9105/api';
+let currentView = 'dashboard';
+let map = null;
+let fieldLayers = {};
+
+// CROPS
+const CROP_ICONS = {soja:'🌱',maiz:'🌽',cana:'🌾',trigo:'🌿',arroz:'🍚',girasol:'🌻'};
+
+// ── AUTH ──
+async function sha256(str) {
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch(e) {}
+  }
+  // JS fallback
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const utf8=new TextEncoder().encode(str);let H0=0x6a09e667,H1=0xbb67ae85,H2=0x3c6ef372,H3=0xa54ff53a,H4=0x510e527f,H5=0x9b05688c,H6=0x1f83d9ab,H7=0x5be0cd19;const len=utf8.length,bl=len*8,p=new Uint8Array(((len+9+63)&~63));p.set(utf8);p[len]=0x80;const dv=new DataView(p.buffer);dv.setUint32(p.length-4,bl,false);const r=(x,n)=>((x>>>n)|(x<<(32-n)))>>>0;for(let o=0;o<p.length;o+=64){const W=new Uint32Array(64);for(let i=0;i<16;i++)W[i]=dv.getUint32(o+i*4,false);for(let i=16;i<64;i++){const s0=r(W[i-15],7)^r(W[i-15],18)^(W[i-15]>>>3),s1=r(W[i-2],17)^r(W[i-2],19)^(W[i-2]>>>10);W[i]=(W[i-16]+s0+W[i-7]+s1)>>>0;}let a=H0,b=H1,c=H2,d=H3,e=H4,f=H5,g=H6,h=H7;for(let i=0;i<64;i++){const S1=r(e,6)^r(e,11)^r(e,25),ch=(e&f)^((~e)&g),t1=(h+S1+ch+K[i]+W[i])>>>0,S0=r(a,2)^r(a,13)^r(a,22),mj=(a&b)^(a&c)^(b&c),t2=(S0+mj)>>>0;h=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b;b=a;a=(t1+t2)>>>0;}H0=(H0+a)>>>0;H1=(H1+b)>>>0;H2=(H2+c)>>>0;H3=(H3+d)>>>0;H4=(H4+e)>>>0;H5=(H5+f)>>>0;H6=(H6+g)>>>0;H7=(H7+h)>>>0;}
+  return [H0,H1,H2,H3,H4,H5,H6,H7].map(v=>v.toString(16).padStart(8,'0')).join('');
+}
+
+const MASTER_HASH = 'ac201887896eb32421c6785528a878dbd31faf74050f0f041c80d9304c70e298';
+
+async function pixMonitorLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if (!email || !pass) { document.getElementById('loginError').style.display = 'block'; return; }
+
+  const hash = await sha256(pass);
+
+  // Master key
+  if (hash === MASTER_HASH) {
+    sessionStorage.setItem('pix_monitor_user', JSON.stringify({name: 'Admin PIX', email, role: 'admin'}));
+    completeLogin({name: 'Admin PIX', email});
+    return;
+  }
+
+  // Check user-api.py
+  try {
+    const resp = await fetch(`${USER_API}/users/sync`);
+    if (resp.ok) {
+      const data = await resp.json();
+      const user = (data.users || []).find(u => (u.email === email.toLowerCase() || u.name.toLowerCase() === email.toLowerCase()) && u.passwordHash === hash && u.active !== false);
+      if (user) {
+        sessionStorage.setItem('pix_monitor_user', JSON.stringify(user));
+        completeLogin(user);
+        return;
+      }
+    }
+  } catch(e) { console.warn('User API not available:', e.message); }
+
+  document.getElementById('loginError').style.display = 'block';
+}
+
+function completeLogin(user) {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appContainer').style.display = '';
+  document.getElementById('userName').textContent = user.name || user.email;
+  checkApiHealth();
+  loadDashboard();
+}
+
+function pixMonitorLogout() {
+  sessionStorage.removeItem('pix_monitor_user');
+  location.reload();
+}
+
+// ── VIEWS ──
+function showView(name) {
+  currentView = name;
+  document.querySelectorAll('.view, .map-view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById(`view-${name}`);
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'clients') loadClients();
+  if (name === 'fields') loadFields();
+  if (name === 'alerts') loadAlerts();
+  if (name === 'reports') loadReports();
+  if (name === 'map') initMap();
+}
+
+function showModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+// ── API HELPERS ──
+async function apiGet(path) {
+  const resp = await fetch(`${API}${path}`);
+  return resp.json();
+}
+async function apiPost(path, body) {
+  const resp = await fetch(`${API}${path}`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  });
+  return resp.json();
+}
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ── HEALTH CHECK ──
+async function checkApiHealth() {
+  try {
+    const data = await apiGet('/health');
+    document.getElementById('apiDot').style.background = 'var(--success)';
+    document.getElementById('apiText').textContent = `API Online | GEE: ${data.gee ? 'OK' : 'Off'}`;
+  } catch(e) {
+    document.getElementById('apiDot').style.background = 'var(--danger)';
+    document.getElementById('apiText').textContent = 'API Offline';
+  }
+}
+
+// ── DASHBOARD ──
+async function loadDashboard() {
+  try {
+    const [fieldsData, alertsData] = await Promise.all([apiGet('/fields'), apiGet('/alerts')]);
+    const fields = fieldsData.fields || [];
+    const alerts = alertsData.alerts || [];
+    const active = fields.filter(f => f.monitoring?.active);
+
+    document.getElementById('statFields').textContent = active.length;
+    document.getElementById('statArea').textContent = Math.round(fields.reduce((s, f) => s + (f.areaHa || 0), 0));
+    document.getElementById('statAlerts').textContent = alerts.filter(a => a.status === 'active').length;
+    document.getElementById('statChecks').textContent = fields.reduce((s, f) => s + (f.monitoring?.checkCount || 0), 0);
+
+    const badge = document.getElementById('alertBadge');
+    const activeAlerts = alerts.filter(a => a.status === 'active').length;
+    badge.textContent = activeAlerts;
+    badge.style.display = activeAlerts > 0 ? '' : 'none';
+
+    const container = document.getElementById('dashFields');
+    if (fields.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:48px;margin-bottom:12px">🌾</div><div style="font-size:16px;font-weight:600">Sin lotes monitoreados</div><div style="font-size:13px;margin-top:4px">Cadastra un lote para comenzar el monitoreo satelital</div></div>';
+      return;
+    }
+
+    container.innerHTML = fields.map(f => {
+      const crop = CROP_ICONS[f.crop] || '🌱';
+      const stage = f.monitoring?.currentStage || '—';
+      const isActive = f.monitoring?.active;
+      const alertCount = alerts.filter(a => a.fieldId === f.id && a.status === 'active').length;
+      return `
+        <div class="card" style="cursor:pointer" onclick="showView('map');setTimeout(()=>selectMapField('${f.id}'),200)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:32px">${crop}</div>
+            <div style="flex:1">
+              <div class="card-title">${esc(f.name)}</div>
+              <div class="card-sub">${esc(f.crop)} | ${f.areaHa || 0} ha | Etapa: ${stage}</div>
+            </div>
+            <div style="text-align:right">
+              ${isActive ? '<span style="color:var(--success);font-size:11px;font-weight:600">ACTIVO</span>' : '<span style="color:var(--text-dim);font-size:11px">Inactivo</span>'}
+              ${alertCount > 0 ? `<div style="color:var(--danger);font-size:12px;font-weight:600;margin-top:2px">${alertCount} alertas</div>` : ''}
+            </div>
+          </div>
+          ${!isActive ? `<button class="btn btn-primary btn-sm btn-block" style="margin-top:10px" onclick="event.stopPropagation();activateMonitoring('${f.id}')">Activar Monitoreo</button>` : `<button class="btn btn-secondary btn-sm btn-block" style="margin-top:10px" onclick="event.stopPropagation();runCheck('${f.id}')">Verificar Ahora</button>`}
+        </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('dashFields').innerHTML = `<div style="color:var(--danger);padding:20px">Error: ${e.message}. Asegurate de ejecutar: python pix-monitor/monitoring-api.py</div>`;
+  }
+}
+
+// ── CLIENTS ──
+async function loadClients() {
+  const data = await apiGet('/clients');
+  const container = document.getElementById('clientsList');
+  if (!data.clients?.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Sin clientes. Crea el primero.</div>';
+    return;
+  }
+  container.innerHTML = data.clients.map(c => `
+    <div class="card">
+      <div class="card-title">${esc(c.name)}</div>
+      <div class="card-sub">${esc(c.contact || '')} | ${esc(c.email || '')}</div>
+    </div>
+  `).join('');
+}
+
+async function saveClient() {
+  const name = document.getElementById('clientName').value.trim();
+  if (!name) { toast('Nombre obligatorio', 'warning'); return; }
+  await apiPost('/clients', {
+    name, contact: document.getElementById('clientContact').value, email: document.getElementById('clientEmail').value
+  });
+  closeModal('clientModal');
+  toast('Cliente creado');
+  loadClients();
+  loadDashboard();
+}
+
+// ── FIELDS ──
+async function loadFields() {
+  const [fieldsData, clientsData, cropsData] = await Promise.all([apiGet('/fields'), apiGet('/clients'), apiGet('/crops')]);
+
+  // Populate client select in modal
+  const clientSel = document.getElementById('fieldClient');
+  clientSel.innerHTML = '<option value="">Sin cliente</option>' + (clientsData.clients || []).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+
+  // Populate crop selector
+  const cropSel = document.getElementById('cropSelector');
+  cropSel.innerHTML = Object.entries(cropsData.crops || {}).map(([key, cfg]) =>
+    `<div class="crop-chip" data-crop="${key}" onclick="selectCrop('${key}')"><span class="emoji">${CROP_ICONS[key] || '🌱'}</span>${cfg.name}</div>`
+  ).join('');
+
+  // Render fields
+  const container = document.getElementById('fieldsList');
+  const fields = fieldsData.fields || [];
+  if (!fields.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Sin lotes. Cadastra el primero.</div>';
+    return;
+  }
+  container.innerHTML = fields.map(f => `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:28px">${CROP_ICONS[f.crop] || '🌱'}</div>
+        <div style="flex:1">
+          <div class="card-title">${esc(f.name)}</div>
+          <div class="card-sub">${f.crop} | ${f.areaHa || 0} ha | Siembra: ${f.plantingDate || '—'}</div>
+        </div>
+        ${!f.monitoring?.active
+          ? `<button class="btn btn-primary btn-sm" onclick="activateMonitoring('${f.id}')">Activar</button>`
+          : `<button class="btn btn-secondary btn-sm" onclick="runCheck('${f.id}')">Verificar</button>`}
+      </div>
+    </div>
+  `).join('');
+}
+
+let selectedCrop = 'soja';
+function selectCrop(key) {
+  selectedCrop = key;
+  document.querySelectorAll('.crop-chip').forEach(c => c.classList.toggle('active', c.dataset.crop === key));
+}
+
+async function saveField() {
+  const name = document.getElementById('fieldName').value.trim();
+  const boundaryStr = document.getElementById('fieldBoundary').value.trim();
+  if (!name) { toast('Nombre obligatorio', 'warning'); return; }
+
+  let boundary;
+  try {
+    const parsed = JSON.parse(boundaryStr);
+    boundary = parsed.type === 'FeatureCollection' ? parsed.features[0].geometry
+      : parsed.type === 'Feature' ? parsed.geometry
+      : parsed.type === 'Polygon' ? parsed : null;
+    if (!boundary) throw new Error('No polygon found');
+  } catch(e) {
+    toast('GeoJSON invalido: ' + e.message, 'error');
+    return;
+  }
+
+  await apiPost('/fields', {
+    name,
+    clientId: document.getElementById('fieldClient').value,
+    areaHa: parseFloat(document.getElementById('fieldArea').value) || 0,
+    plantingDate: document.getElementById('fieldPlanting').value,
+    crop: selectedCrop,
+    boundary
+  });
+  closeModal('fieldModal');
+  toast('Lote cadastrado');
+  loadFields();
+  loadDashboard();
+}
+
+// ── MONITORING ──
+async function activateMonitoring(fieldId) {
+  toast('Activando monitoreo...', 'info');
+  const result = await apiPost(`/fields/${fieldId}/activate`, {});
+  toast(`Monitoreo activado: etapa ${result.field?.monitoring?.currentStage || '?'}`);
+  loadDashboard();
+}
+
+async function runCheck(fieldId) {
+  toast('Ejecutando verificacion GEE (puede tomar 30-60s)...', 'info');
+  try {
+    const result = await apiPost(`/fields/${fieldId}/check`, {});
+    if (result.error) { toast('Error: ' + result.error, 'error'); return; }
+    const anomCount = result.anomalies?.length || 0;
+    toast(`Check completo: Etapa ${result.stageDesc}, Z=${result.zScore ?? '—'}, ${anomCount} anomalias`);
+    loadDashboard();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── ALERTS ──
+async function loadAlerts() {
+  const data = await apiGet('/alerts');
+  const container = document.getElementById('alertsList');
+  const alerts = data.alerts || [];
+  if (!alerts.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Sin alertas. Todo normal.</div>';
+    return;
+  }
+  container.innerHTML = alerts.sort((a, b) => b.date?.localeCompare(a.date)).map(a => `
+    <div class="alert-card ${a.severity}">
+      <div class="alert-header">
+        <div class="alert-title">${esc(a.description || 'Anomalia detectada')}</div>
+        <span class="severity-badge ${a.severity}">${a.severity?.toUpperCase()}</span>
+      </div>
+      <div class="alert-body">
+        ${a.index || '—'}: valor=${a.currentValue ?? '—'} | baseline=${a.baselineMean ?? '—'} | Z-score=${a.zScore ?? '—'}
+        <br>Fecha: ${a.date?.slice(0, 10) || '—'}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── REPORTS ──
+async function loadReports() {
+  const data = await apiGet('/fields');
+  const container = document.getElementById('reportsList');
+  const active = (data.fields || []).filter(f => f.monitoring?.active);
+  if (!active.length) {
+    container.innerHTML = '<div style="color:var(--text-muted)">Sin lotes activos para generar reportes.</div>';
+    return;
+  }
+  container.innerHTML = active.map(f => `
+    <div class="card" style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:28px">${CROP_ICONS[f.crop] || '🌱'}</div>
+      <div style="flex:1"><div class="card-title">${esc(f.name)}</div><div class="card-sub">${f.monitoring?.lastCheck?.slice(0,10) || 'Sin chequeo'}</div></div>
+      <button class="btn btn-primary btn-sm" onclick="toast('Generando PDF... (en desarrollo)','info')">PDF</button>
+      <button class="btn btn-secondary btn-sm" onclick="toast('Generando KMZ... (en desarrollo)','info')">KMZ</button>
+    </div>
+  `).join('');
+}
+
+// ── MAP ──
+function initMap() {
+  if (map) { map.invalidateSize(); loadMapFields(); return; }
+  setTimeout(() => {
+    map = L.map('mainMap').setView([-17.78, -63.18], 10);
+    L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {maxZoom: 21, attribution: 'Google'}).addTo(map);
+    loadMapFields();
+  }, 100);
+}
+
+async function loadMapFields() {
+  const data = await apiGet('/fields');
+  const fields = data.fields || [];
+
+  // Populate select
+  const sel = document.getElementById('mapFieldSelect');
+  sel.innerHTML = '<option value="">Seleccionar lote...</option>' + fields.map(f => `<option value="${f.id}">${esc(f.name)} (${f.crop})</option>`).join('');
+
+  // Draw all boundaries
+  Object.values(fieldLayers).forEach(l => map.removeLayer(l));
+  fieldLayers = {};
+  const allBounds = [];
+  for (const f of fields) {
+    if (!f.boundary) continue;
+    try {
+      const layer = L.geoJSON({type:'Feature',geometry:f.boundary,properties:{name:f.name}}, {
+        style: {color: f.monitoring?.active ? '#7FD633' : '#666', weight: 2, fill: true, fillOpacity: 0.1}
+      }).bindTooltip(f.name).addTo(map);
+      fieldLayers[f.id] = layer;
+      allBounds.push(layer.getBounds());
+    } catch(e) {}
+  }
+  if (allBounds.length > 0) {
+    const merged = allBounds.reduce((b, c) => b.extend(c));
+    map.fitBounds(merged, {padding: [40, 40]});
+  }
+}
+
+async function selectMapField(fieldId) {
+  if (!fieldId) { document.getElementById('mapFieldInfo').innerHTML = ''; return; }
+  const data = await apiGet('/fields');
+  const field = (data.fields || []).find(f => f.id === fieldId);
+  if (!field) return;
+
+  if (fieldLayers[fieldId]) map.fitBounds(fieldLayers[fieldId].getBounds(), {padding: [30, 30]});
+
+  // Load time series
+  let tsHtml = '';
+  try {
+    const tsData = await apiGet(`/timeseries/${fieldId}`);
+    const ts = tsData.timeseries || [];
+    if (ts.length > 0) {
+      tsHtml = `<div class="panel-section"><div class="panel-title">Serie Temporal</div><div class="table-wrap"><table><tr><th>Fecha</th><th>Etapa</th><th>NDVI</th><th>Z</th></tr>${ts.map(t => `<tr><td>${t.date?.slice(0,10)}</td><td>${t.stage||'—'}</td><td>${t.values?.NDVI?.toFixed(3) ?? '—'}</td><td style="color:${Math.abs(t.zScore||0) > 2 ? 'var(--danger)' : 'var(--text)'}">${t.zScore ?? '—'}</td></tr>`).join('')}</table></div></div>`;
+    }
+  } catch(e) {}
+
+  document.getElementById('mapFieldInfo').innerHTML = `
+    <div class="panel-section">
+      <div class="panel-title">${CROP_ICONS[field.crop]||'🌱'} ${esc(field.name)}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">
+        ${field.crop} | ${field.areaHa||0} ha | Etapa: ${field.monitoring?.currentStage||'—'}
+        <br>Ultimo check: ${field.monitoring?.lastCheck?.slice(0,10)||'Nunca'}
+      </div>
+      ${field.monitoring?.active
+        ? `<button class="btn btn-primary btn-sm btn-block" onclick="runCheck('${field.id}')">Verificar Ahora (GEE)</button>`
+        : `<button class="btn btn-primary btn-sm btn-block" onclick="activateMonitoring('${field.id}')">Activar Monitoreo</button>`}
+    </div>
+    ${tsHtml}
+  `;
+}
+
+// ── UTILS ──
+function esc(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+// ── INIT ──
+window.addEventListener('load', () => {
+  const saved = sessionStorage.getItem('pix_monitor_user');
+  if (saved) {
+    try { completeLogin(JSON.parse(saved)); } catch(e) {}
+  }
+});
+</script>
+</body>
+</html>
