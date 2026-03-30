@@ -356,7 +356,7 @@ let map = null;
 let fieldLayers = {};
 
 // CROPS
-const CROP_ICONS = {soja:'🌱',maiz:'🌽',cana:'🌾',trigo:'🌿',arroz:'🍚',girasol:'🌻'};
+const CROP_ICONS = {soja:'🌱',maiz:'🌽',cana:'🌾',trigo:'🌿',arroz:'🍚',girasol:'🌻',pastura:'🐄'};
 
 // ── AUTH ──
 async function sha256(str) {
@@ -634,7 +634,12 @@ async function runCheck(fieldId) {
     const result = await apiPost(`/fields/${fieldId}/check`, {});
     if (result.error) { toast('Error: ' + result.error, 'error'); return; }
     const anomCount = result.anomalies?.length || 0;
-    toast(`Check completo: Etapa ${result.stageDesc}, Z=${result.zScore ?? '—'}, ${anomCount} anomalias`);
+    const pm = result.pastureMetrics;
+    if (pm) {
+      toast(`Pastura: ${pm.biomass_kgDM_ha} kg MS/ha | Crecimiento: ${pm.growth_rate_kgDM_ha_day ?? '—'} kg/dia | Carga: ${pm.stocking_rate_rotational_UA_ha} UA/ha | ${pm.recommendation}`, 'success');
+    } else {
+      toast(`Check completo: Etapa ${result.stageDesc}, Z=${result.zScore ?? '—'}, ${anomCount} anomalias`);
+    }
     loadDashboard();
   } catch(e) {
     toast('Error: ' + e.message, 'error');
@@ -750,6 +755,11 @@ async function selectMapField(fieldId) {
         ? `<button class="btn btn-primary btn-sm btn-block" onclick="runCheck('${field.id}')">Verificar Ahora (GEE)</button>`
         : `<button class="btn btn-primary btn-sm btn-block" onclick="activateMonitoring('${field.id}')">Activar Monitoreo</button>`}
     </div>
+    ${field.crop === 'pastura' ? `
+    <div class="panel-section" id="pasturePanel">
+      <div class="panel-title">🐄 Metricas de Pastura</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Ejecutar "Verificar Ahora" para calcular biomasa y carga animal</div>
+    </div>` : ''}
     ${tsHtml}
   `;
 }

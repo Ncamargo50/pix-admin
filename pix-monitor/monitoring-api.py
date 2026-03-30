@@ -121,6 +121,71 @@ CROP_PHENOLOGY = {
         },
         "critical_stages": ["FLORACION", "LLENADO"],
     },
+    "pastura": {
+        "name": "Pastura (Brachiaria/Panicum)",
+        "cycle_days": 365,  # Perenne — monitoreo continuo todo el año
+        "is_perennial": True,
+        "stages": {
+            # Pasturas tropicales (Brachiaria brizantha, Panicum maximum, etc.)
+            # No tienen fenologia fija — se monitorea por estado de la biomasa
+            "REBROTE":         {"days": [0, 30],    "indices": ["MSAVI2","NDVI","SAVI","OSAVI"],            "desc": "Rebrote post-pastoreo (0-30 dias)"},
+            "CRECIMIENTO":     {"days": [30, 60],   "indices": ["NDVI","NDRE","GNDVI","EVI","MTCI"],       "desc": "Crecimiento activo (30-60 dias)"},
+            "OPTIMO_PASTOREO": {"days": [60, 90],   "indices": ["NDVI","NDRE","EVI","NDMI","GNDVI"],       "desc": "Punto optimo de pastoreo (60-90 dias)"},
+            "MADURO":          {"days": [90, 120],  "indices": ["NDVI","NDMI","PSRI","NBR2"],              "desc": "Pastura madura (>90 dias, calidad baja)"},
+            "SOBREMADURO":     {"days": [120, 365], "indices": ["PSRI","NDMI","NBR2","MSI"],               "desc": "Pastura sobremadura (lignificada)"},
+        },
+        "critical_stages": ["CRECIMIENTO", "OPTIMO_PASTOREO"],
+        # ── MODELO DE BIOMASA (kg MS/ha) ──
+        # Basado en: Nature Sci Reports 2024, EMBRAPA Pecuaria, Grassland Biomass S2 ML (Springer 2024)
+        # Regresion NDVI → Biomasa para Brachiaria tropical:
+        #   Biomasa (kg MS/ha) = 6842 * NDVI - 988   (R² = 0.74, RMSE = 487 kg/ha)
+        #   Fuente: OSAVI best predictor R²=0.77, SAVI R²=0.52 (Springer s10661-024-13610-1)
+        #   Fuente: Sentinel-2 + ML para Urochloa brizantha (Nature s41598-024-59160-x)
+        "biomass_model": {
+            "type": "linear_regression",
+            "formula": "biomass_kgDM_ha = 6842 * NDVI - 988",
+            "coefficients": {"slope": 6842, "intercept": -988},
+            "r2": 0.74,
+            "rmse_kg": 487,
+            "valid_range": {"NDVI_min": 0.15, "NDVI_max": 0.85},
+            "species": "Urochloa brizantha (Marandu), Panicum maximum",
+            "source": "Nature Sci Reports 2024 + Springer Environmental Monitoring 2024"
+        },
+        # ── MODELO DE TASA DE CRECIMIENTO (kg MS/ha/dia) ──
+        # Growth Rate = (Biomasa_actual - Biomasa_anterior) / dias_entre_mediciones
+        # Referencia: EMBRAPA — Brachiaria tropical produce 40-120 kg MS/ha/dia en verano
+        "growth_rate": {
+            "excellent": {"min": 80, "desc": "Crecimiento excelente (>80 kg MS/ha/dia)"},
+            "good":      {"min": 50, "max": 80, "desc": "Crecimiento bueno (50-80)"},
+            "moderate":  {"min": 30, "max": 50, "desc": "Crecimiento moderado (30-50)"},
+            "low":       {"min": 10, "max": 30, "desc": "Crecimiento bajo (10-30) — sequia/frio"},
+            "dormant":   {"max": 10, "desc": "Dormancia (<10) — sin crecimiento"}
+        },
+        # ── CARGA ANIMAL ──
+        # Capacidad de carga = (Biomasa disponible * Eficiencia de pastoreo) / (Consumo diario * Dias de ocupacion)
+        # Consumo: bovino adulto (~450kg PV) consume ~2.5% PV/dia = 11.25 kg MS/dia
+        # Eficiencia de pastoreo: 50-60% (pastoreo rotacional), 30-40% (continuo)
+        # Fuente: EMBRAPA Gado de Corte, Manual de Pastagens Tropicais
+        "stocking_rate": {
+            "animal_weight_kg": 450,
+            "daily_intake_pct": 2.5,   # % del peso vivo
+            "daily_intake_kg": 11.25,  # kg MS/dia (450 * 0.025)
+            "grazing_efficiency_rotational": 0.55,  # 55% aprovechamiento rotacional
+            "grazing_efficiency_continuous": 0.35,   # 35% aprovechamiento continuo
+            "min_residual_kg": 1500,   # Biomasa residual minima para recuperacion (kg MS/ha)
+            "formula": "UA_ha = (biomasa_disponible - residual_min) * eficiencia / (consumo_diario * dias_ocupacion)",
+            "source": "EMBRAPA Gado de Corte — Sistemas de Produccion, Manual Pastagens Tropicais"
+        },
+        # Umbrales de manejo
+        "management_thresholds": {
+            "entry_height_cm": {"Brachiaria_brizantha": 30, "Panicum_maximum": 70, "Brachiaria_decumbens": 25},
+            "exit_height_cm":  {"Brachiaria_brizantha": 15, "Panicum_maximum": 35, "Brachiaria_decumbens": 10},
+            "entry_biomass_kg": 3500,  # Biomasa ideal de entrada al pastoreo
+            "exit_biomass_kg":  1500,  # Biomasa residual post-pastoreo
+            "ndvi_entry": 0.65,        # NDVI correspondiente a biomasa de entrada
+            "ndvi_exit": 0.40,         # NDVI correspondiente a biomasa residual
+        }
+    },
 }
 
 # ============================================================
@@ -168,9 +233,103 @@ def detect_stage(crop, planting_date_str):
         if d0 <= days_since <= d1:
             return stage_key, stage_cfg, days_since
 
-    # Beyond cycle
+    # Beyond cycle — for perennial crops, wrap around
+    if config.get('is_perennial'):
+        days_mod = days_since % config['cycle_days']
+        for stage_key, stage_cfg in config['stages'].items():
+            d0, d1 = stage_cfg['days']
+            if d0 <= days_mod <= d1:
+                return stage_key, stage_cfg, days_since
     last_stage = list(config['stages'].keys())[-1]
     return last_stage, config['stages'][last_stage], days_since
+
+
+def compute_pasture_metrics(ndvi_current, ndvi_previous, days_between, field_config):
+    """
+    Calculate pasture-specific metrics: biomass, growth rate, stocking rate.
+    Based on calibrated NDVI-biomass regression for tropical Brachiaria/Panicum.
+    Sources: Nature Sci Reports 2024, EMBRAPA Pecuaria, Springer 2024.
+    """
+    crop_cfg = CROP_PHENOLOGY.get('pastura', {})
+    bm = crop_cfg.get('biomass_model', {})
+    sr = crop_cfg.get('stocking_rate', {})
+    thresholds = crop_cfg.get('management_thresholds', {})
+
+    slope = bm.get('coefficients', {}).get('slope', 6842)
+    intercept = bm.get('coefficients', {}).get('intercept', -988)
+
+    # Biomass estimation (kg MS/ha)
+    ndvi_clamped = max(bm.get('valid_range', {}).get('NDVI_min', 0.15),
+                       min(ndvi_current, bm.get('valid_range', {}).get('NDVI_max', 0.85)))
+    biomass_current = max(0, slope * ndvi_clamped + intercept)
+
+    # Growth rate (kg MS/ha/dia)
+    growth_rate = None
+    if ndvi_previous is not None and days_between and days_between > 0:
+        ndvi_prev_clamped = max(0.15, min(ndvi_previous, 0.85))
+        biomass_previous = max(0, slope * ndvi_prev_clamped + intercept)
+        growth_rate = round((biomass_current - biomass_previous) / days_between, 1)
+
+    # Growth rate classification
+    gr_class = 'unknown'
+    gr_cfg = crop_cfg.get('growth_rate', {})
+    if growth_rate is not None:
+        if growth_rate >= gr_cfg.get('excellent', {}).get('min', 80):
+            gr_class = 'excellent'
+        elif growth_rate >= gr_cfg.get('good', {}).get('min', 50):
+            gr_class = 'good'
+        elif growth_rate >= gr_cfg.get('moderate', {}).get('min', 30):
+            gr_class = 'moderate'
+        elif growth_rate >= gr_cfg.get('low', {}).get('min', 10):
+            gr_class = 'low'
+        else:
+            gr_class = 'dormant'
+
+    # Stocking rate calculation (UA/ha)
+    daily_intake = sr.get('daily_intake_kg', 11.25)
+    residual_min = sr.get('min_residual_kg', 1500)
+    eff_rotational = sr.get('grazing_efficiency_rotational', 0.55)
+    eff_continuous = sr.get('grazing_efficiency_continuous', 0.35)
+
+    available = max(0, biomass_current - residual_min)
+    # Assuming 30-day grazing cycle for rotational
+    stocking_rotational = round((available * eff_rotational) / (daily_intake * 30), 2) if daily_intake > 0 else 0
+    stocking_continuous = round((available * eff_continuous) / (daily_intake * 30), 2) if daily_intake > 0 else 0
+
+    # Management recommendation
+    recommendation = ''
+    ndvi_entry = thresholds.get('ndvi_entry', 0.65)
+    ndvi_exit = thresholds.get('ndvi_exit', 0.40)
+    if ndvi_current >= ndvi_entry:
+        recommendation = 'ENTRADA: Pastura lista para pastoreo. Biomasa optima alcanzada.'
+    elif ndvi_current <= ndvi_exit:
+        recommendation = 'DESCANSO: Pastura necesita recuperacion. Retirar animales.'
+    elif ndvi_current < 0.30:
+        recommendation = 'ALERTA: Degradacion severa. Evaluar resiembra o fertilizacion.'
+    else:
+        days_to_entry = round((ndvi_entry - ndvi_current) / max(growth_rate / slope, 0.001)) if growth_rate and growth_rate > 0 else None
+        recommendation = f'CRECIENDO: Faltan aprox. {days_to_entry} dias para punto optimo.' if days_to_entry else 'CRECIENDO: En recuperacion.'
+
+    return {
+        'biomass_kgDM_ha': round(biomass_current),
+        'biomass_model_r2': bm.get('r2', 0.74),
+        'growth_rate_kgDM_ha_day': growth_rate,
+        'growth_rate_class': gr_class,
+        'stocking_rate_rotational_UA_ha': stocking_rotational,
+        'stocking_rate_continuous_UA_ha': stocking_continuous,
+        'available_biomass_kg': round(available),
+        'residual_minimum_kg': residual_min,
+        'ndvi_current': round(ndvi_current, 4),
+        'ndvi_entry_threshold': ndvi_entry,
+        'ndvi_exit_threshold': ndvi_exit,
+        'recommendation': recommendation,
+        'confidence': 'R2=0.74, RMSE=487 kg/ha (Sentinel-2, Brachiaria tropical)',
+        'sources': [
+            'Nature Sci Reports 2024 — Sentinel-2 + ML tropical pasture',
+            'EMBRAPA Gado de Corte — Sistemas de Produccion',
+            'Springer Environmental Monitoring 2024 — Grassland biomass S2'
+        ]
+    }
 
 # ============================================================
 # GEE ENGINE (Python Earth Engine API)
@@ -376,7 +535,7 @@ def compute_monitoring(field):
     except Exception as e:
         print(f'[GEE] Baseline error: {e}')
 
-    return {
+    result = {
         "stage": stage_key,
         "stageDesc": stage_cfg['desc'],
         "daysSincePlanting": days,
@@ -392,6 +551,35 @@ def compute_monitoring(field):
         "cloudFree": recent_count > 0,
         "checkedAt": now_iso()
     }
+
+    # ── PASTURA: Biomass + Growth Rate + Stocking Rate ──
+    if crop == 'pastura' and current_values.get('NDVI') is not None:
+        # Get previous NDVI from timeseries for growth rate calculation
+        db = load_db()
+        ts = db.get('timeseries', {}).get(field['id'], [])
+        prev_ndvi = None
+        days_between = None
+        if ts:
+            last_entry = ts[-1]
+            prev_ndvi = last_entry.get('values', {}).get('NDVI')
+            if prev_ndvi and last_entry.get('date'):
+                try:
+                    last_date = datetime.fromisoformat(last_entry['date'].replace('Z', '+00:00'))
+                    days_between = (datetime.now(timezone.utc) - last_date).days
+                    if days_between < 1:
+                        days_between = 5  # minimum interval
+                except:
+                    days_between = 5
+
+        pasture_metrics = compute_pasture_metrics(
+            current_values['NDVI'], prev_ndvi, days_between, field
+        )
+        result['pastureMetrics'] = pasture_metrics
+        print(f'[Monitor] Pastura: {pasture_metrics["biomass_kgDM_ha"]} kg MS/ha, '
+              f'growth={pasture_metrics["growth_rate_kgDM_ha_day"]} kg/dia, '
+              f'carga_rot={pasture_metrics["stocking_rate_rotational_UA_ha"]} UA/ha')
+
+    return result
 
 # ============================================================
 # REPORT GENERATOR (PDF + KMZ)
