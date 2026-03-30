@@ -247,6 +247,15 @@
         <div class="stat-card danger"><div class="stat-value" id="statAlerts">0</div><div class="stat-label">Alertas</div></div>
         <div class="stat-card"><div class="stat-value" id="statChecks">0</div><div class="stat-label">Chequeos</div></div>
       </div>
+
+      <!-- Dashboard Map: overview of all lots -->
+      <div style="border-radius:12px;overflow:hidden;border:1px solid var(--border);margin-bottom:16px;position:relative">
+        <div id="dashMap" style="height:320px;width:100%;background:var(--dark-3)"></div>
+        <div style="position:absolute;top:10px;left:10px;background:rgba(10,18,32,0.85);backdrop-filter:blur(8px);padding:6px 12px;border-radius:8px;font-size:11px;color:var(--text-muted);z-index:500;border:1px solid var(--border)">
+          <span style="color:var(--teal);font-weight:600">Mapa de Lotes</span> — click en un lote para ver detalles
+        </div>
+      </div>
+
       <div id="dashFields"></div>
     </div>
 
@@ -469,12 +478,78 @@ async function checkApiHealth() {
 }
 
 // ── DASHBOARD ──
+let dashMap = null;
+let dashMapLayers = {};
+
+function initDashMap() {
+  if (dashMap) return;
+  const container = document.getElementById('dashMap');
+  if (!container) return;
+  dashMap = L.map('dashMap', { zoomControl: true, attributionControl: false }).setView([-17.5, -63.0], 8);
+  L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {maxZoom: 21}).addTo(dashMap);
+}
+
+function loadDashMapFields(fields, alerts) {
+  if (!dashMap) initDashMap();
+  if (!dashMap) return;
+
+  // Clear old layers
+  Object.values(dashMapLayers).forEach(l => dashMap.removeLayer(l));
+  dashMapLayers = {};
+
+  const allBounds = [];
+  const alertFieldIds = new Set((alerts || []).filter(a => a.status === 'active').map(a => a.fieldId));
+
+  for (const f of fields) {
+    if (!f.boundary) continue;
+    try {
+      const hasAlert = alertFieldIds.has(f.id);
+      const isActive = f.monitoring?.active;
+      const color = hasAlert ? '#EF4444' : isActive ? '#7FD633' : '#5A6B7D';
+      const layer = L.geoJSON({type:'Feature', geometry: f.boundary, properties: {name: f.name}}, {
+        style: {color, weight: 2.5, fill: true, fillColor: color, fillOpacity: hasAlert ? 0.25 : 0.12}
+      });
+
+      // Popup with field info
+      const crop = CROP_ICONS[f.crop] || '🌱';
+      const stage = f.monitoring?.currentStage || '—';
+      const alertCount = (alerts || []).filter(a => a.fieldId === f.id && a.status === 'active').length;
+      layer.bindPopup(`
+        <div style="font-family:Inter,sans-serif;min-width:180px">
+          <div style="font-weight:700;font-size:14px">${crop} ${esc(f.name)}</div>
+          <div style="font-size:12px;color:#666;margin:4px 0">${f.crop} | ${f.areaHa || 0} ha</div>
+          <div style="font-size:12px">Etapa: <b>${stage}</b></div>
+          ${alertCount > 0 ? `<div style="color:#EF4444;font-weight:600;font-size:12px;margin-top:4px">${alertCount} alertas activas</div>` : '<div style="color:#22c55e;font-size:12px;margin-top:4px">Sin anomalias</div>'}
+          <div style="margin-top:6px"><a href="#" onclick="showView('map');setTimeout(()=>selectMapField('${f.id}'),200);return false" style="color:#00A4CC;font-size:12px;font-weight:600">Ver en mapa completo →</a></div>
+        </div>
+      `, {className: 'custom-popup'});
+
+      layer.addTo(dashMap);
+      dashMapLayers[f.id] = layer;
+      allBounds.push(layer.getBounds());
+    } catch(e) { console.warn('DashMap field error:', e); }
+  }
+
+  if (allBounds.length > 0) {
+    try {
+      const merged = allBounds.reduce((b, c) => b.extend(c));
+      if (merged.isValid()) dashMap.fitBounds(merged, {padding: [30, 30], maxZoom: 14});
+    } catch(e) {}
+  }
+
+  // Invalidate size after layout
+  setTimeout(() => { if (dashMap) dashMap.invalidateSize(); }, 200);
+}
+
 async function loadDashboard() {
   try {
     const [fieldsData, alertsData] = await Promise.all([apiGet('/fields'), apiGet('/alerts')]);
     const fields = fieldsData.fields || [];
     const alerts = alertsData.alerts || [];
     const active = fields.filter(f => f.monitoring?.active);
+
+    // Load dashboard map
+    setTimeout(() => loadDashMapFields(fields, alerts), 100);
 
     document.getElementById('statFields').textContent = active.length;
     document.getElementById('statArea').textContent = Math.round(fields.reduce((s, f) => s + (f.areaHa || 0), 0));
