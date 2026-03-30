@@ -677,8 +677,8 @@ async function loadReports() {
     <div class="card" style="display:flex;align-items:center;gap:12px">
       <div style="font-size:28px">${CROP_ICONS[f.crop] || '🌱'}</div>
       <div style="flex:1"><div class="card-title">${esc(f.name)}</div><div class="card-sub">${f.monitoring?.lastCheck?.slice(0,10) || 'Sin chequeo'}</div></div>
-      <button class="btn btn-primary btn-sm" onclick="toast('Generando PDF... (en desarrollo)','info')">PDF</button>
-      <button class="btn btn-secondary btn-sm" onclick="toast('Generando KMZ... (en desarrollo)','info')">KMZ</button>
+      <button class="btn btn-primary btn-sm" onclick="generateReport('${f.id}','pdf')">PDF</button>
+      <button class="btn btn-secondary btn-sm" onclick="generateReport('${f.id}','kmz')">KMZ</button>
     </div>
   `).join('');
 }
@@ -752,6 +752,35 @@ async function selectMapField(fieldId) {
     </div>
     ${tsHtml}
   `;
+}
+
+// ── REPORTS ──
+async function generateReport(fieldId, type) {
+  toast('Generando reporte...', 'info');
+  try {
+    const result = await apiPost(`/reports/${fieldId}`, {});
+    if (result.error) { toast('Error: ' + result.error, 'error'); return; }
+
+    const filename = type === 'kmz' ? result.kmz : result.pdf;
+    toast(`Reporte generado: ${filename} (${result.alerts} alertas)`, 'success');
+
+    // Offer download link
+    const panel = document.getElementById('mapFieldInfo') || document.getElementById('reportsList');
+    if (panel) {
+      const dlHtml = `<div class="card" style="margin-top:10px;border-left:3px solid var(--teal)">
+        <div class="card-title">Reporte generado</div>
+        <div class="card-sub" style="margin-bottom:8px">${result.field} — ${result.date} — ${result.alerts} anomalias</div>
+        <div style="font-size:12px;color:var(--text-muted)">
+          PDF: <strong>${result.pdf}</strong><br>
+          KMZ (Avenza Maps): <strong>${result.kmz}</strong><br>
+          <span style="color:var(--text-dim)">Archivos en: pix-monitor/reports/</span>
+        </div>
+      </div>`;
+      panel.insertAdjacentHTML('beforeend', dlHtml);
+    }
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
 }
 
 // ── UTILS ──

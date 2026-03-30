@@ -394,6 +394,271 @@ def compute_monitoring(field):
     }
 
 # ============================================================
+# REPORT GENERATOR (PDF + KMZ)
+# ============================================================
+
+REPORTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports')
+
+def generate_report(field, client, alerts, timeseries):
+    """Generate PDF report + KMZ file with anomaly waypoints for Avenza Maps."""
+    import io
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+
+    field_name = field.get('name', 'Lote')
+    crop = field.get('crop', 'soja')
+    date_str = datetime.now().strftime('%Y-%m-%d')
+    stage = field.get('monitoring', {}).get('currentStage', '—')
+    client_name = client.get('name', '—') if client else '—'
+
+    # ── KMZ (KML zipped) for Avenza Maps ──
+    kml_content = f'''<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>PIX Monitor - {field_name} - Anomalias {date_str}</name>
+  <description>Reporte de anomalias para navegacion en campo (Avenza Maps)</description>
+
+  <Style id="alertCritical">
+    <IconStyle><color>ff0000ff</color><scale>1.4</scale>
+      <Icon><href>http://maps.google.com/mapfiles/kml/pushpin/red-pushpin.png</href></Icon>
+    </IconStyle>
+  </Style>
+  <Style id="alertWarning">
+    <IconStyle><color>ff00aaff</color><scale>1.2</scale>
+      <Icon><href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href></Icon>
+    </IconStyle>
+  </Style>
+
+  <Folder>
+    <name>Perimetro del Lote</name>
+    <Placemark>
+      <name>{field_name}</name>
+      <description>Cultivo: {crop} | Area: {field.get("areaHa", 0)} ha | Etapa: {stage}</description>
+      <Style><LineStyle><color>ff33d67f</color><width>3</width></LineStyle><PolyStyle><color>3033d67f</color></PolyStyle></Style>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>
+'''
+
+    # Add boundary coordinates
+    boundary = field.get('boundary', {})
+    coords = boundary.get('coordinates', [[]])[0] if boundary.get('type') == 'Polygon' else boundary.get('coordinates', [[[]]])[0][0]
+    for c in coords:
+        if len(c) >= 2:
+            kml_content += f'        {c[0]},{c[1]},0\n'
+
+    kml_content += '''      </coordinates></LinearRing></outerBoundaryIs></Polygon>
+    </Placemark>
+  </Folder>
+
+  <Folder>
+    <name>Anomalias Detectadas</name>
+'''
+
+    # Add anomaly waypoints
+    for i, alert in enumerate(alerts):
+        severity = alert.get('severity', 'warning')
+        style = 'alertCritical' if severity == 'critical' else 'alertWarning'
+        z = alert.get('zScore', 0)
+        idx = alert.get('index', 'NDVI')
+        desc = alert.get('description', 'Anomalia detectada')
+        centroid = alert.get('centroid', [0, 0])
+
+        # Use field center if no centroid
+        if centroid == [0, 0] and coords:
+            lats = [c[1] for c in coords if len(c) >= 2]
+            lngs = [c[0] for c in coords if len(c) >= 2]
+            centroid = [sum(lngs)/len(lngs), sum(lats)/len(lats)] if lats else [0, 0]
+
+        kml_content += f'''    <Placemark>
+      <name>Anomalia-{i+1} (Z={z})</name>
+      <description>{desc}
+Indice: {idx} = {alert.get("currentValue", "—")}
+Baseline: {alert.get("baselineMean", "—")}
+Severidad: {severity.upper()}
+Fecha: {alert.get("date", "—")[:10]}</description>
+      <styleUrl>#{style}</styleUrl>
+      <Point><coordinates>{centroid[0]},{centroid[1]},0</coordinates></Point>
+    </Placemark>
+'''
+
+    kml_content += '''  </Folder>
+</Document>
+</kml>'''
+
+    # Save KMZ (zipped KML)
+    import zipfile
+    kmz_filename = f'PIX_Monitor_{field_name}_{date_str}.kmz'
+    kmz_path = os.path.join(REPORTS_DIR, kmz_filename)
+    with zipfile.ZipFile(kmz_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('doc.kml', kml_content)
+
+    # ── PDF Report ──
+    pdf_filename = f'PIX_Monitor_{field_name}_{date_str}.pdf'
+    pdf_path = os.path.join(REPORTS_DIR, pdf_filename)
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm
+        from reportlab.lib.colors import HexColor
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
+        doc = SimpleDocTemplate(pdf_path, pagesize=A4, topMargin=20*mm, bottomMargin=15*mm, leftMargin=15*mm, rightMargin=15*mm)
+        styles = getSampleStyleSheet()
+        styles.add(ParagraphStyle(name='PIXTitle', fontSize=18, spaceAfter=6, textColor=HexColor('#7FD633'), fontName='Helvetica-Bold'))
+        styles.add(ParagraphStyle(name='PIXSub', fontSize=11, spaceAfter=12, textColor=HexColor('#94A3B8')))
+        styles.add(ParagraphStyle(name='PIXBody', fontSize=10, spaceAfter=6, leading=14))
+        styles.add(ParagraphStyle(name='PIXH2', fontSize=14, spaceAfter=8, textColor=HexColor('#00A4CC'), fontName='Helvetica-Bold'))
+
+        story = []
+
+        # Header
+        story.append(Paragraph('PIX Monitor — Reporte de Monitoreo', styles['PIXTitle']))
+        story.append(Paragraph(f'Cliente: {client_name} | Lote: {field_name} | Cultivo: {crop} | Fecha: {date_str}', styles['PIXSub']))
+        story.append(Spacer(1, 10))
+
+        # Field info
+        story.append(Paragraph('1. Informacion del Lote', styles['PIXH2']))
+        info_data = [
+            ['Propiedad', 'Valor'],
+            ['Lote', field_name],
+            ['Cultivo', f'{crop} ({CROP_PHENOLOGY.get(crop, {}).get("name", crop)})'],
+            ['Area', f'{field.get("areaHa", 0)} ha'],
+            ['Fecha siembra', field.get('plantingDate', '—')],
+            ['Etapa actual', f'{stage} ({field.get("monitoring", {}).get("currentStage", "—")})'],
+            ['Ultimo chequeo', field.get('monitoring', {}).get('lastCheck', '—')[:10] if field.get('monitoring', {}).get('lastCheck') else 'Nunca'],
+        ]
+        t = Table(info_data, colWidths=[50*mm, 120*mm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#1a2b3f')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), HexColor('#FFFFFF')),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#334155')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [HexColor('#0F1B2D'), HexColor('#162236')]),
+            ('TEXTCOLOR', (0, 1), (-1, -1), HexColor('#E2E8F0')),
+            ('PADDING', (0, 0), (-1, -1), 6),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 16))
+
+        # Alerts
+        story.append(Paragraph('2. Anomalias Detectadas', styles['PIXH2']))
+        if alerts:
+            alert_data = [['#', 'Indice', 'Valor', 'Baseline', 'Z-Score', 'Severidad', 'Fecha']]
+            for i, a in enumerate(alerts):
+                alert_data.append([
+                    str(i+1),
+                    a.get('index', '—'),
+                    str(a.get('currentValue', '—')),
+                    str(a.get('baselineMean', '—')),
+                    str(a.get('zScore', '—')),
+                    a.get('severity', '—').upper(),
+                    a.get('date', '—')[:10]
+                ])
+            at = Table(alert_data, colWidths=[10*mm, 20*mm, 22*mm, 22*mm, 22*mm, 28*mm, 28*mm])
+            at.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#7F1D1D')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), HexColor('#FFFFFF')),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#334155')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [HexColor('#1C1917'), HexColor('#292524')]),
+                ('TEXTCOLOR', (0, 1), (-1, -1), HexColor('#FBBF24')),
+                ('PADDING', (0, 0), (-1, -1), 4),
+            ]))
+            story.append(at)
+        else:
+            story.append(Paragraph('Sin anomalias detectadas. Cultivo en estado normal.', styles['PIXBody']))
+        story.append(Spacer(1, 16))
+
+        # Time series
+        story.append(Paragraph('3. Serie Temporal', styles['PIXH2']))
+        if timeseries:
+            ts_data = [['Fecha', 'Etapa', 'NDVI', 'NDRE', 'Z-Score']]
+            for t_entry in timeseries[-10:]:  # Last 10 entries
+                vals = t_entry.get('values', {})
+                ts_data.append([
+                    t_entry.get('date', '—')[:10],
+                    t_entry.get('stage', '—'),
+                    f'{vals.get("NDVI", 0):.3f}' if vals.get('NDVI') else '—',
+                    f'{vals.get("NDRE", 0):.3f}' if vals.get('NDRE') else '—',
+                    str(t_entry.get('zScore', '—'))
+                ])
+            tst = Table(ts_data, colWidths=[30*mm, 35*mm, 25*mm, 25*mm, 25*mm])
+            tst.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#1a2b3f')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), HexColor('#FFFFFF')),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#334155')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [HexColor('#0F1B2D'), HexColor('#162236')]),
+                ('TEXTCOLOR', (0, 1), (-1, -1), HexColor('#E2E8F0')),
+                ('PADDING', (0, 0), (-1, -1), 4),
+            ]))
+            story.append(tst)
+        else:
+            story.append(Paragraph('Sin datos de serie temporal disponibles.', styles['PIXBody']))
+        story.append(Spacer(1, 16))
+
+        # Navigation instructions
+        story.append(Paragraph('4. Navegacion a Campo', styles['PIXH2']))
+        story.append(Paragraph(
+            f'Para llegar a las anomalias detectadas, importe el archivo <b>{kmz_filename}</b> en Avenza Maps '
+            'o cualquier app GPS compatible con KMZ/KML. Los waypoints estan marcados con la severidad '
+            'correspondiente (rojo=critico, amarillo=warning).',
+            styles['PIXBody']
+        ))
+        story.append(Spacer(1, 8))
+
+        if alerts:
+            story.append(Paragraph('Coordenadas de anomalias:', styles['PIXBody']))
+            for i, a in enumerate(alerts):
+                centroid = a.get('centroid', [0, 0])
+                if centroid == [0, 0]:
+                    bcoords = field.get('boundary', {}).get('coordinates', [[]])[0]
+                    if bcoords:
+                        centroid = [sum(c[0] for c in bcoords)/len(bcoords), sum(c[1] for c in bcoords)/len(bcoords)]
+                story.append(Paragraph(
+                    f'  Anomalia-{i+1}: Lat {centroid[1]:.6f}, Lng {centroid[0]:.6f} | Z={a.get("zScore","—")} | {a.get("severity","").upper()}',
+                    styles['PIXBody']
+                ))
+
+        # Footer
+        story.append(Spacer(1, 24))
+        story.append(Paragraph(
+            f'Generado por PIX Monitor — Pixadvisor Agricultura de Precision | {date_str}',
+            ParagraphStyle(name='Footer', fontSize=8, textColor=HexColor('#64748B'))
+        ))
+
+        doc.build(story)
+        print(f'[Report] PDF generated: {pdf_path}')
+
+    except ImportError:
+        # reportlab not installed — generate text report instead
+        with open(pdf_path.replace('.pdf', '.txt'), 'w', encoding='utf-8') as f:
+            f.write(f'PIX Monitor — Reporte de Monitoreo\n')
+            f.write(f'Cliente: {client_name} | Lote: {field_name} | Cultivo: {crop}\n')
+            f.write(f'Fecha: {date_str} | Etapa: {stage}\n\n')
+            f.write(f'Anomalias: {len(alerts)}\n')
+            for i, a in enumerate(alerts):
+                f.write(f'  {i+1}. {a.get("description","—")} | Z={a.get("zScore","—")}\n')
+        pdf_filename = pdf_filename.replace('.pdf', '.txt')
+        pdf_path = pdf_path.replace('.pdf', '.txt')
+        print(f'[Report] Text report generated (reportlab not installed): {pdf_path}')
+
+    print(f'[Report] KMZ generated: {kmz_path}')
+
+    return {
+        'pdf': pdf_filename,
+        'kmz': kmz_filename,
+        'pdfPath': pdf_path,
+        'kmzPath': kmz_path,
+        'alerts': len(alerts),
+        'field': field_name,
+        'date': date_str
+    }
+
+
+# ============================================================
 # HTTP HANDLER
 # ============================================================
 
@@ -572,6 +837,24 @@ class MonitorHandler(BaseHTTPRequestHandler):
             save_db(db)
             print(f'[Monitor] Check complete: stage={result.get("stage")}, Z={result.get("zScore")}, anomalies={len(result.get("anomalies", []))}')
             self._json(result)
+
+        elif path.startswith('/api/reports/'):
+            field_id = path.split('/')[-1]
+            db = load_db()
+            field = next((f for f in db['fields'] if f['id'] == field_id), None)
+            if not field:
+                self._error('Field not found', 404)
+                return
+            client = next((c for c in db['clients'] if c['id'] == field.get('clientId')), None)
+            alerts = [a for a in db['alerts'] if a.get('fieldId') == field_id and a.get('status') == 'active']
+            ts = db.get('timeseries', {}).get(field_id, [])
+
+            try:
+                result = generate_report(field, client, alerts, ts)
+                self._json(result)
+            except Exception as e:
+                traceback.print_exc()
+                self._error(f'Report error: {str(e)}', 500)
 
         else:
             self._error('Not found', 404)
