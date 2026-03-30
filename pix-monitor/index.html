@@ -358,8 +358,13 @@
 // PIX Monitor — Frontend Application
 // ============================================================
 
-const API = 'http://localhost:9102/api';
-const USER_API = 'http://localhost:9105/api';
+// Auto-detect API URL: if served from same origin (unified server), use relative path
+// If served from GitHub Pages, use configured backend URL
+const _origin = window.location.origin;
+const _isLocal = _origin.includes('localhost') || _origin.includes('127.0.0.1');
+const _isUnified = !_origin.includes('github.io') && !_origin.includes('pixadvisor.network');
+const API = _isUnified ? '/api' : (localStorage.getItem('pix_monitor_api') || 'http://localhost:9102/api');
+const USER_API = _isUnified ? '/api' : (localStorage.getItem('pix_monitor_user_api') || 'http://localhost:9105/api');
 let currentView = 'dashboard';
 let map = null;
 let fieldLayers = {};
