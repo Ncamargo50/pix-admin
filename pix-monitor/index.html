@@ -657,12 +657,17 @@ async function runCheck(fieldId) {
       return;
     }
 
+    // Weed alert
+    if (result.weedAlert) {
+      toast(`🌿 MALEZA detectada: heterogeneidad NDVI=${result.weedAlert.ndvi_std} — revisar entresurcos`, 'warning');
+    }
+
     // Pasture metrics
     const pm = result.pastureMetrics;
     if (pm) {
       toast(`🐄 ${pm.biomass_kgDM_ha} kg MS/ha | Crec: ${pm.growth_rate_kgDM_ha_day ?? '—'} kg/dia | Carga: ${pm.stocking_rate_rotational_UA_ha} UA/ha`, 'success');
     } else {
-      toast(`Check: ${result.stageDesc} | Z=${result.zScore ?? '—'} | ${anomCount} anomalias`);
+      toast(`Check: ${result.stageDesc} | Z=${result.zScore ?? '—'} | ${anomCount} anomalias${result.weedRisk !== 'bajo' ? ' | Riesgo maleza: '+result.weedRisk : ''}`);
     }
     loadDashboard();
   } catch(e) {
