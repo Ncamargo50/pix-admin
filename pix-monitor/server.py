@@ -283,7 +283,21 @@ class UnifiedHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         path = urlparse(self.path).path.rstrip('/')
-        if path.startswith('/api/alerts/'):
+        if path.startswith('/api/fields/'):
+            field_id = path.split('/')[-1]
+            db = load_db()
+            db['fields'] = [f for f in db['fields'] if f['id'] != field_id]
+            db['alerts'] = [a for a in db['alerts'] if a.get('fieldId') != field_id]
+            if field_id in db.get('timeseries', {}): del db['timeseries'][field_id]
+            save_db(db)
+            self._json({'deleted': True})
+        elif path.startswith('/api/clients/'):
+            client_id = path.split('/')[-1]
+            db = load_db()
+            db['clients'] = [c for c in db['clients'] if c['id'] != client_id]
+            save_db(db)
+            self._json({'deleted': True})
+        elif path.startswith('/api/alerts/'):
             alert_id = path.split('/')[-1]
             db = load_db()
             db['alerts'] = [a for a in db['alerts'] if a['id'] != alert_id]
