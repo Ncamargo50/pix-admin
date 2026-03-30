@@ -502,43 +502,46 @@ def compute_monitoring(field):
     baseline_start = now.advance(-730, 'day')  # 2 years
     baseline_end = now.advance(-30, 'day')
 
-    # Cloud mask function
-    def mask_clouds(img):
+    # C2+A1 Fix: Unified cloud masking — apply SCL mask to remove cloud/shadow pixels
+    def mask_clouds_scl(img):
+        """Mask clouds, shadows, snow, saturated pixels using SCL band."""
         scl = img.select('SCL')
-        mask = scl.eq(4).Or(scl.eq(5)).Or(scl.eq(6))  # Only veg, soil, water
+        # Keep: 4=vegetation, 5=bare soil, 6=water, 7=unclassified low prob
+        # Remove: 0=no_data, 1=saturated, 3=shadow, 8=cloud_med, 9=cloud_high, 10=cirrus, 11=snow
+        mask = scl.eq(4).Or(scl.eq(5)).Or(scl.eq(6)).Or(scl.eq(7))
         return img.updateMask(mask)
 
-    # ── STRICT CLOUD FILTER: 100% coverage required ──
-    def is_cloud_free(img):
-        """Check if image has 0% clouds within the field boundary."""
+    def compute_cloud_pct(img):
+        """Compute cloud percentage WITHIN field boundary BEFORE masking."""
         scl = img.select('SCL')
-        cloud_mask = scl.eq(8).Or(scl.eq(9)).Or(scl.eq(10)).Or(scl.eq(3)).Or(scl.eq(11))
-        cloud_pct = cloud_mask.reduceRegion(
+        cloud_mask = scl.eq(3).Or(scl.eq(8)).Or(scl.eq(9)).Or(scl.eq(10)).Or(scl.eq(11))
+        pct = cloud_mask.reduceRegion(
             reducer=ee.Reducer.mean(),
             geometry=aoi,
             scale=20,
             bestEffort=True
-        ).get('SCL')
-        return img.set('cloud_pct', cloud_pct)
+        ).values().get(0)  # A1 Fix: .values().get(0) instead of .get('SCL')
+        return img.set('cloud_pct_field', ee.Algorithms.If(pct, pct, 1))
 
-    # Get recent cloud-free images
+    # Get recent images — strict: <=1% clouds within field boundary
     s2_recent = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
         .filterBounds(aoi)
         .filterDate(recent_start, now)
-        .map(is_cloud_free)
-        .filter(ee.Filter.eq('cloud_pct', 0))  # 100% cloud-free only
-        .map(mask_clouds)
-        .sort('system:time_start', False))  # newest first
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 15))  # pre-filter scene-level
+        .map(compute_cloud_pct)
+        .filter(ee.Filter.lte('cloud_pct_field', 0.01))  # A1 Fix: <=1% within field
+        .map(mask_clouds_scl)
+        .sort('system:time_start', False))
 
     recent_count = s2_recent.size().getInfo()
 
     if recent_count == 0:
-        # Fallback: relax to <5% clouds
+        # Fallback: relax to <5% clouds within field
         s2_recent = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(aoi)
             .filterDate(recent_start, now)
-            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 5))
-            .map(mask_clouds)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 10))
+            .map(mask_clouds_scl)
             .sort('system:time_start', False))
         recent_count = s2_recent.size().getInfo()
 
@@ -581,9 +584,15 @@ def compute_monitoring(field):
         reci = b8a.divide(b5.max(ee.Image(0.001))).subtract(1).rename('RECI')
         ireci = b7.subtract(b4).divide(b5.divide(b6.max(ee.Image(0.001)))).rename('IRECI')
         evi2 = b8.subtract(b4).multiply(2.5).divide(b8.add(b4.multiply(2.4)).add(1)).rename('EVI2')
+        # C1 Fix: BSI (Bare Soil Index) — needed for weed detection in emergence
+        bsi = b11.add(b4).subtract(b8.add(b2)).divide(b11.add(b4).add(b8).add(b2).max(ee.Image(0.001))).rename('BSI')
+        # PRI proxy (Photochemical Reflectance) — pre-visual stress detection
+        pri_denom = b3.add(b4).where(b3.add(b4).lt(0.001), 0.001)
+        pri_proxy = b3.subtract(b4).divide(pri_denom).rename('PRI_proxy')
 
         return img.addBands([ndvi, ndre, evi, ndmi, mtci, gndvi, savi, kndvi, psri,
-                            nbr2, msi, osavi, msavi2, s2rep, ccci, cire, reci, ireci, evi2])
+                            nbr2, msi, osavi, msavi2, s2rep, ccci, cire, reci, ireci, evi2,
+                            bsi, pri_proxy])
 
     # Current values (mean of latest cloud-free image)
     current_values = {}
@@ -607,8 +616,21 @@ def compute_monitoring(field):
         .filterBounds(aoi)
         .filterDate(baseline_start, baseline_end)
         .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 15))
-        .map(mask_clouds)
+        .map(mask_clouds_scl)
         .map(compute_indices))
+
+    # A3 Fix: Verify baseline has enough images for statistical significance
+    baseline_size = baseline_col.size().getInfo()
+    if baseline_size < 10:
+        # Relax cloud filter for baseline
+        baseline_col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(aoi)
+            .filterDate(baseline_start, baseline_end)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
+            .map(mask_clouds_scl)
+            .map(compute_indices))
+        baseline_size = baseline_col.size().getInfo()
+        print(f'[GEE] Baseline relaxed: {baseline_size} images (was <10)')
 
     baseline_mean_val = None
     baseline_std_val = None
@@ -628,7 +650,8 @@ def compute_monitoring(field):
         ).values().get(0).getInfo()
 
         # Z-score anomaly detection
-        if current_values.get(primary_idx) is not None and baseline_mean_val and baseline_std_val and baseline_std_val > 0.01:
+        # A2 Fix: Raise minimum stddev to 0.05 to avoid false positives on stable baseline
+        if current_values.get(primary_idx) is not None and baseline_mean_val and baseline_std_val and baseline_std_val > 0.05:
             z_score = round((current_values[primary_idx] - baseline_mean_val) / baseline_std_val, 2)
 
             if abs(z_score) > 2.0:
@@ -685,7 +708,9 @@ def compute_monitoring(field):
                 # 1. High spatial stddev (>0.10) = patchy vegetation = not uniform crop
                 # 2. P90 > threshold while mean is low = patches of green in bare areas
                 mean_ndvi = current_values.get('NDVI', 0)
-                if ndvi_std > 0.10 and ndvi_p90 > weed_threshold and mean_ndvi < 0.45:
+                # A4 Fix: More conservative thresholds to reduce false positives
+                # stdDev > 0.15 (was 0.10) + P90 must exceed mean by significant margin
+                if ndvi_std > 0.15 and ndvi_p90 > (mean_ndvi + 0.15) and mean_ndvi < 0.40:
                     weed_severity = 'warning' if ndvi_std < 0.15 else 'critical'
                     weed_alert = {
                         'id': gen_id('weed-'),
@@ -741,8 +766,10 @@ def compute_monitoring(field):
     HARVEST_NDVI_THRESHOLD = 0.15  # NDVI < 0.15 = suelo desnudo / post-cosecha
     if not cloud_blocked and current_values.get('NDVI') is not None:
         if current_values['NDVI'] < HARVEST_NDVI_THRESHOLD and crop != 'pastura':
-            # Verify it's not just emergence (check days since planting)
-            if days > 60:  # Only auto-pause after at least 60 days
+            # M5 Fix: Crop-specific minimum days before harvest detection
+            cycle_days = CROP_PHENOLOGY.get(crop, {}).get('cycle_days', 130)
+            min_harvest_days = max(60, cycle_days - 30)  # At least 60 days or cycle-30
+            if days > min_harvest_days:
                 harvest_detected = True
                 harvest_message = (f'Cosecha detectada: NDVI={current_values["NDVI"]:.3f} '
                                   f'(< {HARVEST_NDVI_THRESHOLD}). Monitoreo pausado automaticamente.')
