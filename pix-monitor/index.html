@@ -243,6 +243,7 @@
           <button class="btn btn-secondary btn-sm" onclick="batchCheckAll()">Verificar Todos</button>
           <button class="btn btn-primary btn-sm" onclick="showModal('clientModal')">+ Cliente</button>
           <button class="btn btn-primary btn-sm" onclick="showView('fields')">+ Lote</button>
+          <button class="btn btn-sm" style="background:var(--blue);color:#fff" onclick="openBulkImport()">Importar Lotes</button>
         </div>
       </div>
 
@@ -340,6 +341,33 @@
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="btn btn-secondary" style="flex:1" onclick="closeModal('clientModal')">Cancelar</button>
       <button class="btn btn-primary" style="flex:1" onclick="saveClient()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK IMPORT MODAL -->
+<div class="modal" id="bulkModal">
+  <div class="modal-content" style="width:650px">
+    <div class="modal-title">Importar Multiples Lotes</div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Sube un archivo GeoJSON, KML o Shapefile con multiples poligonos. Cada poligono sera un lote independiente.</p>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Cliente</label><select class="form-input" id="bulkClient"></select></div>
+      <div class="form-group"><label class="form-label">Hacienda / Propiedad</label><input class="form-input" id="bulkProperty" placeholder="Ej: Hacienda Del Señor"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Cultivo para todos</label><select class="form-input" id="bulkCrop"></select></div>
+      <div class="form-group"><label class="form-label">Fecha de Siembra</label><input class="form-input" type="date" id="bulkPlanting"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Archivo con lotes (.geojson, .json, .kml)</label>
+      <input type="file" id="bulkFile" accept=".geojson,.json,.kml" onchange="parseBulkFile(this)" class="form-input" style="padding:8px">
+    </div>
+    <div id="bulkPreview" style="display:none;margin:12px 0;max-height:250px;overflow-y:auto">
+      <!-- Preview of parsed lots -->
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('bulkModal')">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1" id="bulkImportBtn" onclick="executeBulkImport()" disabled>Importar 0 lotes</button>
     </div>
   </div>
 </div>
@@ -1097,6 +1125,148 @@ async function generateReport(fieldId, type) {
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   }
+}
+
+// ── BULK IMPORT ──
+let _bulkParsedLots = [];
+
+async function openBulkImport() {
+  const [clientsData, cropsData] = await Promise.all([apiGet('/clients'), apiGet('/crops')]);
+  document.getElementById('bulkClient').innerHTML = '<option value="">Seleccionar cliente</option>' +
+    (clientsData.clients||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  document.getElementById('bulkCrop').innerHTML =
+    Object.entries(cropsData.crops||{}).map(([k,v]) => `<option value="${k}">${CROP_ICONS[k]||''} ${v.name}</option>`).join('');
+  document.getElementById('bulkPreview').style.display = 'none';
+  document.getElementById('bulkImportBtn').disabled = true;
+  document.getElementById('bulkImportBtn').textContent = 'Importar 0 lotes';
+  _bulkParsedLots = [];
+  showModal('bulkModal');
+}
+
+function parseBulkFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      let features = [];
+      const content = e.target.result;
+
+      if (file.name.endsWith('.kml')) {
+        // Parse KML
+        const parser = new DOMParser();
+        const kml = parser.parseFromString(content, 'text/xml');
+        const placemarks = kml.querySelectorAll('Placemark');
+        placemarks.forEach((pm, i) => {
+          const name = pm.querySelector('name')?.textContent || `Lote ${i+1}`;
+          const coordsEl = pm.querySelector('coordinates');
+          if (!coordsEl) return;
+          const points = coordsEl.textContent.trim().split(/\s+/).map(p => {
+            const [lng, lat] = p.split(',').map(Number);
+            return [lng, lat];
+          }).filter(c => isFinite(c[0]) && isFinite(c[1]));
+          if (points.length > 2) {
+            features.push({ name, geometry: {type:'Polygon', coordinates:[points]}, properties: {name} });
+          }
+        });
+      } else {
+        // Parse GeoJSON
+        const parsed = JSON.parse(content);
+        let rawFeatures = [];
+        if (parsed.type === 'FeatureCollection') rawFeatures = parsed.features || [];
+        else if (parsed.type === 'Feature') rawFeatures = [parsed];
+        else if (parsed.type === 'Polygon' || parsed.type === 'MultiPolygon') rawFeatures = [{type:'Feature', geometry: parsed, properties:{}}];
+
+        for (const f of rawFeatures) {
+          if (!f.geometry) continue;
+          let geom = f.geometry;
+          // Handle MultiPolygon — split into individual polygons
+          if (geom.type === 'MultiPolygon') {
+            geom.coordinates.forEach((polyCoords, j) => {
+              const name = f.properties?.name || f.properties?.Name || f.properties?.NOME || f.properties?.nome || f.properties?.ID || `Lote ${features.length+1}`;
+              features.push({ name: features.length > 0 ? `${name} (${j+1})` : name, geometry: {type:'Polygon', coordinates: polyCoords}, properties: f.properties||{} });
+            });
+          } else if (geom.type === 'Polygon') {
+            const props = f.properties || {};
+            const name = props.name || props.Name || props.NOME || props.nome || props.TALHAO || props.talhao || props.ID || props.id || `Lote ${features.length+1}`;
+            features.push({ name, geometry: geom, properties: props });
+          }
+        }
+      }
+
+      // Calculate area for each feature
+      _bulkParsedLots = features.map(f => {
+        let areaHa = 0;
+        try {
+          const coords = f.geometry.coordinates[0];
+          // Shoelace formula approximation
+          let area = 0;
+          for (let i = 0; i < coords.length - 1; i++) {
+            area += coords[i][0] * coords[i+1][1] - coords[i+1][0] * coords[i][1];
+          }
+          area = Math.abs(area) / 2;
+          // Convert degrees² to hectares (approx at -17° lat)
+          const midLat = coords.reduce((s,c) => s + c[1], 0) / coords.length;
+          const mPerDegLat = 111320;
+          const mPerDegLng = 111320 * Math.cos(midLat * Math.PI / 180);
+          areaHa = Math.round(area * mPerDegLat * mPerDegLng / 10000 * 10) / 10;
+        } catch(e) {}
+        return { ...f, areaHa };
+      });
+
+      // Show preview
+      const preview = document.getElementById('bulkPreview');
+      preview.style.display = '';
+      preview.innerHTML = `
+        <div style="font-size:12px;font-weight:600;color:var(--teal);margin-bottom:8px">${_bulkParsedLots.length} lotes encontrados:</div>
+        <table style="width:100%"><tr><th>#</th><th>Nombre</th><th>Area (ha)</th><th>Vertices</th></tr>
+        ${_bulkParsedLots.map((l, i) => `<tr><td>${i+1}</td><td>${esc(l.name)}</td><td>${l.areaHa}</td><td>${l.geometry.coordinates[0]?.length || 0}</td></tr>`).join('')}
+        </table>`;
+
+      const btn = document.getElementById('bulkImportBtn');
+      btn.disabled = _bulkParsedLots.length === 0;
+      btn.textContent = `Importar ${_bulkParsedLots.length} lotes`;
+      toast(`${_bulkParsedLots.length} lotes parseados de ${file.name}`, 'success');
+    } catch(err) {
+      toast('Error parseando archivo: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function executeBulkImport() {
+  if (!_bulkParsedLots.length) return;
+  const clientId = document.getElementById('bulkClient').value;
+  const property = document.getElementById('bulkProperty').value.trim();
+  const crop = document.getElementById('bulkCrop').value;
+  const planting = document.getElementById('bulkPlanting').value;
+
+  if (!clientId) { toast('Selecciona un cliente', 'warning'); return; }
+
+  showLoading(`Importando ${_bulkParsedLots.length} lotes...`);
+  let ok = 0, fail = 0;
+
+  for (const lot of _bulkParsedLots) {
+    try {
+      document.getElementById('loadingText').textContent = `Importando ${lot.name} (${ok+fail+1}/${_bulkParsedLots.length})...`;
+      await apiPost('/fields', {
+        name: lot.name,
+        clientId,
+        property,
+        areaHa: lot.areaHa,
+        plantingDate: planting,
+        crop,
+        boundary: lot.geometry
+      });
+      ok++;
+    } catch(e) { fail++; }
+  }
+
+  hideLoading();
+  closeModal('bulkModal');
+  toast(`Importacion completa: ${ok} lotes creados${fail > 0 ? `, ${fail} errores` : ''}`, ok > 0 ? 'success' : 'error');
+  _bulkParsedLots = [];
+  loadDashboard();
 }
 
 // ── FILE UPLOAD (C3) ──
