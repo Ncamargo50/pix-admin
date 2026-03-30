@@ -634,7 +634,7 @@ async function loadDashboard() {
     document.getElementById('statFields').textContent = active.length;
     document.getElementById('statArea').textContent = Math.round(fields.reduce((s, f) => s + (f.areaHa || 0), 0));
     document.getElementById('statAlerts').textContent = alerts.filter(a => a.status === 'active').length;
-    document.getElementById('statChecks').textContent = fields.reduce((s, f) => s + (f.monitoring?.checkCount || 0), 0);
+    // statChecks removed from HTML — skip
 
     const badge = document.getElementById('alertBadge');
     const activeAlerts = alerts.filter(a => a.status === 'active').length;
