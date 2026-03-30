@@ -171,7 +171,8 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             db = load_db()
             field = {
                 'id': gen_id('field-'), 'clientId': body.get('clientId', ''),
-                'name': body['name'], 'boundary': body['boundary'],
+                'name': body['name'], 'property': body.get('property', ''),
+                'boundary': body['boundary'],
                 'areaHa': body.get('areaHa', 0), 'crop': body.get('crop', 'soja'),
                 'plantingDate': body.get('plantingDate', ''),
                 'monitoring': {'active': False, 'activatedAt': None, 'lastCheck': None,
@@ -273,7 +274,7 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             db = load_db()
             field = next((f for f in db['fields'] if f['id'] == field_id), None)
             if not field: self._error('Not found', 404); return
-            for k in ['name', 'crop', 'plantingDate', 'areaHa', 'clientId']:
+            for k in ['name', 'crop', 'plantingDate', 'areaHa', 'clientId', 'property']:
                 if k in body: field[k] = body[k]
             if 'boundary' in body: field['boundary'] = body['boundary']
             save_db(db)

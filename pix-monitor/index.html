@@ -234,28 +234,51 @@
 
     <!-- DASHBOARD -->
     <div id="view-dashboard" class="view active" style="padding:20px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <div>
           <div style="font-size:20px;font-weight:700">Dashboard de Monitoreo</div>
-          <div style="font-size:13px;color:var(--text-muted)">Estado de salud de los cultivos monitoreados</div>
+          <div style="font-size:13px;color:var(--text-muted)">Vista general de clientes, haciendas y lotes</div>
         </div>
-        <button class="btn btn-primary" onclick="showView('fields')">+ Nuevo Lote</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="batchCheckAll()">Verificar Todos</button>
+          <button class="btn btn-primary btn-sm" onclick="showModal('clientModal')">+ Cliente</button>
+          <button class="btn btn-primary btn-sm" onclick="showView('fields')">+ Lote</button>
+        </div>
       </div>
+
+      <!-- KPIs -->
       <div class="stats-grid" id="dashStats">
+        <div class="stat-card"><div class="stat-value" id="statClients">0</div><div class="stat-label">Clientes</div></div>
         <div class="stat-card"><div class="stat-value" id="statFields">0</div><div class="stat-label">Lotes activos</div></div>
         <div class="stat-card"><div class="stat-value" id="statArea">0</div><div class="stat-label">Hectareas</div></div>
         <div class="stat-card danger"><div class="stat-value" id="statAlerts">0</div><div class="stat-label">Alertas</div></div>
-        <div class="stat-card"><div class="stat-value" id="statChecks">0</div><div class="stat-label">Chequeos</div></div>
       </div>
 
-      <!-- Dashboard Map: overview of all lots -->
+      <!-- Filters -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <select class="form-input" id="dashFilterClient" onchange="loadDashboard()" style="width:auto;min-width:150px;padding:6px 10px;font-size:12px">
+          <option value="">Todos los clientes</option>
+        </select>
+        <select class="form-input" id="dashFilterCrop" onchange="loadDashboard()" style="width:auto;min-width:120px;padding:6px 10px;font-size:12px">
+          <option value="">Todos los cultivos</option>
+        </select>
+        <select class="form-input" id="dashFilterStatus" onchange="loadDashboard()" style="width:auto;min-width:120px;padding:6px 10px;font-size:12px">
+          <option value="">Todos los estados</option>
+          <option value="active">Activos</option>
+          <option value="paused">Pausados</option>
+          <option value="alert">Con alertas</option>
+        </select>
+      </div>
+
+      <!-- Map -->
       <div style="border-radius:12px;overflow:hidden;border:1px solid var(--border);margin-bottom:16px;position:relative">
-        <div id="dashMap" style="height:320px;width:100%;background:var(--dark-3)"></div>
+        <div id="dashMap" style="height:300px;width:100%;background:var(--dark-3)"></div>
         <div style="position:absolute;top:10px;left:10px;background:rgba(10,18,32,0.85);backdrop-filter:blur(8px);padding:6px 12px;border-radius:8px;font-size:11px;color:var(--text-muted);z-index:500;border:1px solid var(--border)">
-          <span style="color:var(--teal);font-weight:600">Mapa de Lotes</span> — click en un lote para ver detalles
+          <span style="color:var(--teal);font-weight:600">Mapa de Lotes</span> — click para detalles
         </div>
       </div>
 
+      <!-- Fields grouped by client -->
       <div id="dashFields"></div>
     </div>
 
@@ -326,12 +349,16 @@
   <div class="modal-content" style="width:600px">
     <div class="modal-title">Cadastrar Lote para Monitoreo</div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Nombre del Lote</label><input class="form-input" id="fieldName" placeholder="Ej: Lote 25"></div>
       <div class="form-group"><label class="form-label">Cliente</label><select class="form-input" id="fieldClient"></select></div>
+      <div class="form-group"><label class="form-label">Hacienda / Propiedad</label><input class="form-input" id="fieldProperty" placeholder="Ej: Hacienda Del Señor"></div>
     </div>
     <div class="form-row">
+      <div class="form-group"><label class="form-label">Nombre del Lote</label><input class="form-input" id="fieldName" placeholder="Ej: Lote 25"></div>
       <div class="form-group"><label class="form-label">Area (ha)</label><input class="form-input" type="number" id="fieldArea" placeholder="45"></div>
+    </div>
+    <div class="form-row">
       <div class="form-group"><label class="form-label">Fecha de Siembra</label><input class="form-input" type="date" id="fieldPlanting"></div>
+      <div class="form-group"><label class="form-label">Cultivo</label><div id="cropSelectorInline" style="display:flex;gap:4px;flex-wrap:wrap"></div></div>
     </div>
     <div class="form-group">
       <label class="form-label">Cultivo</label>
@@ -568,14 +595,42 @@ function loadDashMapFields(fields, alerts) {
 
 async function loadDashboard() {
   try {
-    const [fieldsData, alertsData] = await Promise.all([apiGet('/fields'), apiGet('/alerts')]);
+    const [fieldsData, alertsData, clientsData, cropsData] = await Promise.all([
+      apiGet('/fields'), apiGet('/alerts'), apiGet('/clients'), apiGet('/crops')
+    ]);
     const fields = fieldsData.fields || [];
     const alerts = alertsData.alerts || [];
+    const clients = clientsData.clients || [];
+    const crops = cropsData.crops || {};
     const active = fields.filter(f => f.monitoring?.active);
 
-    // Load dashboard map
-    setTimeout(() => loadDashMapFields(fields, alerts), 100);
+    // Populate filter dropdowns (only once or when data changes)
+    const filterClient = document.getElementById('dashFilterClient');
+    const currentFilterVal = filterClient.value;
+    filterClient.innerHTML = '<option value="">Todos los clientes</option>' +
+      clients.map(c => `<option value="${c.id}" ${c.id === currentFilterVal ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
 
+    const filterCrop = document.getElementById('dashFilterCrop');
+    const currentCropVal = filterCrop.value;
+    filterCrop.innerHTML = '<option value="">Todos los cultivos</option>' +
+      Object.entries(crops).map(([k, v]) => `<option value="${k}" ${k === currentCropVal ? 'selected' : ''}>${CROP_ICONS[k]||'🌱'} ${v.name}</option>`).join('');
+
+    // Apply filters
+    const fClient = document.getElementById('dashFilterClient').value;
+    const fCrop = document.getElementById('dashFilterCrop').value;
+    const fStatus = document.getElementById('dashFilterStatus').value;
+    let filtered = fields;
+    if (fClient) filtered = filtered.filter(f => f.clientId === fClient);
+    if (fCrop) filtered = filtered.filter(f => f.crop === fCrop);
+    if (fStatus === 'active') filtered = filtered.filter(f => f.monitoring?.active);
+    if (fStatus === 'paused') filtered = filtered.filter(f => !f.monitoring?.active);
+    if (fStatus === 'alert') filtered = filtered.filter(f => alerts.some(a => a.fieldId === f.id && a.status === 'active'));
+
+    // Load dashboard map
+    setTimeout(() => loadDashMapFields(filtered, alerts), 100);
+
+    // KPIs
+    document.getElementById('statClients').textContent = clients.length;
     document.getElementById('statFields').textContent = active.length;
     document.getElementById('statArea').textContent = Math.round(fields.reduce((s, f) => s + (f.areaHa || 0), 0));
     document.getElementById('statAlerts').textContent = alerts.filter(a => a.status === 'active').length;
@@ -587,42 +642,81 @@ async function loadDashboard() {
     badge.style.display = activeAlerts > 0 ? '' : 'none';
 
     const container = document.getElementById('dashFields');
-    if (fields.length === 0) {
-      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:48px;margin-bottom:12px">🌾</div><div style="font-size:16px;font-weight:600">Sin lotes monitoreados</div><div style="font-size:13px;margin-top:4px">Cadastra un lote para comenzar el monitoreo satelital</div></div>';
+    if (filtered.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><div style="font-size:48px;margin-bottom:12px">🌾</div><div style="font-size:16px;font-weight:600">Sin lotes</div><div style="font-size:13px;margin-top:4px">Cadastra clientes y lotes para comenzar</div></div>';
       return;
     }
 
-    container.innerHTML = fields.map(f => {
-      const crop = CROP_ICONS[f.crop] || '🌱';
-      const stage = f.monitoring?.currentStage || '—';
-      const isActive = f.monitoring?.active;
-      const alertCount = alerts.filter(a => a.fieldId === f.id && a.status === 'active').length;
-      return `
-        <div class="card" style="cursor:pointer" onclick="showView('map');setTimeout(()=>selectMapField('${f.id}'),200)">
-          <div style="display:flex;align-items:center;gap:12px">
-            <div style="font-size:32px">${crop}</div>
+    // Group by client → property → lots
+    const clientMap = {};
+    clients.forEach(c => { clientMap[c.id] = c; });
+    const grouped = {};
+    for (const f of filtered) {
+      const cId = f.clientId || '_noClient';
+      const cName = clientMap[cId]?.name || 'Sin cliente';
+      const prop = f.property || 'Sin propiedad';
+      const key = `${cId}||${prop}`;
+      if (!grouped[key]) grouped[key] = { clientId: cId, clientName: cName, property: prop, contact: clientMap[cId]?.contact || '', fields: [] };
+      grouped[key].fields.push(f);
+    }
+
+    let html = '';
+    for (const [key, group] of Object.entries(grouped)) {
+      const totalHa = group.fields.reduce((s, f) => s + (f.areaHa || 0), 0);
+      const activeCount = group.fields.filter(f => f.monitoring?.active).length;
+      const alertCount = group.fields.reduce((s, f) => s + alerts.filter(a => a.fieldId === f.id && a.status === 'active').length, 0);
+
+      html += `
+        <div style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:8px 12px;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--dark-3);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--teal)">${esc(group.clientName[0])}</div>
             <div style="flex:1">
-              <div class="card-title">${esc(f.name)}</div>
-              <div class="card-sub">${esc(f.crop)} | ${f.areaHa || 0} ha | Etapa: ${stage}</div>
+              <div style="font-size:14px;font-weight:700">${esc(group.clientName)}</div>
+              <div style="font-size:11px;color:var(--text-muted)">${esc(group.property)} | ${totalHa} ha | ${group.fields.length} lotes | ${activeCount} activos</div>
             </div>
-            <div style="text-align:right">
-              ${isActive ? '<span style="color:var(--success);font-size:11px;font-weight:600">ACTIVO</span>' : '<span style="color:var(--text-dim);font-size:11px">Inactivo</span>'}
-              ${alertCount > 0 ? `<div style="color:var(--danger);font-size:12px;font-weight:600;margin-top:2px">${alertCount} alertas</div>` : ''}
-            </div>
+            ${alertCount > 0 ? `<span style="background:var(--danger);color:#fff;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600">${alertCount} alertas</span>` : ''}
+            <button class="btn btn-sm btn-secondary" onclick="batchCheckClient('${group.clientId}','${group.property}')" title="Verificar todos los lotes de esta hacienda">Verificar todos</button>
+            ${group.contact ? `<button class="btn btn-sm" style="background:var(--info);color:#fff" onclick="batchWhatsApp('${group.clientId}')" title="WhatsApp">WA</button>` : ''}
           </div>
-          ${!isActive
-          ? `<button class="btn btn-primary btn-sm btn-block" style="margin-top:10px" onclick="event.stopPropagation();activateMonitoring('${f.id}')">Activar Monitoreo</button>`
-          : `<div style="display:flex;gap:6px;margin-top:10px">
-              <button class="btn btn-secondary btn-sm" style="flex:1" onclick="event.stopPropagation();runCheck('${f.id}')">Verificar</button>
-              <button class="btn btn-sm" style="flex:1;background:var(--warning);color:#000" onclick="event.stopPropagation();pauseMonitoring('${f.id}')">Pausar</button>
-              <button class="btn btn-sm" style="background:var(--info);color:#fff" onclick="event.stopPropagation();sendWhatsApp('${f.id}')">WhatsApp</button>
-            </div>`}
-        ${f.monitoring?.pausedReason === 'harvest_detected' ? '<div style="color:var(--warning);font-size:11px;margin-top:6px;font-weight:600">🌾 Cosecha detectada — monitoreo pausado automaticamente</div>' : ''}
-        ${f.monitoring?.pausedReason === 'admin_manual' ? '<div style="display:flex;gap:6px;margin-top:6px"><span style="color:var(--text-dim);font-size:11px">Pausado manualmente</span><button class="btn btn-sm btn-primary" style="padding:2px 10px;font-size:11px" onclick="event.stopPropagation();resumeMonitoring(\''+f.id+'\')">Reanudar</button></div>' : ''}
-        </div>`;
-    }).join('');
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px;padding-left:12px">`;
+
+      for (const f of group.fields) {
+        const crop = CROP_ICONS[f.crop] || '🌱';
+        const stage = f.monitoring?.currentStage || '—';
+        const isActive = f.monitoring?.active;
+        const fAlerts = alerts.filter(a => a.fieldId === f.id && a.status === 'active').length;
+        const paused = f.monitoring?.pausedReason;
+
+        html += `
+            <div class="card" style="cursor:pointer;margin-bottom:0" onclick="showView('map');setTimeout(()=>selectMapField('${f.id}'),200)">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="font-size:24px">${crop}</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.name)}</div>
+                  <div style="font-size:11px;color:var(--text-muted)">${f.crop} | ${f.areaHa||0}ha | ${stage}</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0">
+                  ${isActive ? '<span style="color:var(--success);font-size:10px;font-weight:600">●</span>' : '<span style="color:var(--text-dim);font-size:10px">○</span>'}
+                  ${fAlerts > 0 ? `<div style="color:var(--danger);font-size:10px;font-weight:600">${fAlerts}!</div>` : ''}
+                </div>
+              </div>
+              <div style="display:flex;gap:4px;margin-top:6px">
+                ${!isActive && !paused ? `<button class="btn btn-primary btn-sm" style="flex:1;padding:4px 8px;font-size:11px" onclick="event.stopPropagation();activateMonitoring('${f.id}')">Activar</button>` : ''}
+                ${isActive ? `<button class="btn btn-secondary btn-sm" style="flex:1;padding:4px 8px;font-size:11px" onclick="event.stopPropagation();runCheck('${f.id}')">Verificar</button>` : ''}
+                ${isActive ? `<button class="btn btn-sm" style="padding:4px 8px;font-size:11px;background:var(--warning);color:#000" onclick="event.stopPropagation();pauseMonitoring('${f.id}')">Pausar</button>` : ''}
+                ${paused === 'admin_manual' ? `<button class="btn btn-primary btn-sm" style="flex:1;padding:4px 8px;font-size:11px" onclick="event.stopPropagation();resumeMonitoring('${f.id}')">Reanudar</button>` : ''}
+                ${paused === 'harvest_detected' ? '<span style="font-size:10px;color:var(--warning)">🌾 Cosecha</span>' : ''}
+                <button class="btn btn-sm" style="padding:4px 6px;color:var(--danger);font-size:11px" onclick="event.stopPropagation();deleteField('${f.id}')">✕</button>
+              </div>
+            </div>`;
+      }
+
+      html += `</div></div>`;
+    }
+
+    container.innerHTML = html;
   } catch(e) {
-    document.getElementById('dashFields').innerHTML = `<div style="color:var(--danger);padding:20px">Error: ${e.message}. Asegurate de ejecutar: python pix-monitor/monitoring-api.py</div>`;
+    document.getElementById('dashFields').innerHTML = `<div style="color:var(--danger);padding:20px">Error: ${e.message}. Ejecutar: python pix-monitor/server.py</div>`;
   }
 }
 
@@ -717,6 +811,7 @@ async function saveField() {
   await apiPost('/fields', {
     name,
     clientId: document.getElementById('fieldClient').value,
+    property: document.getElementById('fieldProperty').value.trim(),
     areaHa: parseFloat(document.getElementById('fieldArea').value) || 0,
     plantingDate: document.getElementById('fieldPlanting').value,
     crop: selectedCrop,
@@ -893,6 +988,53 @@ async function selectMapField(fieldId) {
     </div>` : ''}
     ${tsHtml}
   `;
+}
+
+// ── BATCH OPERATIONS ──
+async function batchCheckAll() {
+  const data = await apiGet('/fields');
+  const active = (data.fields || []).filter(f => f.monitoring?.active);
+  if (!active.length) { toast('No hay lotes activos', 'warning'); return; }
+  if (!confirm(`Verificar ${active.length} lotes activos? (puede tomar varios minutos)`)) return;
+  showLoading(`Verificando ${active.length} lotes...`);
+  let ok = 0, fail = 0;
+  for (const f of active) {
+    try {
+      document.getElementById('loadingText').textContent = `Verificando ${f.name} (${ok+fail+1}/${active.length})...`;
+      await apiPost(`/fields/${f.id}/check`, {});
+      ok++;
+    } catch(e) { fail++; }
+  }
+  hideLoading();
+  toast(`Batch completo: ${ok} OK, ${fail} errores`);
+  loadDashboard();
+}
+
+async function batchCheckClient(clientId, property) {
+  const data = await apiGet('/fields');
+  const matching = (data.fields || []).filter(f => f.clientId === clientId && (f.property || '') === (property || '') && f.monitoring?.active);
+  if (!matching.length) { toast('No hay lotes activos en esta hacienda', 'warning'); return; }
+  showLoading(`Verificando ${matching.length} lotes...`);
+  let ok = 0;
+  for (const f of matching) {
+    try {
+      document.getElementById('loadingText').textContent = `${f.name} (${ok+1}/${matching.length})...`;
+      await apiPost(`/fields/${f.id}/check`, {});
+      ok++;
+    } catch(e) {}
+  }
+  hideLoading();
+  toast(`${ok}/${matching.length} lotes verificados`);
+  loadDashboard();
+}
+
+async function batchWhatsApp(clientId) {
+  const data = await apiGet('/fields');
+  const matching = (data.fields || []).filter(f => f.clientId === clientId && f.monitoring?.active);
+  if (matching.length > 0) {
+    // Send WhatsApp for first active field (aggregated message)
+    sendWhatsApp(matching[0].id);
+  }
 }
 
 // ── PAUSE / RESUME ──
