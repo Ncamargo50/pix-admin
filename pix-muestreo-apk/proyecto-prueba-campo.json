@@ -1,0 +1,447 @@
+{
+  "project": {
+    "name": "Prueba Pix Muestreo - Campo",
+    "client": "Pixadvisor Test",
+    "date": "2026-04-08",
+    "totalLotes": 1,
+    "totalPoints": 33
+  },
+  "lotes": [
+    {
+      "id": "area-prueba",
+      "name": "Area de Prueba",
+      "area_ha": 0.62,
+      "zonas": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "name": "Zona 1",
+              "clase": "Alta",
+              "color": "#4CAF50",
+              "area_ha": 0.14,
+              "type": "zona"
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -63.20577851,
+                    -17.82070155
+                  ],
+                  [
+                    -63.20604891,
+                    -17.82101354
+                  ],
+                  [
+                    -63.206041230009696,
+                    -17.821024253333334
+                  ],
+                  [
+                    -63.20529695042801,
+                    -17.821024253333334
+                  ],
+                  [
+                    -63.20577851,
+                    -17.82070155
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {
+              "name": "Zona 2",
+              "clase": "Media",
+              "color": "#FFEB3B",
+              "area_ha": 0.31,
+              "type": "zona"
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -63.206041230009696,
+                    -17.821024253333334
+                  ],
+                  [
+                    -63.20589115,
+                    -17.82123361
+                  ],
+                  [
+                    -63.20592058,
+                    -17.82127929
+                  ],
+                  [
+                    -63.20586806683295,
+                    -17.821346956666666
+                  ],
+                  [
+                    -63.20509967995146,
+                    -17.821346956666666
+                  ],
+                  [
+                    -63.20503169,
+                    -17.82120201
+                  ],
+                  [
+                    -63.20529695042801,
+                    -17.821024253333334
+                  ],
+                  [
+                    -63.206041230009696,
+                    -17.821024253333334
+                  ]
+                ]
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {
+              "name": "Zona 3",
+              "clase": "Baja",
+              "color": "#F44336",
+              "area_ha": 0.17,
+              "type": "zona"
+            },
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    -63.20586806683295,
+                    -17.821346956666666
+                  ],
+                  [
+                    -63.20564553,
+                    -17.82163371
+                  ],
+                  [
+                    -63.205463,
+                    -17.82146731
+                  ],
+                  [
+                    -63.20525105,
+                    -17.82166966
+                  ],
+                  [
+                    -63.20509967995146,
+                    -17.821346956666666
+                  ],
+                  [
+                    -63.20586806683295,
+                    -17.821346956666666
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "puntos": [
+        {
+          "id": "P1",
+          "name": "P1",
+          "lat": -17.82088872,
+          "lng": -63.20574813,
+          "zona": 1,
+          "tipo": "principal",
+          "status": "pendiente"
+        },
+        {
+          "id": "P1-S1",
+          "name": "P1-S1",
+          "lat": -17.82097585,
+          "lng": -63.20545988,
+          "zona": 1,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P1-S2",
+          "name": "P1-S2",
+          "lat": -17.82097585,
+          "lng": -63.20594865,
+          "zona": 1,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P1-S3",
+          "name": "P1-S3",
+          "lat": -17.82097585,
+          "lng": -63.2056228,
+          "zona": 1,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P1-S4",
+          "name": "P1-S4",
+          "lat": -17.82076609,
+          "lng": -63.20577319,
+          "zona": 1,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P1-S5",
+          "name": "P1-S5",
+          "lat": -17.82088442,
+          "lng": -63.20587345,
+          "zona": 1,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P1-S6",
+          "name": "P1-S6",
+          "lat": -17.8208629,
+          "lng": -63.2056228,
+          "zona": 1,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P1-S7",
+          "name": "P1-S7",
+          "lat": -17.82097585,
+          "lng": -63.20581079,
+          "zona": 1,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P1-S8",
+          "name": "P1-S8",
+          "lat": -17.82092206,
+          "lng": -63.2055476,
+          "zona": 1,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P1-S9",
+          "name": "P1-S9",
+          "lat": -17.8208145,
+          "lng": -63.205698,
+          "zona": 1,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P1-S10",
+          "name": "P1-S10",
+          "lat": -17.82096509,
+          "lng": -63.20571053,
+          "zona": 1,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2",
+          "name": "P2",
+          "lat": -17.82118561,
+          "lng": -63.20571818,
+          "zona": 2,
+          "tipo": "principal",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2-S1",
+          "name": "P2-S1",
+          "lat": -17.82123401,
+          "lng": -63.20509899,
+          "zona": 2,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2-S2",
+          "name": "P2-S2",
+          "lat": -17.82107266,
+          "lng": -63.20540185,
+          "zona": 2,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2-S3",
+          "name": "P2-S3",
+          "lat": -17.82107266,
+          "lng": -63.20594028,
+          "zona": 2,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2-S4",
+          "name": "P2-S4",
+          "lat": -17.82129855,
+          "lng": -63.20548598,
+          "zona": 2,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2-S5",
+          "name": "P2-S5",
+          "lat": -17.82123401,
+          "lng": -63.2053009,
+          "zona": 2,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2-S6",
+          "name": "P2-S6",
+          "lat": -17.82107266,
+          "lng": -63.20558694,
+          "zona": 2,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2-S7",
+          "name": "P2-S7",
+          "lat": -17.82128242,
+          "lng": -63.20585615,
+          "zona": 2,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2-S8",
+          "name": "P2-S8",
+          "lat": -17.82129855,
+          "lng": -63.20563741,
+          "zona": 2,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2-S9",
+          "name": "P2-S9",
+          "lat": -17.82110493,
+          "lng": -63.20526725,
+          "zona": 2,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P2-S10",
+          "name": "P2-S10",
+          "lat": -17.82107266,
+          "lng": -63.20578885,
+          "zona": 2,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3",
+          "name": "P3",
+          "lat": -17.82146313,
+          "lng": -63.20529946,
+          "zona": 3,
+          "tipo": "principal",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3-S1",
+          "name": "P3-S1",
+          "lat": -17.82139536,
+          "lng": -63.20576562,
+          "zona": 3,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3-S2",
+          "name": "P3-S2",
+          "lat": -17.82144915,
+          "lng": -63.2055351,
+          "zona": 3,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3-S3",
+          "name": "P3-S3",
+          "lat": -17.82155134,
+          "lng": -63.20565036,
+          "zona": 3,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3-S4",
+          "name": "P3-S4",
+          "lat": -17.82139536,
+          "lng": -63.20517652,
+          "zona": 3,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3-S5",
+          "name": "P3-S5",
+          "lat": -17.82158898,
+          "lng": -63.20526616,
+          "zona": 3,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3-S6",
+          "name": "P3-S6",
+          "lat": -17.82139536,
+          "lng": -63.20540703,
+          "zona": 3,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3-S7",
+          "name": "P3-S7",
+          "lat": -17.82142225,
+          "lng": -63.20565036,
+          "zona": 3,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3-S8",
+          "name": "P3-S8",
+          "lat": -17.82148142,
+          "lng": -63.20521494,
+          "zona": 3,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3-S9",
+          "name": "P3-S9",
+          "lat": -17.82148142,
+          "lng": -63.20538142,
+          "zona": 3,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        },
+        {
+          "id": "P3-S10",
+          "name": "P3-S10",
+          "lat": -17.82148142,
+          "lng": -63.20570158,
+          "zona": 3,
+          "tipo": "submuestra",
+          "status": "pendiente"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,852 @@
+{
+  "type": "FeatureCollection",
+  "name": "PIX Muestreo - Prueba de Campo",
+  "metadata": {
+    "source": "Area de Prueba-Aplicativo-Pix-Muestreo.kml",
+    "generated": "2026-04-08T11:35:44.427Z",
+    "total_area_ha": 0.62,
+    "zonas": 3,
+    "puntos_principales": 3,
+    "submuestras_por_punto": 10,
+    "total_puntos": 33,
+    "methodology": "Polo de Inaccesibilidad + FPS (5m edge buffer)",
+    "crs": "EPSG:4326"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Area de Prueba",
+        "type": "boundary",
+        "area_ha": 0.62
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -63.20503169,
+              -17.82120201
+            ],
+            [
+              -63.20577851,
+              -17.82070155
+            ],
+            [
+              -63.20604891,
+              -17.82101354
+            ],
+            [
+              -63.20589115,
+              -17.82123361
+            ],
+            [
+              -63.20592058,
+              -17.82127929
+            ],
+            [
+              -63.20564553,
+              -17.82163371
+            ],
+            [
+              -63.205463,
+              -17.82146731
+            ],
+            [
+              -63.20525105,
+              -17.82166966
+            ],
+            [
+              -63.20503169,
+              -17.82120201
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Zona 1",
+        "clase": "Alta",
+        "color": "#4CAF50",
+        "area_ha": 0.14,
+        "type": "zona"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -63.20577851,
+              -17.82070155
+            ],
+            [
+              -63.20604891,
+              -17.82101354
+            ],
+            [
+              -63.206041230009696,
+              -17.821024253333334
+            ],
+            [
+              -63.20529695042801,
+              -17.821024253333334
+            ],
+            [
+              -63.20577851,
+              -17.82070155
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1",
+        "name": "P1",
+        "tipo": "principal",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20574813,
+          -17.82088872
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1-S1",
+        "name": "P1-S1",
+        "tipo": "submuestra",
+        "parent": "P1",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20545988,
+          -17.82097585
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1-S2",
+        "name": "P1-S2",
+        "tipo": "submuestra",
+        "parent": "P1",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20594865,
+          -17.82097585
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1-S3",
+        "name": "P1-S3",
+        "tipo": "submuestra",
+        "parent": "P1",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.2056228,
+          -17.82097585
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1-S4",
+        "name": "P1-S4",
+        "tipo": "submuestra",
+        "parent": "P1",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20577319,
+          -17.82076609
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1-S5",
+        "name": "P1-S5",
+        "tipo": "submuestra",
+        "parent": "P1",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20587345,
+          -17.82088442
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1-S6",
+        "name": "P1-S6",
+        "tipo": "submuestra",
+        "parent": "P1",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.2056228,
+          -17.8208629
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1-S7",
+        "name": "P1-S7",
+        "tipo": "submuestra",
+        "parent": "P1",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20581079,
+          -17.82097585
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1-S8",
+        "name": "P1-S8",
+        "tipo": "submuestra",
+        "parent": "P1",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.2055476,
+          -17.82092206
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1-S9",
+        "name": "P1-S9",
+        "tipo": "submuestra",
+        "parent": "P1",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.205698,
+          -17.8208145
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P1-S10",
+        "name": "P1-S10",
+        "tipo": "submuestra",
+        "parent": "P1",
+        "zona": "Zona 1",
+        "clase": "Alta",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20571053,
+          -17.82096509
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Zona 2",
+        "clase": "Media",
+        "color": "#FFEB3B",
+        "area_ha": 0.31,
+        "type": "zona"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -63.206041230009696,
+              -17.821024253333334
+            ],
+            [
+              -63.20589115,
+              -17.82123361
+            ],
+            [
+              -63.20592058,
+              -17.82127929
+            ],
+            [
+              -63.20586806683295,
+              -17.821346956666666
+            ],
+            [
+              -63.20509967995146,
+              -17.821346956666666
+            ],
+            [
+              -63.20503169,
+              -17.82120201
+            ],
+            [
+              -63.20529695042801,
+              -17.821024253333334
+            ],
+            [
+              -63.206041230009696,
+              -17.821024253333334
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2",
+        "name": "P2",
+        "tipo": "principal",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20571818,
+          -17.82118561
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2-S1",
+        "name": "P2-S1",
+        "tipo": "submuestra",
+        "parent": "P2",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20509899,
+          -17.82123401
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2-S2",
+        "name": "P2-S2",
+        "tipo": "submuestra",
+        "parent": "P2",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20540185,
+          -17.82107266
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2-S3",
+        "name": "P2-S3",
+        "tipo": "submuestra",
+        "parent": "P2",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20594028,
+          -17.82107266
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2-S4",
+        "name": "P2-S4",
+        "tipo": "submuestra",
+        "parent": "P2",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20548598,
+          -17.82129855
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2-S5",
+        "name": "P2-S5",
+        "tipo": "submuestra",
+        "parent": "P2",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.2053009,
+          -17.82123401
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2-S6",
+        "name": "P2-S6",
+        "tipo": "submuestra",
+        "parent": "P2",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20558694,
+          -17.82107266
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2-S7",
+        "name": "P2-S7",
+        "tipo": "submuestra",
+        "parent": "P2",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20585615,
+          -17.82128242
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2-S8",
+        "name": "P2-S8",
+        "tipo": "submuestra",
+        "parent": "P2",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20563741,
+          -17.82129855
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2-S9",
+        "name": "P2-S9",
+        "tipo": "submuestra",
+        "parent": "P2",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20526725,
+          -17.82110493
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P2-S10",
+        "name": "P2-S10",
+        "tipo": "submuestra",
+        "parent": "P2",
+        "zona": "Zona 2",
+        "clase": "Media",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20578885,
+          -17.82107266
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Zona 3",
+        "clase": "Baja",
+        "color": "#F44336",
+        "area_ha": 0.17,
+        "type": "zona"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -63.20586806683295,
+              -17.821346956666666
+            ],
+            [
+              -63.20564553,
+              -17.82163371
+            ],
+            [
+              -63.205463,
+              -17.82146731
+            ],
+            [
+              -63.20525105,
+              -17.82166966
+            ],
+            [
+              -63.20509967995146,
+              -17.821346956666666
+            ],
+            [
+              -63.20586806683295,
+              -17.821346956666666
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3",
+        "name": "P3",
+        "tipo": "principal",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20529946,
+          -17.82146313
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3-S1",
+        "name": "P3-S1",
+        "tipo": "submuestra",
+        "parent": "P3",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20576562,
+          -17.82139536
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3-S2",
+        "name": "P3-S2",
+        "tipo": "submuestra",
+        "parent": "P3",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.2055351,
+          -17.82144915
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3-S3",
+        "name": "P3-S3",
+        "tipo": "submuestra",
+        "parent": "P3",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20565036,
+          -17.82155134
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3-S4",
+        "name": "P3-S4",
+        "tipo": "submuestra",
+        "parent": "P3",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20517652,
+          -17.82139536
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3-S5",
+        "name": "P3-S5",
+        "tipo": "submuestra",
+        "parent": "P3",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20526616,
+          -17.82158898
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3-S6",
+        "name": "P3-S6",
+        "tipo": "submuestra",
+        "parent": "P3",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20540703,
+          -17.82139536
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3-S7",
+        "name": "P3-S7",
+        "tipo": "submuestra",
+        "parent": "P3",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20565036,
+          -17.82142225
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3-S8",
+        "name": "P3-S8",
+        "tipo": "submuestra",
+        "parent": "P3",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20521494,
+          -17.82148142
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3-S9",
+        "name": "P3-S9",
+        "tipo": "submuestra",
+        "parent": "P3",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20538142,
+          -17.82148142
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "P3-S10",
+        "name": "P3-S10",
+        "tipo": "submuestra",
+        "parent": "P3",
+        "zona": "Zona 3",
+        "clase": "Baja",
+        "status": "pendiente",
+        "type": "point"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -63.20570158,
+          -17.82148142
+        ]
+      }
+    }
+  ]
+}
