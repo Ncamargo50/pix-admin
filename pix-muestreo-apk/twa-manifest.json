@@ -1,0 +1,43 @@
+{
+  "packageId": "network.pixadvisor.muestreo",
+  "host": "pixadvisor.network",
+  "name": "PIX Muestreo",
+  "launcherName": "PIX Muestreo",
+  "display": "standalone",
+  "themeColor": "#0F1B2D",
+  "themeColorDark": "#0F1B2D",
+  "navigationColor": "#0F1B2D",
+  "navigationColorDark": "#0F1B2D",
+  "navigationDividerColor": "#0F1B2D",
+  "navigationDividerColorDark": "#0F1B2D",
+  "backgroundColor": "#0F1B2D",
+  "enableNotifications": false,
+  "startUrl": "/pix-muestreo/",
+  "iconUrl": "https://pixadvisor.network/pix-muestreo/icons/icon-512.png",
+  "maskableIconUrl": "https://pixadvisor.network/pix-muestreo/icons/icon-512.png",
+  "monochromeIconUrl": "https://pixadvisor.network/pix-muestreo/icons/icon-512.png",
+  "shortcuts": [],
+  "signingKey": {
+    "path": "C:\Users\Usuario\Downloads\PIX-MUESTREO\pixadvisor.keystore",
+    "alias": "pixadvisor"
+  },
+  "appVersionCode": 9,
+  "appVersionName": "3.4.1",
+  "webManifestUrl": "https://pixadvisor.network/pix-muestreo/manifest.json",
+  "generatorApp": "bubblewrap-cli",
+  "fallbackType": "webview",
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://pixadvisor.network/pix-muestreo/",
+  "minSdkVersion": 24,
+  "orientation": "portrait",
+  "fingerprints": [{
+    "name": "pixadvisor",
+    "value": "95:15:E0:97:5D:6C:89:A1:F1:43:54:1E:F5:D2:F0:36:8B:FF:48:E9:70:86:47:DB:3F:3F:86:3E:26:C3:2F:1C"
+  }],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "jdkPath": "",
+  "androidSdkPath": "C:\Users\Usuario\Downloads\PIX-MUESTREO\android-sdk"
+}
