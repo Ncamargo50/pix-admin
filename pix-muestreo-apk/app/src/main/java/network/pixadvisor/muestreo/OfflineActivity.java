@@ -336,11 +336,13 @@ public class OfflineActivity extends Activity {
             String filename = getFileDisplayName(fileUri);
             if (filename == null) filename = "mapa.json";
 
-            // Only process JSON/GeoJSON files
+            // Accept JSON, GeoJSON, KML, and CSV files
             String lowerName = filename.toLowerCase();
-            if (!lowerName.endsWith(".json") && !lowerName.endsWith(".geojson")) {
-                Log.d(TAG, "Skipping non-JSON file: " + filename);
-                return;
+            boolean isSupported = lowerName.endsWith(".json") || lowerName.endsWith(".geojson")
+                || lowerName.endsWith(".kml") || lowerName.endsWith(".csv");
+            if (!isSupported) {
+                // If extension is unknown, still try to read — WhatsApp may strip extensions
+                Log.d(TAG, "Unknown extension for: " + filename + ", will try to detect format");
             }
 
             // Read content from URI
@@ -360,19 +362,30 @@ public class OfflineActivity extends Activity {
             reader.close();
             is.close();
 
-            String jsonContent = sb.toString().trim();
-            if (jsonContent.isEmpty()) return;
+            String fileContent = sb.toString().trim();
+            if (fileContent.isEmpty()) return;
 
-            // Validate it's actually JSON (starts with { or [)
-            char first = jsonContent.charAt(0);
-            if (first != '{' && first != '[') {
-                Log.w(TAG, "File content doesn't look like JSON");
-                return;
+            // Auto-detect format by content if extension is unknown
+            char first = fileContent.charAt(0);
+            if (!isSupported) {
+                if (first == '{' || first == '[') {
+                    // Looks like JSON — add .json extension for JS-side detection
+                    if (!lowerName.endsWith(".json")) filename = filename + ".json";
+                } else if (first == '<' && fileContent.contains("<kml")) {
+                    // Looks like KML
+                    if (!lowerName.endsWith(".kml")) filename = filename + ".kml";
+                } else if (fileContent.contains(",") || fileContent.contains(";") || fileContent.contains("\t")) {
+                    // Could be CSV
+                    if (!lowerName.endsWith(".csv")) filename = filename + ".csv";
+                } else {
+                    Log.w(TAG, "Unrecognized file format for: " + filename);
+                    return;
+                }
             }
 
-            pendingFileJson = jsonContent;
+            pendingFileJson = fileContent;
             pendingFileName = filename;
-            Log.i(TAG, "File ready for injection: " + filename + " (" + jsonContent.length() + " bytes)");
+            Log.i(TAG, "File ready for injection: " + filename + " (" + fileContent.length() + " bytes)");
 
         } catch (Exception e) {
             Log.e(TAG, "Error reading file intent: " + e.getMessage());
