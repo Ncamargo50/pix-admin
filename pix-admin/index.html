@@ -1,745 +1,1764 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0F1B2D">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com; connect-src 'self' https://*.googleapis.com https://pixadvisor.network https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com; font-src 'self' data:; worker-src 'self';">
-    <title>PIX Muestreo - Pixadvisor</title>
-    
-    <link rel="icon" type="image/png" href="icons/icon-192.png">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
-    
-    <style>@font-face{font-family:Inter;src:local(Inter),local(Roboto),local(sans-serif)}</style>
-    <link rel="stylesheet" href="lib/leaflet.css">
-    <link rel="stylesheet" href="css/app.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>PIX Admin - Pixadvisor Agricultura de Precisión</title>
+  <link rel="icon" type="image/png" href="img/LOGO-PIX.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="img/icon-192.png">
+  <meta name="theme-color" content="#7FD633">
+  <meta name="description" content="PIX Admin - Dashboard GIS de agricultura de precisión. Análisis de suelo y foliar, interpolación espacial (IDW/Kriging), zonas de manejo y prescripción VRT.">
+  <meta property="og:title" content="PIX Admin - Pixadvisor Agricultura de Precisión">
+  <meta property="og:description" content="Dashboard GIS profesional para análisis de suelo, foliar, interpolación espacial y prescripción de tasa variable.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://pixadvisor.network/pix-admin/img/Logo.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PIX Admin">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
 
-<!-- LOGIN OVERLAY -->
-<div id="loginOverlay" style="display:none;position:fixed;inset:0;background:#0F1B2D;z-index:99999;align-items:center;justify-content:center;font-family:Inter,sans-serif;">
-    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(127,214,51,0.15);border-radius:24px;padding:48px 36px;max-width:360px;width:90%;text-align:center;backdrop-filter:blur(20px);">
-        <img src="icons/icon-192.png" alt="PIX" style="width:72px;height:72px;border-radius:16px;filter:drop-shadow(0 0 20px rgba(127,214,51,0.3));margin-bottom:16px;">
-        <h2 style="color:white;font-size:1.5rem;font-weight:700;margin:0 0 4px;">PIX Muestreo</h2>
-        <p style="color:#94a3b8;font-size:0.85rem;margin:0 0 28px;">Ingresa tus credenciales para acceder</p>
-        <input type="text" id="loginEmail" placeholder="Email o nombre de usuario"
-            onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()"
-            style="width:100%;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:white;font-size:15px;outline:none;box-sizing:border-box;margin-bottom:10px;font-family:Inter,sans-serif;">
-        <input type="password" id="loginPass" placeholder="Contrasena"
-            onkeydown="if(event.key==='Enter')pixAuthLogin()"
-            style="width:100%;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:white;font-size:15px;outline:none;box-sizing:border-box;margin-bottom:12px;font-family:Inter,sans-serif;">
-        <div id="loginError" style="display:none;color:#ef4444;font-size:13px;margin-bottom:12px;">Credenciales incorrectas</div>
-        <button onclick="pixAuthLogin()" id="loginBtn" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#7FD633,#0d9488);color:#0F1B2D;font-size:15px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">
-            Ingresar
-        </button>
-        <div id="loginHelp" style="display:none;margin-top:14px;background:rgba(127,214,51,0.06);border:1px solid rgba(127,214,51,0.12);border-radius:10px;padding:10px;text-align:left">
-            <div style="color:#7FD633;font-size:12px;font-weight:600;margin-bottom:6px">Primer acceso?</div>
-            <div style="color:#94a3b8;font-size:11px;line-height:1.5">
-                <strong style="color:white">Admin default:</strong><br>
-                Email: <code style="background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:4px;color:#7FD633">admin@pixadvisor.local</code><br>
-                Clave: <code style="background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:4px;color:#7FD633">pix2026</code><br>
-                <span style="color:#64748b;font-size:10px">(o use clave maestra: pixmaster2026)</span>
-            </div>
-        </div>
-        <button onclick="document.getElementById('loginHelp').style.display=document.getElementById('loginHelp').style.display==='none'?'block':'none'" style="background:none;border:none;color:#475569;font-size:0.75rem;margin-top:12px;cursor:pointer;text-decoration:underline">
-            Necesita ayuda para ingresar?
-        </button>
-        <p style="color:#475569;font-size:0.75rem;margin-top:8px;">Pixadvisor — Agricultura de Precision</p>
-    </div>
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="loginScreen" class="login-overlay" role="dialog" aria-label="Inicio de sesión" aria-modal="true">
+  <div class="login-card">
+    <img src="img/Logo.png" alt="Pixadvisor - Agricultura de Precisión" class="login-logo">
+    <h2>PIX Admin</h2>
+    <p>Ingrese sus credenciales para acceder al panel de administración</p>
+    <!-- Nota: Autenticación local/demo. Los datos se almacenan solo en IndexedDB del navegador del usuario. -->
+    <form id="loginForm" onsubmit="return pixLogin(event)" aria-label="Formulario de inicio de sesión">
+      <div class="login-field">
+        <label for="loginUser">Usuario</label>
+        <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username" required aria-required="true">
+      </div>
+      <div class="login-field">
+        <label for="loginPass">Contraseña</label>
+        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" required aria-required="true">
+      </div>
+      <div id="loginError" class="login-error" style="display:none" role="alert" aria-live="assertive">Usuario o contraseña incorrectos</div>
+      <button type="submit" class="login-btn">Ingresar</button>
+    </form>
+    <div class="login-footer">Pixadvisor — Agricultura de Precisión</div>
+  </div>
 </div>
 
-<!-- INSTALL SCREEN (shown after login, before app) -->
-<div id="installOverlay" style="display:none;position:fixed;inset:0;background:#0F1B2D;z-index:99998;align-items:center;justify-content:center;font-family:Inter,sans-serif;overflow-y:auto;">
-    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(127,214,51,0.15);border-radius:24px;padding:40px 32px;max-width:380px;width:90%;text-align:center;backdrop-filter:blur(20px);margin:20px auto;">
-        <img src="icons/icon-192.png" alt="PIX" style="width:80px;height:80px;border-radius:20px;filter:drop-shadow(0 0 24px rgba(127,214,51,0.4));margin-bottom:16px;">
-        <h2 style="color:white;font-size:1.4rem;font-weight:700;margin:0 0 6px;">Instalar PIX Muestreo</h2>
-        <p style="color:#94a3b8;font-size:0.85rem;margin:0 0 24px;">Instalá la app en tu celular para trabajar 100% offline</p>
-
-        <!-- Auto install button (shown when beforeinstallprompt fires) -->
-        <button id="autoInstallBtn" onclick="pixInstall()" style="display:none;width:100%;padding:16px;border-radius:14px;border:none;background:linear-gradient(135deg,#7FD633,#0d9488);color:#0F1B2D;font-size:16px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;margin-bottom:16px;box-shadow:0 4px 20px rgba(127,214,51,0.3);">
-            ⬇ DESCARGAR APP AHORA
-        </button>
-
-        <!-- Manual instructions (always visible) -->
-        <div style="text-align:left;margin-bottom:20px;">
-            <!-- Android -->
-            <div style="background:rgba(127,214,51,0.08);border:1px solid rgba(127,214,51,0.15);border-radius:14px;padding:16px;margin-bottom:12px;">
-                <div style="color:#7FD633;font-weight:700;font-size:14px;margin-bottom:10px;">📱 Android (Chrome)</div>
-                <div style="color:#cbd5e1;font-size:13px;line-height:1.7;">
-                    <strong style="color:white;">1.</strong> Tocá los <strong style="color:white;">3 puntos ⋮</strong> arriba a la derecha<br>
-                    <strong style="color:white;">2.</strong> Seleccioná <strong style="color:white;">"Instalar aplicación"</strong><br>
-                    <strong style="color:white;">3.</strong> Confirmá tocando <strong style="color:white;">"Instalar"</strong><br>
-                    <span style="color:#94a3b8;font-size:11px;">La app aparecerá en tu pantalla de inicio</span>
-                </div>
-            </div>
-            <!-- iPhone -->
-            <div style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.15);border-radius:14px;padding:16px;">
-                <div style="color:#0ea5e9;font-weight:700;font-size:14px;margin-bottom:10px;">🍎 iPhone (Safari)</div>
-                <div style="color:#cbd5e1;font-size:13px;line-height:1.7;">
-                    <strong style="color:white;">1.</strong> Tocá el botón <strong style="color:white;">Compartir ⬆</strong> abajo<br>
-                    <strong style="color:white;">2.</strong> Buscá <strong style="color:white;">"Agregar a pantalla de inicio"</strong><br>
-                    <strong style="color:white;">3.</strong> Tocá <strong style="color:white;">"Agregar"</strong><br>
-                    <span style="color:#94a3b8;font-size:11px;">Debe abrirse en Safari (no Chrome)</span>
-                </div>
-            </div>
-        </div>
-
-        <button onclick="skipInstall()" style="width:100%;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#94a3b8;font-size:14px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif;">
-            Continuar sin instalar →
-        </button>
-        <p style="color:#475569;font-size:0.7rem;margin-top:14px;">Una vez instalada, funciona sin internet</p>
+<div class="app-layout" id="appLayout" style="display:none">
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar" role="complementary" aria-label="Navegación principal">
+    <div class="sidebar-brand">
+      <img src="img/Logo.png" alt="Pixadvisor" class="sidebar-logo">
+      <h2>PIX Admin<small>Agricultura de Precisión</small></h2>
     </div>
-</div>
+    <nav class="sidebar-nav" aria-label="Menú del panel">
+      <!-- Dashboard (direct link) -->
+      <button class="nav-link active" data-view="dashboard" onclick="admin.showView('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </button>
 
-<div class="app-container">
-    <!-- ===== HEADER PRO ===== -->
-    <header class="app-header">
-        <div class="logo">
-            <img src="icons/icon-192.png" alt="PIX" onerror="this.style.background='var(--teal)';this.style.display='block'">
-            <div>
-                <h1>PIX Muestreo</h1>
-                <small>Agricultura de Precisión</small>
-            </div>
+      <!-- ═══════ ETAPA 1 · CADASTRO ═══════ -->
+      <div class="nav-group-divider nav-stage"><span class="nav-stage-label">Etapa 1 &middot; Cadastro</span></div>
+
+      <div class="nav-group" data-group="cadastro-group">
+        <button class="nav-group-header" onclick="admin.toggleNavGroup('cadastro-group')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+          Cadastro
+          <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="nav-group-items">
+          <button class="nav-sub-link" data-view="manage-clients" onclick="admin.showView('manage-clients')">Clientes</button>
+          <button class="nav-sub-link" data-view="gis-dashboard" onclick="admin.showView('gis-dashboard')">Lotes / Perímetros (GIS)</button>
         </div>
-        <div class="header-actions">
-            <div class="header-user-pill" id="userPill" style="display:none;cursor:pointer" onclick="app.showUserMenu()">
-                <span id="currentUserName" style="font-size:11px;color:var(--text-muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;opacity:0.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-            </div>
-            <div class="header-status-pill" id="connectionPill">
-                <span id="connectionDot" class="status-dot offline"></span>
-                <span id="connectionLabel">Offline</span>
-            </div>
-            <button class="header-btn" id="trackBtn" onclick="app.toggleTracking()" title="Grabar recorrido">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
-            </button>
+      </div>
+
+      <!-- ═══════ ETAPA 2 · PLANIFICACIÓN DE CAMPO ═══════ -->
+      <div class="nav-group-divider nav-stage"><span class="nav-stage-label">Etapa 2 &middot; Planificación de Campo</span></div>
+
+      <div class="nav-group" data-group="field-group">
+        <button class="nav-group-header" onclick="admin.toggleNavGroup('field-group')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 10-16 0c0 3 2.7 7 8 11.7z"/></svg>
+          Planificación de Campo
+          <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="nav-group-items">
+          <button class="nav-sub-link" data-view="management-zones" onclick="admin.showView('management-zones')">Zonas de Manejo<span class="nav-pro-badge">v3</span></button>
+          <button class="nav-sub-link" data-view="sampling-points" onclick="admin.showView('sampling-points')">Puntos de Muestreo</button>
+          <button class="nav-sub-link" data-view="service-orders" onclick="admin.showView('service-orders')">
+            <span style="display:flex;align-items:center;gap:6px">Órdenes de Servicio<span class="nav-pro-badge" style="background:#7FD633;color:#000;font-size:9px;padding:1px 5px;border-radius:4px">NEW</span></span>
+          </button>
+          <button class="nav-sub-link" data-view="samples" onclick="admin.showView('samples')">Muestras / Lab IBRA</button>
         </div>
+      </div>
+
+      <!-- ═══════ ETAPA 3 · ANÁLISIS Y MAPEO ═══════ -->
+      <div class="nav-group-divider nav-stage"><span class="nav-stage-label">Etapa 3 &middot; Análisis y Mapeo</span></div>
+
+      <!-- ANALISIS DE SUELO -->
+      <div class="nav-group" data-group="soil-group">
+        <button class="nav-group-header" onclick="admin.toggleNavGroup('soil-group')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 22h20"/><path d="M12 2v14"/><path d="M5 12l7 7 7-7"/></svg>
+          Análisis de Suelo
+          <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="nav-group-items">
+          <button class="nav-sub-link" data-view="soil" onclick="admin.showView('soil')">Entrada de Datos</button>
+          <button class="nav-sub-link" data-view="soil-interpretation" onclick="admin.showView('soil-interpretation')">Interpretación</button>
+          <button class="nav-sub-link" data-view="soil-relationships" onclick="admin.showView('soil-relationships')">Relaciones</button>
+          <button class="nav-sub-link" data-view="soil-amendments" onclick="admin.showView('soil-amendments')">Correcciones y Enmiendas</button>
+        </div>
+      </div>
+
+      <!-- ANALISIS FOLIAR -->
+      <div class="nav-group" data-group="leaf-group">
+        <button class="nav-group-header" onclick="admin.toggleNavGroup('leaf-group')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 019.8 6.9C15.5 4.9 20 7 20 7s.7 5.4-3.3 8.7A7 7 0 0111 20z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+          Análisis Foliar
+          <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="nav-group-items">
+          <button class="nav-sub-link" data-view="leaf" onclick="admin.showView('leaf')">Entrada de Datos</button>
+          <button class="nav-sub-link" data-view="leaf-dris" onclick="admin.showView('leaf-dris')">DRIS / IBN</button>
+          <button class="nav-sub-link" data-view="leaf-cross" onclick="admin.showView('leaf-cross')">Diagnóstico Cruzado</button>
+        </div>
+      </div>
+
+      <!-- MOTOR DE INTERPOLACION (PRO) -->
+      <div class="nav-group" data-group="engine-group">
+        <button class="nav-group-header" onclick="admin.toggleNavGroup('engine-group')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Motor Interpolación<span class="nav-pro-badge">PRO</span>
+          <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="nav-group-items">
+          <button class="nav-sub-link" data-view="engine-idw" onclick="admin.showView('engine-idw')">Config. IDW</button>
+          <button class="nav-sub-link" data-view="engine-kriging" onclick="admin.showView('engine-kriging')">Config. Kriging</button>
+          <button class="nav-sub-link" data-view="engine-variogram" onclick="admin.showView('engine-variogram')">Variograma</button>
+          <button class="nav-sub-link" data-view="engine-validation" onclick="admin.showView('engine-validation')">Validación Cruzada</button>
+        </div>
+      </div>
+
+      <!-- MAPAS Y PRESCRIPCIÓN -->
+      <div class="nav-group" data-group="maps-group">
+        <button class="nav-group-header" onclick="admin.toggleNavGroup('maps-group')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          Mapas y Prescripción
+          <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="nav-group-items">
+          <button class="nav-sub-link" data-view="nutrient-maps" onclick="admin.showView('nutrient-maps')">Mapas de Fertilidad</button>
+          <button class="nav-sub-link" data-view="relation-maps" onclick="admin.showView('relation-maps')">Mapas de Relaciones</button>
+          <button class="nav-sub-link" data-view="prescription" onclick="admin.showView('prescription')">Prescripción VRT</button>
+        </div>
+      </div>
+
+      <!-- ═══════ ETAPA 4 · INFORMES ═══════ -->
+      <div class="nav-group-divider nav-stage"><span class="nav-stage-label">Etapa 4 &middot; Informes</span></div>
+
+      <div class="nav-group" data-group="reports-group">
+        <button class="nav-group-header" onclick="admin.toggleNavGroup('reports-group')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>
+          Informes
+          <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="nav-group-items">
+          <button class="nav-sub-link" data-view="interpretation" onclick="admin.showView('interpretation')">Informe Completo</button>
+          <button class="nav-sub-link" data-view="report-protocol" onclick="admin.showView('report-protocol')">Protocolo Aplicación</button>
+          <button class="nav-sub-link" data-view="report-financial" onclick="admin.showView('report-financial')">Estudio Financiero</button>
+          <button class="nav-sub-link" data-view="report-export" onclick="admin.showView('report-export')">Exportar Mapas</button>
+        </div>
+      </div>
+
+      <!-- CONFIGURACIÓN -->
+      <div class="nav-group-divider"></div>
+
+      <div class="nav-group" data-group="config-group">
+        <button class="nav-group-header" onclick="admin.toggleNavGroup('config-group')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          Configuración
+          <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="nav-group-items">
+          <button class="nav-sub-link" data-view="manage-crops" onclick="admin.showView('manage-crops')">Cultivos</button>
+          <button class="nav-sub-link" data-view="manage-collaborators" onclick="admin.showView('manage-collaborators')">Colaboradores</button>
+          <button class="nav-sub-link" data-view="settings" onclick="admin.showView('settings')">Ajustes del Sistema</button>
+        </div>
+      </div>
+    </nav>
+
+    <div style="padding:8px 16px 0">
+      <a href="/pix-monitor/" target="_blank" class="btn btn-sm" style="width:100%;background:linear-gradient(135deg,#0d9488,#065f46);color:#fff;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;text-decoration:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        PIX Monitor
+      </a>
+      <button id="pwaInstallBtn" class="btn btn-sm" onclick="pixInstallApp()" style="width:100%;background:var(--gradient);color:#fff;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Instalar App
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="sidebarUserAvatar">N</div>
+        <span id="sidebarUserName">Ncamargo</span>
+      </div>
+      <button class="sidebar-logout" onclick="pixLogout()" title="Cerrar sesión">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+    <div style="padding:4px 16px 12px;font-size:10px;color:var(--text-dim)">
+      PIX Admin v2.0 PRO MAX &middot; <a href="https://pixadvisor.network" target="_blank" style="color:var(--teal)">pixadvisor.network</a>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main-area" role="main">
+    <header class="main-header">
+      <button class="btn-secondary btn-sm" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none" id="menuBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+      <div>
+        <div class="header-title" id="headerTitle">Dashboard</div>
+        <div class="header-subtitle" id="headerSubtitle">Resumen general</div>
+      </div>
+      <div class="header-actions" style="display:flex;align-items:center;gap:12px">
+        <label for="globalCrop" class="sr-only">Seleccionar cultivo</label>
+        <select class="form-input" id="globalCrop" onchange="admin.setCrop(this.value)" style="width:200px;padding:6px 10px;font-size:13px" aria-label="Seleccionar cultivo"></select>
+      </div>
     </header>
 
-    <!-- ===== MAIN CONTENT ===== -->
-    <main class="app-content">
+    <!-- ===== BARRA DE META DE RENDIMIENTO ===== -->
+    <div class="yield-bar" id="yieldBar">
+      <div class="yield-bar-inner">
+        <div class="yield-bar-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+          <span>Meta de Rendimiento</span>
+        </div>
+        <div id="yieldTargetControl" class="yield-bar-control"></div>
+      </div>
+    </div>
 
-        <!-- MAP VIEW -->
-        <div id="view-map" class="view active">
-            <div id="mapContainer">
-                <div id="map"></div>
+    <div class="main-content">
 
-                <!-- 2.1: Floating distance overlay — always visible on map during navigation -->
-                <div id="mapDistOverlay" class="map-dist-overlay" style="display:none">
-                    <span id="mapDistText">—</span>
-                </div>
-
-                <!-- Map FAB buttons -->
-                <div class="map-fab">
-                    <button class="fab-btn primary" onclick="app.recenterOnUser()" title="Seguir mi ubicación GPS">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
-                    </button>
-                    <button class="fab-btn secondary" onclick="app.nextPoint()" title="Siguiente punto">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    </button>
-                    <button class="fab-btn secondary" onclick="app.downloadTilesOffline()" title="Descargar mapa offline" id="btnDownloadTiles">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    </button>
-                    <button class="fab-btn secondary" onclick="app.startBoundaryTrace()" title="Contornar talhão (mapear perímetro GPS)" id="boundaryBtn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3,6 9,3 15,6 21,3 21,18 15,21 9,18 3,21"/></svg>
-                    </button>
-                </div>
-
-                <!-- Navigation Panel -->
-                <div class="map-controls">
-                    <div class="nav-panel" id="navPanel" style="display:none">
-                        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px" id="currentFieldName">—</div>
-                        <div class="nav-info">
-                            <div id="navDistance" class="nav-distance">—</div>
-                            <div class="nav-details">
-                                <div class="nav-target-name" id="navTargetName">Seleccioná un punto</div>
-                                <div class="nav-direction" id="navDirection"></div>
-                                <div style="display:flex;align-items:center;gap:8px">
-                                    <div class="nav-accuracy" id="navAccuracy">GPS: buscando...</div>
-                                    <span id="navSpeed" style="font-size:11px;font-weight:600;color:#00BFA5"></span>
-                                </div>
-                                <div class="gps-quality-bar" id="gpsQualityBar">
-                                    <div class="gps-quality-fill" id="gpsQualityFill" style="width:0%"></div>
-                                </div>
-                                <div class="gps-status-row" id="gpsStatusRow" style="display:none">
-                                    <span class="gps-status-dot" id="gpsStatusDot"></span>
-                                    <span class="gps-status-text" id="gpsStatusText">Calentando...</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="map-action-bar">
-                            <button class="action-btn primary" onclick="app.openCollectForm()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-                                Recolectar
-                            </button>
-                            <button class="action-btn secondary" onclick="app.nextPoint()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                                Siguiente
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      <!-- ===== DASHBOARD ===== -->
+      <div id="view-dashboard" class="view active">
+        <div class="grid-4">
+          <div class="stat-card"><div class="stat-value" id="statCrop">—</div><div class="stat-label">Cultivo seleccionado</div></div>
+          <div class="stat-card"><div class="stat-value" id="statYield">—</div><div class="stat-label">Meta de rendimiento</div></div>
+          <div class="stat-card"><div class="stat-value" id="statSamples">0</div><div class="stat-label">Muestras cargadas</div></div>
+          <div class="stat-card"><div class="stat-value" id="statAlerts">0</div><div class="stat-label">Alertas</div></div>
         </div>
 
-        <!-- PROJECTS VIEW -->
-        <div id="view-projects" class="view">
-            <div class="view-padded">
-                <div class="section-title" style="justify-content:space-between">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-                        Proyectos
-                    </div>
-                    <div style="display:flex;gap:8px">
-                        <button class="fab-btn primary" style="width:36px;height:36px" onclick="app.showCreateProjectModal()" title="Crear proyecto">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        </button>
-                        <button class="fab-btn secondary" style="width:36px;height:36px" onclick="app.importLocalFile()" title="Importar archivo local">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
-                        </button>
-                        <button class="fab-btn secondary" style="width:36px;height:36px" onclick="app.showImportModal()" title="Importar desde Drive">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        </button>
-                    </div>
-                </div>
-                <div id="projectsList"></div>
+        <div class="grid-2" style="margin-top:20px">
+          <div class="card">
+            <div class="card-title">Inicio Rápido</div>
+            <div class="card-subtitle">Cargá datos de análisis para generar reportes</div>
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
+              <button class="btn btn-primary btn-block" onclick="admin.showView('soil')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                Cargar Análisis de Suelo
+              </button>
+              <button class="btn btn-secondary btn-block" onclick="admin.importLabFile()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                Importar Lab IBRA (CSV / Excel)
+              </button>
+              <button class="btn btn-secondary btn-block" onclick="admin.importSamplesJSON()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+                Importar desde PIX Muestreo
+              </button>
             </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Cultivos Disponibles</div>
+            <div class="card-subtitle">Base de datos agronómica completa</div>
+            <div id="cropListDashboard" style="margin-top:12px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SOIL ANALYSIS ===== -->
+      <div id="view-soil" class="view">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Datos del Análisis de Suelo</div><div class="card-subtitle">Ingresá los resultados del laboratorio</div></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-sm btn-primary" onclick="admin.importLabFile()" title="Importar CSV/Excel de laboratorio (IBRA, etc.)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                Importar Lab
+              </button>
+              <button class="btn btn-sm btn-secondary" onclick="admin.loadDemoSoil()">Demo</button>
+              <button class="btn btn-sm btn-secondary" onclick="admin.clearSoilForm()">Limpiar</button>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-bottom:16px">
+            <div class="form-group">
+              <label class="form-label">Identificación de muestra</label>
+              <input type="text" class="form-input" id="soilSampleId" placeholder="Ej: P1, Lote 5A, Zona Alta" aria-label="ID de muestra">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Profundidad</label>
+              <select class="form-input" id="soilDepth">
+                <option value="0-20">0-20 cm</option>
+                <option value="20-40">20-40 cm</option>
+                <option value="0-10">0-10 cm</option>
+                <option value="10-20">10-20 cm</option>
+                <option value="40-60">40-60 cm</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="soilMethodPanel" style="margin-bottom:16px"></div>
+
+          <div class="form-label" style="margin-bottom:8px">Macronutrientes y propiedades</div>
+          <div class="lab-input-grid" id="soilMacroInputs"></div>
+
+          <div class="form-label" style="margin:16px 0 8px">Micronutrientes</div>
+          <div class="lab-input-grid" id="soilMicroInputs"></div>
+
+          <div class="form-label" style="margin:16px 0 8px">Textura</div>
+          <div class="lab-input-grid" id="soilTextureInputs"></div>
+
+          <div style="margin-top:20px;display:flex;gap:12px">
+            <button class="btn btn-primary" onclick="admin.interpretSoil()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+              Interpretar Análisis
+            </button>
+            <button class="btn btn-secondary" onclick="admin.addSoilToSamples()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              Agregar a Muestras
+            </button>
+          </div>
         </div>
 
-        <!-- SYNC VIEW -->
-        <div id="view-sync" class="view">
-            <div class="view-padded">
-                <div class="section-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><path d="M21 3v9h-9"/></svg>
-                    Sincronización
-                </div>
+        <div id="soilResults"></div>
+      </div>
 
-                <div class="sync-stats">
-                    <div class="sync-stat-card">
-                        <div class="sync-stat-value" id="syncPending">0</div>
-                        <div class="sync-stat-label">Pendientes</div>
-                    </div>
-                    <div class="sync-stat-card">
-                        <div class="sync-stat-value" id="syncCompleted">0</div>
-                        <div class="sync-stat-label">Sincronizadas</div>
-                    </div>
-                    <div class="sync-stat-card">
-                        <div class="sync-stat-value" id="syncTotal">0</div>
-                        <div class="sync-stat-label">Total muestras</div>
-                    </div>
-                    <div class="sync-stat-card">
-                        <div class="sync-stat-value" id="syncProjects">0</div>
-                        <div class="sync-stat-label">Proyectos</div>
-                    </div>
-                </div>
+      <!-- ===== LEAF ANALYSIS ===== -->
+      <div id="view-leaf" class="view">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Datos del Análisis Foliar</div><div class="card-subtitle">Resultados de tejido vegetal</div></div>
+            <button class="btn btn-sm btn-secondary" onclick="admin.loadDemoLeaf()">Demo</button>
+          </div>
+          <div class="lab-input-grid" id="leafInputs"></div>
+          <div style="margin-top:20px">
+            <button class="btn btn-primary" onclick="admin.interpretLeaf()">Interpretar Foliar</button>
+          </div>
+        </div>
+        <div id="leafResults"></div>
+      </div>
 
-                <button class="sync-btn" id="syncBtn" onclick="app.syncToDrive()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><path d="M21 3v9h-9"/></svg>
-                    Sincronizar con Drive
+      <!-- ===== FULL INTERPRETATION REPORT ===== -->
+      <div id="view-interpretation" class="view">
+        <div class="card" style="margin-bottom:16px" id="clientDataCard">
+          <div class="card-header">
+            <div><div class="card-title">Datos del Cliente</div><div class="card-subtitle">Información para el reporte profesional</div></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary" onclick="admin.importLabFile()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                Importar Lab
+              </button>
+              <button class="btn btn-primary" onclick="admin.generateFullReport()">Generar Reporte</button>
+              <button class="btn btn-outline" onclick="admin.printReport()">Imprimir / PDF</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="form-grid-4">
+              <div class="form-group">
+                <label class="form-label">Nombre / Empresa</label>
+                <input type="text" class="form-input" id="client_nombre" placeholder="Ej: Agropecuaria San José" aria-label="Nombre del cliente" oninput="admin.clientData.nombre=this.value">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Propiedad / Hacienda</label>
+                <input type="text" class="form-input" id="client_propiedad" placeholder="Ej: Fazenda Santa María" aria-label="Propiedad" oninput="admin.clientData.propiedad=this.value">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Ubicación</label>
+                <input type="text" class="form-input" id="client_ubicacion" placeholder="Ej: Itapúa, Paraguay" aria-label="Ubicación" oninput="admin.clientData.ubicacion=this.value">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Lote / Talhão</label>
+                <input type="text" class="form-input" id="client_lote" placeholder="Ej: Lote 5A, Zona Alta" aria-label="Lote" oninput="admin.clientData.lote=this.value">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Área (ha)</label>
+                <input type="text" class="form-input" id="client_area" placeholder="Ej: 120 ha" aria-label="Área" oninput="admin.clientData.area=this.value">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Responsable Técnico</label>
+                <input type="text" class="form-input" id="client_responsable" placeholder="Ej: Ing. Agr. Juan Pérez" aria-label="Responsable técnico" oninput="admin.clientData.responsable=this.value">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Laboratorio</label>
+                <input type="text" class="form-input" id="client_laboratorio" placeholder="Ej: INPOFOS / IAC" oninput="admin.clientData.laboratorio=this.value">
+              </div>
+              <div class="form-group">
+                <label class="form-label">N° Muestra</label>
+                <input type="text" class="form-input" id="client_nMuestra" placeholder="Ej: M-2026-0342" oninput="admin.clientData.nMuestra=this.value">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="fullReport">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+            <h3>Sin datos para el reporte</h3>
+            <p>Ingresá datos de análisis de suelo y/o foliar primero</p>
+            <button class="btn btn-primary" onclick="admin.showView('soil')" style="margin-top:16px">Cargar Análisis</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== NUTRIENT MAPS ===== -->
+      <!-- ===== GIS DASHBOARD ===== -->
+      <div id="view-gis-dashboard" class="view-fullmap">
+        <div class="fullmap-map">
+          <div id="gisMap" style="height:100%;width:100%"></div>
+        </div>
+        <div class="fullmap-panel">
+          <!-- Field Info Bar -->
+          <div class="panel-section">
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <div class="card-title" style="margin-bottom:2px">Lote / Talhão</div>
+              <div id="gisFieldInfo" style="font-size:13px;color:var(--text-muted)">
+                Sin perímetro cargado — Cargue un KML/GeoJSON o use Demo
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span id="gisBoundaryBadge" class="method-tag" style="display:none">Perímetro</span>
+              <span id="gisSamplesBadge" class="method-tag" style="display:none;background:var(--info)">0 pts</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm btn-outline" onclick="admin.loadDemoBoundary()">Demo Lote</button>
+              <button class="btn btn-sm btn-secondary" onclick="admin.importFieldBoundary()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;margin-right:4px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                KML / GeoJSON
+              </button>
+              <button class="btn btn-sm btn-outline" onclick="admin.loadDemoSamples()">Demo Muestras</button>
+              <button class="btn btn-sm btn-secondary" onclick="admin.importSamplesJSON()">Importar Puntos</button>
+            </div>
+          </div>
+        </div>
+
+          <!-- Tab Bar -->
+            <div class="gis-tabs">
+              <button class="gis-tab active" data-gistab="fertility" onclick="admin.switchGISTab('fertility')">Fertilidad</button>
+              <button class="gis-tab" data-gistab="zones" onclick="admin.switchGISTab('zones')">Zonas Manejo</button>
+              <button class="gis-tab" data-gistab="vrt" onclick="admin.switchGISTab('vrt')">VRT</button>
+            </div>
+
+            <!-- FERTILITY TAB -->
+            <div class="gis-tab-content active" id="gisTab-fertility">
+              <div class="gis-control-group">
+                <label class="form-label">Nutriente</label>
+                <select class="form-input" id="gisNutrient">
+                  <option value="pH_H2O">pH (H₂O)</option>
+                  <option value="P" selected>Fósforo (P)</option>
+                  <option value="K">Potasio (K)</option>
+                  <option value="Ca">Calcio (Ca)</option>
+                  <option value="Mg">Magnesio (Mg)</option>
+                  <option value="MO">Materia Orgánica</option>
+                  <option value="V">Saturación (V%)</option>
+                  <option value="S">Azufre (S)</option>
+                  <option value="B">Boro (B)</option>
+                  <option value="Cu">Cobre (Cu)</option>
+                  <option value="Fe">Hierro (Fe)</option>
+                  <option value="Mn">Manganeso (Mn)</option>
+                  <option value="Zn">Zinc (Zn)</option>
+                  <option value="Al">Aluminio (Al)</option>
+                  <option value="clay">Arcilla</option>
+                </select>
+              </div>
+              <div class="gis-control-row">
+                <div class="gis-control-group" style="flex:1">
+                  <label class="form-label">Resolución</label>
+                  <select class="form-input" id="gisResolution">
+                    <option value="50">50² rápido</option>
+                    <option value="80" selected>80² estándar</option>
+                    <option value="120">120² HD</option>
+                    <option value="200">200² Ultra</option>
+                  </select>
+                </div>
+                <div class="gis-control-group" style="flex:1">
+                  <label class="form-label">Método</label>
+                  <select class="form-input" id="gisMethod">
+                    <option value="idw" selected>IDW</option>
+                    <option value="kriging">Kriging</option>
+                  </select>
+                </div>
+                <div class="gis-control-group" style="flex:1">
+                  <label class="form-label">IDW Power</label>
+                  <select class="form-input" id="gisPower">
+                    <option value="1">p=1</option>
+                    <option value="2" selected>p=2</option>
+                    <option value="3">p=3</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+                <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+                  <input type="checkbox" id="gisShowLabels" checked> Etiquetas
+                </label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+                  <input type="checkbox" id="gisShowPoints" checked> Puntos
+                </label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+                  <input type="checkbox" id="gisClipBoundary" checked> Recortar
+                </label>
+              </div>
+              <button class="btn btn-primary" style="width:100%" onclick="admin.generateGISMap('fertility')">
+                Generar Mapa de Fertilidad
+              </button>
+              <div id="gisLegend" style="margin-top:12px"></div>
+              <div id="gisStats" style="margin-top:8px"></div>
+            </div>
+
+            <!-- ZONES TAB -->
+            <div class="gis-tab-content" id="gisTab-zones">
+              <div class="gis-control-group">
+                <label class="form-label">Base para Zonas</label>
+                <select class="form-input" id="gisZoneBase">
+                  <option value="pH_H2O">pH</option>
+                  <option value="P">Fósforo</option>
+                  <option value="K">Potasio</option>
+                  <option value="V" selected>V% (Saturación)</option>
+                  <option value="MO">Materia Orgánica</option>
+                  <option value="clay">Arcilla (Textura)</option>
+                  <option value="Ca">Calcio</option>
+                  <option value="Mg">Magnesio</option>
+                </select>
+              </div>
+              <div class="gis-control-group">
+                <label class="form-label">Número de Zonas</label>
+                <select class="form-input" id="gisNumZones">
+                  <option value="2">2 zonas</option>
+                  <option value="3" selected>3 zonas</option>
+                  <option value="4">4 zonas</option>
+                  <option value="5">5 zonas</option>
+                  <option value="7">7 zonas</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%" onclick="admin.generateGISMap('zones')">
+                Generar Zonas de Manejo
+              </button>
+              <div id="gisZoneLegend" style="margin-top:12px"></div>
+              <div id="gisZoneStats" style="margin-top:8px"></div>
+            </div>
+
+            <!-- VRT TAB -->
+            <div class="gis-tab-content" id="gisTab-vrt">
+              <div class="gis-control-group">
+                <label class="form-label">Nutriente a prescribir</label>
+                <select class="form-input" id="gisVrtNutrient">
+                  <option value="P">Fósforo (P₂O₅)</option>
+                  <option value="K">Potasio (K₂O)</option>
+                  <option value="Ca">Calcio</option>
+                  <option value="Mg">Magnesio</option>
+                  <option value="S">Azufre</option>
+                </select>
+              </div>
+              <div class="gis-control-row">
+                <div class="gis-control-group" style="flex:1">
+                  <label class="form-label">Meta (t/ha)</label>
+                  <input type="number" class="form-input" id="gisVrtYield" placeholder="100" aria-label="Meta de rendimiento" min="1" max="500">
+                </div>
+                <div class="gis-control-group" style="flex:1">
+                  <label class="form-label">Fuente</label>
+                  <select class="form-input" id="gisVrtSource"></select>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-primary" style="flex:1" onclick="admin.generateGISMap('vrt')">Generar VRT</button>
+                <button class="btn btn-secondary" onclick="admin.exportGISPrescription()">GeoJSON</button>
+                <button class="btn btn-secondary" onclick="admin.exportGISPrescriptionSHP()" title="Shapefile para John Deere, Case IH, New Holland">SHP</button>
+              </div>
+              <div id="gisVrtLegend" style="margin-top:12px"></div>
+              <div id="gisVrtStats" style="margin-top:8px"></div>
+            </div>
+
+            <!-- DOWNLOAD SECTION (below tabs) -->
+            <div style="border-top:1px solid var(--border);padding:10px 12px;flex-shrink:0">
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px">Descargar Mapas PDF</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <button class="btn btn-sm btn-outline" style="width:100%;text-align:left;font-size:11px" onclick="admin.downloadAllNutrientMapsPDF()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;margin-right:6px;flex-shrink:0"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Todos los Nutrientes (PDF)
+              </button>
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('pH_H2O')">pH</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('P')">P</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('K')">K</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('Ca')">Ca</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('Mg')">Mg</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('MO')">MO</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('V')">V%</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('S')">S</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('B')">B</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('Cu')">Cu</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('Fe')">Fe</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('Mn')">Mn</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('Zn')">Zn</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('Al')">Al</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadNutrientMapPDF('clay')">Arc</button>
+              </div>
+              <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:6px">Mapas de Relaciones</div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadRelationshipMapPDF('Ca_Mg')">Ca/Mg</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadRelationshipMapPDF('Ca_K')">Ca/K</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadRelationshipMapPDF('Mg_K')">Mg/K</button>
+                <button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 6px" onclick="admin.downloadRelationshipMapPDF('CaMg_K')">(Ca+Mg)/K</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-nutrient-maps" class="view-fullmap">
+        <div class="fullmap-map">
+          <div id="nutrientMap" style="height:100%;width:100%"></div>
+        </div>
+        <div class="fullmap-panel">
+          <div class="panel-section">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
+              Mapas de Nutrientes
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+              <span id="boundaryStatus" style="font-size:11px;color:var(--text-muted);align-self:center">Sin perímetro</span>
+              <button class="btn btn-sm btn-outline" onclick="admin.loadDemoBoundary()">Demo Lote</button>
+              <button class="btn btn-sm btn-secondary" onclick="admin.importFieldBoundary()">Cargar Perímetro</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="form-group">
+                <label class="form-label">Nutriente</label>
+                <select class="form-input" id="mapNutrient" onchange="admin.updateNutrientMap()">
+                  <option value="pH_H2O">pH</option><option value="P">Fósforo (P)</option><option value="K">Potasio (K)</option>
+                  <option value="Ca">Calcio (Ca)</option><option value="Mg">Magnesio (Mg)</option><option value="MO">Mat. Orgánica</option>
+                  <option value="V">V%</option><option value="S">Azufre (S)</option><option value="B">Boro (B)</option>
+                  <option value="Cu">Cobre (Cu)</option><option value="Fe">Hierro (Fe)</option><option value="Mn">Manganeso (Mn)</option><option value="Zn">Zinc (Zn)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Resolución</label>
+                <select class="form-input" id="mapResolution">
+                  <option value="50">50×50 (rápido)</option>
+                  <option value="80" selected>80×80 (estándar)</option>
+                  <option value="120">120×120 (HD)</option>
+                  <option value="200">200×200 (Ultra HD)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Potencia IDW</label>
+                <select class="form-input" id="mapPower">
+                  <option value="1">1 (suave)</option>
+                  <option value="2" selected>2 (estándar)</option>
+                  <option value="3">3 (fuerte)</option>
+                </select>
+              </div>
+              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+                <input type="checkbox" id="mapShowLabels" checked> Etiquetas
+              </label>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-outline btn-sm" onclick="admin.loadDemoSamples()">Demo GPS</button>
+                <button class="btn btn-primary btn-sm" onclick="admin.generateNutrientMap()">Generar Mapa</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel-section" id="mapLegend"></div>
+          <div class="panel-section" id="mapStats"></div>
+        </div>
+      </div>
+
+      <!-- ===== PRESCRIPTION VRT ===== -->
+      <div id="view-prescription" class="view-fullmap">
+        <div class="fullmap-map">
+          <div id="prescMap" style="height:100%;width:100%"></div>
+        </div>
+        <div class="fullmap-panel">
+          <div class="panel-section">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+              Prescripción VRT
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:12px">
+              <button class="btn btn-sm btn-secondary" onclick="admin.importFieldBoundary()">Cargar Perímetro</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="form-group">
+                <label class="form-label">Nutriente a prescribir</label>
+                <select class="form-input" id="prescNutrient">
+                  <option value="P">Fósforo (P₂O₅)</option><option value="K">Potasio (K₂O)</option>
+                  <option value="Ca">Calcio (Ca)</option><option value="Mg">Magnesio (Mg)</option><option value="S">Azufre (S)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Meta rendimiento</label>
+                <input type="number" class="form-input" id="prescYield" placeholder="t/ha" aria-label="Meta de rendimiento prescripción" min="1" max="500">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Fuente fertilizante</label>
+                <select class="form-input" id="prescSource"></select>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-primary btn-sm" onclick="admin.generatePrescription()">Generar</button>
+                <button class="btn btn-secondary btn-sm" onclick="admin.exportPrescription()">Exportar</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel-section" id="prescLegend"></div>
+          <div class="panel-section" id="prescZones"></div>
+        </div>
+      </div>
+
+      <!-- ===== SAMPLES / LAB ===== -->
+      <div id="view-samples" class="view">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Muestras y Resultados de Laboratorio</div><div class="card-subtitle">Datos georreferenciados con resultados</div></div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm btn-outline" onclick="admin.loadDemoSamples()">Demo GPS</button>
+              <button class="btn btn-sm btn-primary" onclick="admin.importSamplesJSON()">Importar JSON</button>
+              <button class="btn btn-sm btn-secondary" onclick="admin.importLabCSV()">Importar Lab CSV</button>
+            </div>
+          </div>
+          <div id="samplesTable"></div>
+        </div>
+      </div>
+
+      <!-- ===== SERVICE ORDERS ===== -->
+      <div id="view-service-orders" class="view">
+        <div class="os-header-bar">
+          <div class="os-stats-row" id="osStatsRow">
+            <div class="os-stat"><span class="os-stat-value" id="osTotalCount">0</span><span class="os-stat-label">Total</span></div>
+            <div class="os-stat os-stat-pending"><span class="os-stat-value" id="osPendingCount">0</span><span class="os-stat-label">Pendientes</span></div>
+            <div class="os-stat os-stat-progress"><span class="os-stat-value" id="osProgressCount">0</span><span class="os-stat-label">En curso</span></div>
+            <div class="os-stat os-stat-done"><span class="os-stat-value" id="osDoneCount">0</span><span class="os-stat-label">Completadas</span></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <select class="form-input" id="osFilterStatus" onchange="admin.filterOrders()" style="width:150px;padding:6px 10px;font-size:13px">
+              <option value="all">Todos los estados</option>
+              <option value="draft">Borrador</option>
+              <option value="pending">Pendiente</option>
+              <option value="in_progress">En curso</option>
+              <option value="completed">Completada</option>
+              <option value="cancelled">Cancelada</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="admin.createServiceOrder()">+ Nueva Orden</button>
+          </div>
+        </div>
+        <div id="osTableContainer"></div>
+      </div>
+
+      <!-- OS Creation/Edit Modal -->
+      <div class="modal-overlay" id="osModal">
+        <div class="modal-content os-modal-content">
+          <div class="modal-header">
+            <h3 id="osModalTitle">Nueva Orden de Servicio</h3>
+            <button class="btn-close" onclick="admin.closeOSModal()">&times;</button>
+          </div>
+          <div class="modal-body" id="osModalBody"></div>
+        </div>
+      </div>
+
+      <!-- OS Share Modal -->
+      <div class="modal-overlay" id="osShareModal">
+        <div class="modal-content" style="max-width:480px">
+          <div class="modal-header">
+            <h3>Compartir Orden de Servicio</h3>
+            <button class="btn-close" onclick="admin.closeOSShareModal()">&times;</button>
+          </div>
+          <div class="modal-body" id="osShareBody"></div>
+        </div>
+      </div>
+
+      <!-- ===== SOIL INTERPRETATION (Sub-page) ===== -->
+      <div id="view-soil-interpretation" class="view">
+        <div class="pro-banner">
+          <div class="pro-banner-icon">🔬</div>
+          <div class="pro-banner-text">
+            <h4>Interpretación Detallada de Suelo</h4>
+            <p>Clasificación de nutrientes, textura y propiedades del suelo con rangos específicos por cultivo</p>
+          </div>
+        </div>
+        <div id="soilInterpretationResults">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            <h3>Sin datos de interpretación</h3>
+            <p>Primero ingresá datos en "Análisis de Suelo → Entrada de Datos" e interpretá</p>
+            <button class="btn btn-primary" onclick="admin.showView('soil')" style="margin-top:16px">Ir a Entrada de Datos</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SOIL RELATIONSHIPS (Sub-page) ===== -->
+      <div id="view-soil-relationships" class="view">
+        <div class="pro-banner">
+          <div class="pro-banner-icon">⚖️</div>
+          <div class="pro-banner-text">
+            <h4>Relaciones entre Nutrientes</h4>
+            <p>Ca/Mg, Ca/K, Mg/K, (Ca+Mg)/K — equilibrio catiónico y proporciones ideales</p>
+          </div>
+        </div>
+        <div id="soilRelationshipsResults">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            <h3>Sin datos de relaciones</h3>
+            <p>Primero interpretá un análisis de suelo</p>
+            <button class="btn btn-primary" onclick="admin.showView('soil')" style="margin-top:16px">Ir a Análisis de Suelo</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SOIL AMENDMENTS (Sub-page) ===== -->
+      <div id="view-soil-amendments" class="view">
+        <div class="pro-banner">
+          <div class="pro-banner-icon">🧪</div>
+          <div class="pro-banner-text">
+            <h4>Correcciones y Enmiendas</h4>
+            <p>Encalado, yeso, fertilización y productos recomendados con cálculos por hectárea</p>
+          </div>
+        </div>
+        <div id="soilAmendmentsResults">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <h3>Sin datos de correcciones</h3>
+            <p>Primero interpretá un análisis de suelo</p>
+            <button class="btn btn-primary" onclick="admin.showView('soil')" style="margin-top:16px">Ir a Análisis de Suelo</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== LEAF DRIS (Sub-page) ===== -->
+      <div id="view-leaf-dris" class="view">
+        <div class="pro-banner">
+          <div class="pro-banner-icon">📊</div>
+          <div class="pro-banner-text">
+            <h4>Análisis DRIS / IBN</h4>
+            <p>Sistema Integrado de Diagnóstico y Recomendación — Índices de Balance Nutricional</p>
+          </div>
+        </div>
+        <div id="leafDrisResults">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+            <h3>Sin datos DRIS</h3>
+            <p>Primero ingresá datos en "Análisis Foliar → Entrada de Datos" e interpretá</p>
+            <button class="btn btn-primary" onclick="admin.showView('leaf')" style="margin-top:16px">Ir a Análisis Foliar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== LEAF CROSS DIAGNOSIS (Sub-page) ===== -->
+      <div id="view-leaf-cross" class="view">
+        <div class="pro-banner">
+          <div class="pro-banner-icon">🔄</div>
+          <div class="pro-banner-text">
+            <h4>Diagnóstico Cruzado Suelo-Hoja</h4>
+            <p>Comparación entre niveles en suelo y tejido vegetal para detectar problemas de absorción</p>
+          </div>
+        </div>
+        <div id="leafCrossResults">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            <h3>Sin datos para diagnóstico cruzado</h3>
+            <p>Se necesitan datos de suelo Y foliar interpretados</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== RELATION MAPS ===== -->
+      <div id="view-relation-maps" class="view-fullmap">
+        <div class="fullmap-map">
+          <div id="relationMap" style="height:100%;width:100%"></div>
+        </div>
+        <div class="fullmap-panel">
+          <div class="panel-section">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
+              Relaciones entre Nutrientes
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:12px">
+              <button class="btn btn-sm btn-outline" onclick="admin.loadDemoBoundary()">Demo Lote</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.loadDemoSamples()">Demo Muestras</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="form-group">
+                <label class="form-label">Relación</label>
+                <select class="form-input" id="relationMapType">
+                  <option value="Ca_Mg">Ca/Mg (ideal: 3-5)</option>
+                  <option value="Ca_K">Ca/K (ideal: 15-25)</option>
+                  <option value="Mg_K">Mg/K (ideal: 3-5)</option>
+                  <option value="CaMg_K">(Ca+Mg)/K (ideal: 20-30)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Método</label>
+                <select class="form-input" id="relationMapMethod">
+                  <option value="idw">IDW</option>
+                  <option value="kriging">Kriging</option>
+                </select>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="admin.generateRelationMap()">Generar Mapa</button>
+            </div>
+          </div>
+          <div class="panel-section" id="relationMapLegend"></div>
+          <div class="panel-section" id="relationMapStats"></div>
+        </div>
+      </div>
+
+      <!-- ===== MANAGEMENT ZONES v3 (Full-screen wizard) ===== -->
+      <div id="view-management-zones" class="view-fullmap">
+        <!-- Full-screen map -->
+        <div class="fullmap-map">
+          <div id="mzMap" style="height:100%;width:100%"></div>
+        </div>
+        <!-- Wizard panel -->
+        <div class="fullmap-panel">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <div style="font-size:16px;font-weight:700;flex:1">Zonas de Manejo PRO</div>
+            <span class="nav-pro-badge" style="font-size:9px">v3</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Motor GEE: Sentinel-2 multicampaña + DEM + TWI + Flujo de agua</div>
+
+          <!-- LOT INFO (auto-populated from cadastre) -->
+          <div class="panel-section mz-lot-info" id="mzLotInfo">
+            <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> Lote Activo</div>
+            <div id="mzLotDetails" style="font-size:12px;line-height:1.8">
+              <div style="color:var(--text-muted);font-style:italic">Sin lote cargado. Importe un lote desde el Cadastro de Clientes.</div>
+            </div>
+          </div>
+
+          <!-- STEP 1: CROP TYPE SELECTOR -->
+          <div class="panel-section">
+            <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M11 20A7 7 0 019.8 6.9C15.5 4.9 20 7 20 7s.7 5.4-3.3 8.7A7 7 0 0111 20z"/></svg> 1. Tipo de Cultivo</div>
+            <div class="crop-category-grid" id="mzCropCategories">
+              <!-- Populated dynamically by admin.buildMZCropSelector() -->
+            </div>
+            <div id="mzIndexInfo" class="mz-index-info" style="display:none">
+              <!-- Shows selected crop indices breakdown -->
+            </div>
+          </div>
+
+          <!-- CAMPAIGN SELECTOR -->
+          <div class="panel-section" id="mzCampaignSection" style="display:none">
+            <div class="gis-control-group">
+              <label class="form-label" style="font-size:11px;color:var(--text-muted)">CAMPAÑAS MULTI-TEMPORALES</label>
+              <select class="form-input" id="mzCampaignCount" style="font-size:12px">
+                <option value="3">3 campañas (3 años)</option>
+                <option value="4">4 campañas (4 años)</option>
+                <option value="5" selected>5 campañas (5 años)</option>
+                <option value="7">7 campañas (7 años)</option>
+              </select>
+            </div>
+            <div style="font-size:10px;color:var(--text-dim);margin-top:4px" id="mzCampaignInfo">Ranking Percentil Multi-Campaña v4.1 — ventana fenológica por cultivo</div>
+          </div>
+
+          <!-- STEP 2: GENERATE ZONES (GEE ENGINE) -->
+          <div class="panel-section">
+            <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> 2. Generar Zonas de Manejo</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;line-height:1.6">
+              Score Compuesto: rank medio 40% + estabilidad 20% + seguridad 10% + terreno 30%
+            </div>
+            <div id="mzGeeConnection" style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+              <div id="mzGeeStatusDot" style="width:8px;height:8px;border-radius:50%;background:#f5a623" title="GEE desconectado"></div>
+              <span id="mzGeeConnectionText" style="font-size:10px;color:var(--text-muted);flex:1">Motor: Modo Demo (GEE no conectado)</span>
+              <button class="btn btn-sm btn-outline" id="mzGeeConnectBtn" onclick="admin.connectGEE()" style="font-size:10px;padding:3px 8px">Conectar GEE</button>
+            </div>
+            <div id="mzGeeStatus" style="font-size:11px;margin-bottom:8px;display:none">
+              <span id="mzGeeStatusIcon"></span> <span id="mzGeeStatusText"></span>
+            </div>
+            <div class="mz-progress-container" id="mzProgressContainer" style="display:none">
+              <div class="mz-progress-bar" id="mzProgressBar" style="width:0%"></div>
+            </div>
+            <div id="mzProgressText" style="font-size:10px;color:var(--text-muted);margin:4px 0 8px;display:none"></div>
+            <button class="btn btn-primary" id="mzGenerateBtn" style="width:100%" onclick="admin.generateZonesGEE()" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Generar Zonas de Manejo
+            </button>
+          </div>
+
+          <!-- RESULTS (hidden until zones generated) -->
+          <div id="mzResults" style="display:none">
+            <div class="panel-section">
+              <div class="panel-title">Resultados</div>
+              <div id="mzDemoIndicator" style="display:none;font-size:10px;color:#f5a623;margin-bottom:6px;padding:4px 8px;background:rgba(245,166,35,0.1);border-radius:4px">MODO DEMO — datos simulados (GEE no conectado)</div>
+              <div class="zone-stats-grid" id="mzZoneStats"></div>
+            </div>
+
+            <!-- Map layers -->
+            <div class="panel-section">
+              <div class="panel-title">Capas del Mapa</div>
+              <label class="layer-toggle"><input type="checkbox" checked onchange="admin.toggleMZLayer('zones',this.checked)"> <span class="layer-toggle-label">Zonas de Manejo</span></label>
+              <label class="layer-toggle"><input type="checkbox" checked onchange="admin.toggleMZLayer('labels',this.checked)"> <span class="layer-toggle-label">Etiquetas de Zona</span></label>
+              <label class="layer-toggle"><input type="checkbox" onchange="admin.toggleMZLayer('twi',this.checked)"> <span class="layer-toggle-label">TWI / Flujo</span></label>
+              <label class="layer-toggle"><input type="checkbox" checked onchange="admin.toggleMZLayer('points',this.checked)"> <span class="layer-toggle-label">Puntos de Muestreo</span></label>
+            </div>
+
+            <!-- STEP 3: SAMPLING POINTS -->
+            <div class="panel-section">
+              <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg> 3. Puntos de Muestreo y Sub-muestras</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">
+                Polo de Inaccesibilidad + FPS (Farthest Point Sampling)
+              </div>
+              <div class="gis-control-group" style="margin-bottom:10px">
+                <label class="form-label">Prefijo del Proyecto</label>
+                <input type="text" class="form-input" id="mzSamplingPrefix" value="PIX" placeholder="Ej: HDS, PIX, SA" maxlength="8" style="text-transform:uppercase">
+              </div>
+              <button class="btn btn-primary" id="mzSamplingBtn" style="width:100%" onclick="admin.generateSamplingFromZones()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>
+                Generar Puntos y Sub-muestras
+              </button>
+              <div id="mzSamplingReport" style="display:none;margin-top:10px;padding:10px;background:var(--dark);border-radius:8px;font-size:11px;line-height:1.8">
+                <!-- Sampling report populated after generation -->
+              </div>
+            </div>
+
+            <!-- Export -->
+            <div class="panel-section">
+              <div class="panel-title">Exportar</div>
+              <div class="export-row">
+                <button class="export-btn" onclick="admin.exportMZGeoJSON()">GeoJSON</button>
+                <button class="export-btn" onclick="admin.exportMZCSV()">CSV</button>
+                <button class="export-btn" onclick="admin.exportMZKML()">KML</button>
+              </div>
+            </div>
+
+            <!-- Enviar a PIX Muestreo -->
+            <div class="panel-section" id="mzSendSection" style="display:none">
+              <div class="panel-title" style="color:#0d9488">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+                Enviar a PIX Muestreo
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <input type="text" class="form-input" id="mzSendCollector" placeholder="Nombre del colaborador / técnico" aria-label="Nombre del colaborador" style="font-size:12px;padding:8px 10px">
+                <div style="display:flex;gap:6px">
+                  <select class="form-input" id="mzSendPriority" aria-label="Prioridad de la orden" style="flex:1;font-size:11px;padding:7px 8px">
+                    <option value="media">Prioridad: Media</option>
+                    <option value="alta">Prioridad: Alta</option>
+                    <option value="baja">Prioridad: Baja</option>
+                  </select>
+                  <input class="form-input" type="date" id="mzSendDueDate" aria-label="Fecha límite" style="flex:1;font-size:11px;padding:7px 8px">
+                </div>
+                <textarea class="form-input" id="mzSendNotes" rows="2" placeholder="Instrucciones para el muestreo a campo..." style="font-size:11px;padding:8px 10px;resize:vertical"></textarea>
+                <button class="action-btn" onclick="admin.sendMZToPixMuestreo()" style="width:100%;background:linear-gradient(135deg,#0d9488,#065f46);color:#fff;border:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.2s" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                  Enviar Orden de Servicio
                 </button>
-
-                <button class="sync-btn" style="background:var(--dark-3)" onclick="app.exportLocalBackup()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                    Descargar Backup Local
-                </button>
-
-                <button class="sync-btn" style="background:linear-gradient(135deg,#F44336,#FF9800);margin-top:8px" onclick="app.generateFieldReport()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>
-                    Reporte IBRA — Ficha de Envio
-                </button>
-
-                <div class="section-title" style="margin-top:24px;font-size:14px">Registro de actividad</div>
-                <div class="sync-log" id="syncLog">
-                    <div class="sync-log-entry"><span class="time">—</span>Esperando primera sincronización...</div>
+                <div style="font-size:10px;color:var(--text-dim);text-align:center">
+                  Genera archivo .json con mapa + puntos para PIX Muestreo APK
                 </div>
+              </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SAMPLING POINTS v3 (Full-screen) ===== -->
+      <div id="view-sampling-points" class="view-fullmap">
+        <div class="fullmap-map">
+          <div id="samplingMap" style="height:100%;width:100%"></div>
+        </div>
+        <div class="fullmap-panel">
+          <div style="font-size:16px;font-weight:700;margin-bottom:4px">Puntos de Muestreo</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Generación automática de puntos basada en zonas de manejo</div>
+
+          <div class="panel-section">
+            <div class="panel-title">Método de Muestreo</div>
+            <div class="sampling-method-cards">
+              <div class="sampling-method-card selected" data-method="grid" onclick="admin.selectSamplingMethod('grid')">
+                <div class="method-icon">&#9638;</div>
+                <div class="method-name">Grid Regular</div>
+                <div class="method-desc">Malla uniforme sobre el lote</div>
+              </div>
+              <div class="sampling-method-card" data-method="stratified" onclick="admin.selectSamplingMethod('stratified')">
+                <div class="method-icon">&#9641;</div>
+                <div class="method-name">Estratificado</div>
+                <div class="method-desc">Por zona de manejo</div>
+              </div>
+              <div class="sampling-method-card" data-method="centroid" onclick="admin.selectSamplingMethod('centroid')">
+                <div class="method-icon">&#9673;</div>
+                <div class="method-name">Centroide</div>
+                <div class="method-desc">Centro de cada zona</div>
+              </div>
+              <div class="sampling-method-card" data-method="random" onclick="admin.selectSamplingMethod('random')">
+                <div class="method-icon">&#9686;</div>
+                <div class="method-name">Aleatorio</div>
+                <div class="method-desc">Random por zona</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-title">Configuración</div>
+            <div class="gis-control-group" style="margin-bottom:8px">
+              <label class="form-label">Densidad (pts/ha)</label>
+              <input type="number" class="form-input" id="sampDensity" value="0.5" min="0.1" max="5" step="0.1">
+            </div>
+            <div class="gis-control-group" style="margin-bottom:8px">
+              <label class="form-label">Puntos por zona (estratificado/random)</label>
+              <input type="number" class="form-input" id="sampPointsPerZone" value="4" min="1" max="20">
+            </div>
+            <div class="gis-control-group" style="margin-bottom:8px">
+              <label class="form-label">Buffer de borde (m)</label>
+              <input type="number" class="form-input" id="sampEdgeBuffer" value="20" min="0" max="100">
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-title">Submuestreo Compuesto</div>
+            <div class="gis-control-group" style="margin-bottom:8px">
+              <label class="form-label">Patrón</label>
+              <select class="form-input" id="sampComposite">
+                <option value="">Sin submuestreo</option>
+                <option value="zigzag">Zigzag (W)</option>
+                <option value="cross">Cruz (+)</option>
+                <option value="diamond">Diamante</option>
+                <option value="circle">Circular (8 pts)</option>
+              </select>
+            </div>
+            <div class="gis-control-group">
+              <label class="form-label">Radio submuestreo (m)</label>
+              <input type="number" class="form-input" id="sampCompositeRadius" value="15" min="5" max="50">
+            </div>
+            <div class="composite-preview" id="sampCompositePreview"></div>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%" onclick="admin.generateSamplingPlan()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            Generar Plan de Muestreo
+          </button>
+
+          <div id="sampResults" style="display:none">
+            <div class="panel-section">
+              <div class="panel-title">Reporte de Cobertura</div>
+              <div id="sampReport" style="font-size:11px;color:var(--text-muted);line-height:1.7"></div>
+            </div>
+            <div class="panel-section">
+              <div class="panel-title">Exportar Puntos</div>
+              <div class="export-row">
+                <button class="export-btn" onclick="admin.exportSamplingGPX()">GPX</button>
+                <button class="export-btn" onclick="admin.exportSamplingKML()">KML</button>
+                <button class="export-btn" onclick="admin.exportSamplingGeoJSON()">GeoJSON</button>
+                <button class="export-btn" onclick="admin.exportSamplingCSV()">CSV</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ENGINE: IDW CONFIG ===== -->
+      <div id="view-engine-idw" class="view">
+        <div class="pro-banner">
+          <div class="pro-banner-icon">⚡</div>
+          <div class="pro-banner-text">
+            <h4>Motor IDW — Inverse Distance Weighting</h4>
+            <p>Configuración avanzada del interpolador por distancia inversa ponderada</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="engine-card">
+            <div class="card-title" style="margin-bottom:16px">Parámetros IDW</div>
+            <div class="param-group" style="margin-bottom:16px">
+              <div class="param-label"><span>Potencia (p)</span><span id="idwPowerVal">2.0</span></div>
+              <input type="range" class="param-slider" id="idwPowerSlider" min="0.5" max="5" step="0.1" value="2" oninput="document.getElementById('idwPowerVal').textContent=this.value">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>0.5 (suave)</span><span>5.0 (fuerte)</span></div>
+            </div>
+            <div class="param-group" style="margin-bottom:16px">
+              <div class="param-label"><span>Resolución Grid</span><span id="idwResVal">80</span></div>
+              <input type="range" class="param-slider" id="idwResSlider" min="30" max="300" step="10" value="80" oninput="document.getElementById('idwResVal').textContent=this.value">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim)"><span>30 (rápido)</span><span>300 (Ultra HD)</span></div>
+            </div>
+            <div class="param-group" style="margin-bottom:16px">
+              <div class="param-label"><span>Radio de Búsqueda</span><span id="idwRadiusVal">∞</span></div>
+              <input type="range" class="param-slider" id="idwRadiusSlider" min="0" max="5000" step="100" value="0" oninput="document.getElementById('idwRadiusVal').textContent=this.value==0?'∞':this.value+'m'">
+            </div>
+            <div class="param-group" style="margin-bottom:16px">
+              <div class="param-label"><span>Pasadas Suavizado</span><span id="idwSmoothVal">1</span></div>
+              <input type="range" class="param-slider" id="idwSmoothSlider" min="0" max="5" step="1" value="1" oninput="document.getElementById('idwSmoothVal').textContent=this.value">
+            </div>
+            <div style="margin-top:20px">
+              <button class="btn btn-primary" style="width:100%" onclick="admin.applyIDWConfig()">Aplicar Configuración</button>
+            </div>
+          </div>
+          <div class="engine-card">
+            <div class="card-title" style="margin-bottom:16px">Referencia IDW</div>
+            <div style="font-size:13px;color:var(--text-muted);line-height:1.8">
+              <p><strong>Potencia (p):</strong> Controla la influencia de puntos lejanos. p=1 suave, p=2 estándar, p>3 prioriza vecinos cercanos.</p>
+              <p style="margin-top:10px"><strong>Resolución:</strong> Cantidad de celdas del grid. Mayor resolución = más detalle pero más lento.</p>
+              <p style="margin-top:10px"><strong>Radio:</strong> Limita los puntos considerados. ∞ = todos los puntos (global IDW).</p>
+              <p style="margin-top:10px"><strong>Suavizado:</strong> Pasadas de filtro gaussiano sobre el resultado. Reduce artefactos de "bull's eye".</p>
+            </div>
+            <div style="margin-top:20px;padding:14px;background:var(--dark-3);border-radius:8px">
+              <div style="font-size:12px;font-weight:700;color:var(--teal);margin-bottom:6px">Fórmula IDW</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted)">
+                Z(x) = Σ(wᵢ·zᵢ) / Σ(wᵢ)<br>
+                wᵢ = 1 / d(x, xᵢ)ᵖ
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ENGINE: KRIGING CONFIG ===== -->
+      <div id="view-engine-kriging" class="view">
+        <div class="pro-banner">
+          <div class="pro-banner-icon">🎯</div>
+          <div class="pro-banner-text">
+            <h4>Motor Kriging — Interpolación Geoestadística</h4>
+            <p>Ordinary Kriging con 6 modelos de variograma — El estándar profesional en agricultura de precisión</p>
+          </div>
+        </div>
+        <div class="engine-card">
+          <div class="card-title" style="margin-bottom:16px">Modelo de Variograma</div>
+          <div class="model-grid" id="krigingModelGrid">
+            <div class="model-option selected" data-model="spherical" onclick="admin.selectKrigingModel('spherical')">
+              <div class="model-icon">🔵</div>
+              <div class="model-option-name">Esférica</div>
+              <div class="model-option-desc">El más común en suelos</div>
+              <div class="model-option-formula">γ(h) = C₀ + C[1.5(h/a) - 0.5(h/a)³]</div>
+            </div>
+            <div class="model-option" data-model="gaussian" onclick="admin.selectKrigingModel('gaussian')">
+              <div class="model-icon">🟢</div>
+              <div class="model-option-name">Gaussiana</div>
+              <div class="model-option-desc">Transiciones suaves</div>
+              <div class="model-option-formula">γ(h) = C₀ + C[1 - e^(-3h²/a²)]</div>
+            </div>
+            <div class="model-option" data-model="exponential" onclick="admin.selectKrigingModel('exponential')">
+              <div class="model-icon">🟡</div>
+              <div class="model-option-name">Exponencial</div>
+              <div class="model-option-desc">Alcance gradual</div>
+              <div class="model-option-formula">γ(h) = C₀ + C[1 - e^(-3h/a)]</div>
+            </div>
+            <div class="model-option" data-model="linear" onclick="admin.selectKrigingModel('linear')">
+              <div class="model-icon">📈</div>
+              <div class="model-option-name">Lineal</div>
+              <div class="model-option-desc">Tendencia constante</div>
+              <div class="model-option-formula">γ(h) = C₀ + (C/a)·h</div>
+            </div>
+            <div class="model-option" data-model="power" onclick="admin.selectKrigingModel('power')">
+              <div class="model-icon">⚡</div>
+              <div class="model-option-name">Potencia</div>
+              <div class="model-option-desc">Sin meseta</div>
+              <div class="model-option-formula">γ(h) = C₀ + b·hⁿ</div>
+            </div>
+            <div class="model-option" data-model="hole-effect" onclick="admin.selectKrigingModel('hole-effect')">
+              <div class="model-icon">🌊</div>
+              <div class="model-option-name">Hole-Effect</div>
+              <div class="model-option-desc">Patrones cíclicos</div>
+              <div class="model-option-formula">γ(h) = C₀ + C[1 - sin(πh/a)/(πh/a)]</div>
+            </div>
+          </div>
         </div>
 
-        <!-- SETTINGS VIEW -->
-        <div id="view-settings" class="view">
-            <div class="view-padded">
-                <div class="section-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-                    Ajustes
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Nombre del recolector</label>
-                    <div style="display:flex;gap:8px">
-                        <input type="text" class="form-input" id="collectorName" placeholder="Ej: Ing. Agr. Nilton Camargo">
-                        <button class="barcode-btn" onclick="app.saveCollectorName()">Guardar</button>
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-top:24px">
-                    <label class="form-label">Google Drive - OAuth Client ID</label>
-                    <input type="text" class="form-input" id="driveClientId" placeholder="xxxx.apps.googleusercontent.com" style="margin-bottom:8px;font-size:13px">
-                    <button class="sync-btn" onclick="app.connectDrive()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
-                        Conectar Google Drive
-                    </button>
-                    <p style="font-size:12px;color:var(--text-muted);margin-top:8px">
-                        Creá un proyecto en <a href="https://console.cloud.google.com" target="_blank" style="color:var(--teal)">Google Cloud Console</a>,
-                        habilitá la API de Drive, y creá credenciales OAuth 2.0 (Web Application).
-                    </p>
-                </div>
-
-                <div class="form-group" style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
-                    <div class="section-title" style="font-size:14px;margin-bottom:12px">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
-                        Precisión GPS
-                    </div>
-                    <label class="form-label">Precisión mínima para recolección</label>
-                    <select class="form-input" id="gpsMinAccuracy" onchange="app.saveGPSSetting('minAccuracy', this.value)">
-                        <option value="3">3m (Ultra preciso - lento)</option>
-                        <option value="5" selected>5m (Recomendado)</option>
-                        <option value="10">10m (Rápido)</option>
-                        <option value="20">20m (Baja precisión)</option>
-                    </select>
-                    <label class="form-label" style="margin-top:12px">Muestras para promediado</label>
-                    <select class="form-input" id="gpsAvgSamples" onchange="app.saveGPSSetting('avgSamples', this.value)">
-                        <option value="5">5 lecturas (rápido)</option>
-                        <option value="10" selected>10 lecturas (estándar)</option>
-                        <option value="20">20 lecturas (alta precisión)</option>
-                        <option value="30">30 lecturas (máxima precisión)</option>
-                    </select>
-                    <label class="form-label" style="margin-top:12px">Filtro Kalman</label>
-                    <select class="form-input" id="gpsKalmanEnabled" onchange="app.saveGPSSetting('kalmanEnabled', this.value)">
-                        <option value="1" selected>Activado (suaviza posición)</option>
-                        <option value="0">Desactivado (posición cruda)</option>
-                    </select>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:8px;padding:8px;background:var(--dark-2);border-radius:6px">
-                        El filtro Kalman suaviza las lecturas GPS en tiempo real, reduciendo el ruido de la señal. El promediado se aplica solo al momento de recolectar la muestra para máxima precisión.
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
-                    <div class="section-title" style="font-size:14px;margin-bottom:12px">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
-                        Mapa Offline
-                    </div>
-                    <div id="tileCacheStats" style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Cache: calculando...</div>
-                    <button class="sync-btn" style="background:var(--dark-3);margin-bottom:8px" onclick="app.downloadTilesOffline()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        Descargar Mapa del Campo Actual
-                    </button>
-                    <button class="sync-btn" style="background:rgba(239,68,68,0.15);color:var(--danger)" onclick="app.clearTileCache()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                        Limpiar Cache de Tiles
-                    </button>
-                    <div id="tileDownloadProgress" style="display:none;margin-top:10px">
-                        <div class="gps-quality-bar" style="height:6px;margin-bottom:4px">
-                            <div class="gps-quality-fill" id="tileProgressFill" style="width:0%;background:var(--teal)"></div>
-                        </div>
-                        <div id="tileProgressText" style="font-size:11px;color:var(--text-muted)">Descargando tiles...</div>
-                    </div>
-                    <!-- 2.4: Storage quota indicator -->
-                    <div style="margin-top:12px;padding:10px;background:var(--dark-2);border-radius:8px">
-                        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted)">
-                            <span>Almacenamiento</span>
-                            <span id="storageText">—</span>
-                        </div>
-                        <div class="storage-bar">
-                            <div class="storage-fill ok" id="storageFill" style="width:0%"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- IBRA Cadastro Settings -->
-                <div style="margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
-                    <div class="section-title" style="font-size:14px;color:#F44336">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
-                        Datos IBRA Megalab
-                    </div>
-                    <div class="settings-group">
-                        <label class="form-label">Solicitante</label>
-                        <input type="text" class="form-input" id="ibraSolicitante" value="PIXADVISOR AGRICULTURA DE PRECISAO" onchange="app.saveIbraSetting('solicitante',this.value)">
-                    </div>
-                    <div class="settings-group">
-                        <label class="form-label">Responsavel pelo envio</label>
-                        <input type="text" class="form-input" id="ibraResponsavel" value="NILTON LUIZ CAMARGO" onchange="app.saveIbraSetting('responsavel',this.value)">
-                    </div>
-                    <div style="display:flex;gap:8px">
-                        <div class="settings-group" style="flex:1">
-                            <label class="form-label">Telefone</label>
-                            <input type="text" class="form-input" id="ibraTelefone" value="43 999819554" onchange="app.saveIbraSetting('telefone',this.value)">
-                        </div>
-                        <div class="settings-group" style="flex:1">
-                            <label class="form-label">CPF/CNPJ</label>
-                            <input type="text" class="form-input" id="ibraCnpj" value="41.196.481/0001-30" onchange="app.saveIbraSetting('cnpj',this.value)">
-                        </div>
-                    </div>
-                    <div class="settings-group">
-                        <label class="form-label">Endereco</label>
-                        <input type="text" class="form-input" id="ibraEndereco" value="RUA ELIEZER MARTINS BANDEIRA 44" onchange="app.saveIbraSetting('endereco',this.value)">
-                    </div>
-                    <div style="display:flex;gap:8px">
-                        <div class="settings-group" style="flex:1">
-                            <label class="form-label">Municipio</label>
-                            <input type="text" class="form-input" id="ibraMunicipio" value="IBIPORA" onchange="app.saveIbraSetting('municipio',this.value)">
-                        </div>
-                        <div class="settings-group" style="flex:0 0 60px">
-                            <label class="form-label">UF</label>
-                            <input type="text" class="form-input" id="ibraUf" value="PR" onchange="app.saveIbraSetting('uf',this.value)">
-                        </div>
-                        <div class="settings-group" style="flex:1">
-                            <label class="form-label">CEP</label>
-                            <input type="text" class="form-input" id="ibraCep" value="86200536" onchange="app.saveIbraSetting('cep',this.value)">
-                        </div>
-                    </div>
-                    <div class="settings-group">
-                        <label class="form-label">E-mail para laudos</label>
-                        <input type="text" class="form-input" id="ibraEmail" value="nilton.camargo@pixadvisor.network, gis.agronomico@gmail.com" onchange="app.saveIbraSetting('email',this.value)">
-                    </div>
-                </div>
-
-                <div style="margin-top:32px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08)">
-                    <div class="section-title" style="font-size:14px">Acerca de</div>
-                    <div style="text-align:center;padding:16px">
-                        <img src="icons/icon-192.png" alt="Pixadvisor" style="width:80px;height:80px;border-radius:16px;filter:drop-shadow(0 0 16px rgba(127,214,51,0.3));margin-bottom:12px">
-                        <div style="font-size:24px;font-weight:700;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">PIX Muestreo</div>
-                        <div style="font-size:13px;color:var(--text-muted);margin-top:4px">v3.4.1 · Pixadvisor Agricultura de Precisión</div>
-                        <div style="font-size:12px;color:var(--text-muted);margin-top:8px">
-                            App de muestreo de suelo georreferenciado.<br>
-                            Funciona 100% offline en campo.
-                        </div>
-                        <div style="margin-top:16px">
-                            <a href="https://pixadvisor.network" target="_blank" style="color:var(--teal);font-size:13px">pixadvisor.network</a>
-                        </div>
-                    </div>
-                </div>
+        <div class="grid-2">
+          <div class="engine-card">
+            <div class="card-title" style="margin-bottom:16px">Parámetros del Variograma</div>
+            <div class="param-group" style="margin-bottom:14px">
+              <div class="param-label"><span>Nugget (C₀) — Efecto Pepita</span><span id="krigNuggetVal">0</span></div>
+              <input type="range" class="param-slider" id="krigNuggetSlider" min="0" max="100" step="0.5" value="0" oninput="document.getElementById('krigNuggetVal').textContent=parseFloat(this.value).toFixed(1)">
             </div>
-        </div>
-        <!-- ORDERS VIEW -->
-        <div id="view-orders" class="view">
-            <div class="view-padded">
-                <div class="section-title" style="justify-content:space-between">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                        Ordenes de Servicio
-                    </div>
-                    <button class="fab-btn secondary" id="btnCreateOrder" style="width:36px;height:36px;display:none" onclick="pixOrders.showCreateOrderModal()" title="Nueva orden">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M12 5v14M5 12h14"/></svg>
-                    </button>
-                </div>
-                <div class="order-filter-bar">
-                    <button class="order-filter-pill active" data-status="todas" onclick="pixOrders.setFilter('todas')">Todas</button>
-                    <button class="order-filter-pill" data-status="pendiente" onclick="pixOrders.setFilter('pendiente')">Pendientes</button>
-                    <button class="order-filter-pill" data-status="en_progreso" onclick="pixOrders.setFilter('en_progreso')">En Progreso</button>
-                    <button class="order-filter-pill" data-status="completada" onclick="pixOrders.setFilter('completada')">Completadas</button>
-                </div>
-                <div id="ordersList"></div>
+            <div class="param-group" style="margin-bottom:14px">
+              <div class="param-label"><span>Sill (C₀+C) — Meseta</span><span id="krigSillVal">50</span></div>
+              <input type="range" class="param-slider" id="krigSillSlider" min="1" max="500" step="1" value="50" oninput="document.getElementById('krigSillVal').textContent=this.value">
             </div>
-        </div>
-
-        <!-- ADMIN VIEW -->
-        <div id="view-admin" class="view">
-            <div class="view-padded">
-                <div class="section-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                    Panel Admin
-                </div>
-                <div id="adminContent"></div>
+            <div class="param-group" style="margin-bottom:14px">
+              <div class="param-label"><span>Range (a) — Alcance (m)</span><span id="krigRangeVal">500</span></div>
+              <input type="range" class="param-slider" id="krigRangeSlider" min="10" max="5000" step="10" value="500" oninput="document.getElementById('krigRangeVal').textContent=this.value">
             </div>
+            <div class="param-group" style="margin-bottom:14px">
+              <div class="param-label"><span>Resolución Grid</span><span id="krigResVal">80</span></div>
+              <input type="range" class="param-slider" id="krigResSlider" min="30" max="200" step="10" value="80" oninput="document.getElementById('krigResVal').textContent=this.value">
+            </div>
+            <div class="param-group" style="margin-bottom:14px">
+              <div class="param-label"><span>Max Vecinos</span><span id="krigMaxPtsVal">15</span></div>
+              <input type="range" class="param-slider" id="krigMaxPtsSlider" min="5" max="30" step="1" value="15" oninput="document.getElementById('krigMaxPtsVal').textContent=this.value">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+              <button class="btn btn-primary" style="flex:1" onclick="admin.autoFitVariogram()">Auto-Ajustar</button>
+              <button class="btn btn-secondary" style="flex:1" onclick="admin.applyKrigingConfig()">Aplicar</button>
+            </div>
+          </div>
+          <div class="engine-card">
+            <div class="card-title" style="margin-bottom:16px">Vista Previa del Variograma</div>
+            <div class="variogram-chart-wrap">
+              <canvas id="krigingPreviewChart" width="500" height="300"></canvas>
+            </div>
+            <div id="krigingModelInfo" style="margin-top:12px;font-size:12px;color:var(--text-muted)">
+              Seleccioná un nutriente y hacé click en "Auto-Ajustar" para ver el variograma empírico y el modelo ajustado.
+            </div>
+          </div>
         </div>
+      </div>
 
-    </main>
+      <!-- ===== ENGINE: VARIOGRAM ===== -->
+      <div id="view-engine-variogram" class="view">
+        <div class="pro-banner">
+          <div class="pro-banner-icon">📉</div>
+          <div class="pro-banner-text">
+            <h4>Análisis de Variograma</h4>
+            <p>Variograma empírico con ajuste automático de los 6 modelos — Seleccioná el mejor para tus datos</p>
+          </div>
+        </div>
+        <div class="engine-card">
+          <div class="engine-card-header">
+            <div class="card-title">Variograma Empírico vs Modelos Ajustados</div>
+            <div style="display:flex;gap:8px">
+              <select class="form-input" id="varioNutrient" style="width:160px;font-size:13px;padding:6px 10px">
+                <option value="pH_H2O">pH</option><option value="P" selected>Fósforo</option><option value="K">Potasio</option>
+                <option value="Ca">Calcio</option><option value="Mg">Magnesio</option><option value="MO">Mat. Orgánica</option>
+                <option value="V">V%</option><option value="S">Azufre</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="admin.computeFullVariogram()">Calcular Variograma</button>
+            </div>
+          </div>
+          <div class="variogram-chart-wrap" style="margin-bottom:16px">
+            <canvas id="fullVariogramChart" width="800" height="400"></canvas>
+          </div>
+        </div>
+        <div class="engine-card">
+          <div class="card-title" style="margin-bottom:12px">Comparación de Modelos</div>
+          <table class="comparison-table" id="variogramComparisonTable">
+            <thead><tr><th>Modelo</th><th>Nugget (C₀)</th><th>Sill (C₀+C)</th><th>Range (a)</th><th>RMSE</th><th>Ranking</th></tr></thead>
+            <tbody id="variogramComparisonBody">
+              <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px">Calculá el variograma para ver la comparación</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-    <!-- ===== BOTTOM NAV ===== -->
-    <nav class="bottom-nav">
-        <button class="nav-item active" data-view="map">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-            Mapa
-        </button>
-        <button class="nav-item" data-view="orders" id="navOrders">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            Ordenes
-        </button>
-        <button class="nav-item" data-view="projects">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
-            Proyectos
-        </button>
-        <button class="nav-item" data-view="sync" id="navSync">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><path d="M21 3v9h-9"/></svg>
-            Sync
-        </button>
-        <button class="nav-item" data-view="settings" id="navSettings">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-            Ajustes
-        </button>
-        <button class="nav-item nav-hidden" data-view="admin" id="navAdmin">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-            Admin
-        </button>
-    </nav>
-</div>
+      <!-- ===== ENGINE: CROSS-VALIDATION ===== -->
+      <div id="view-engine-validation" class="view">
+        <div class="pro-banner">
+          <div class="pro-banner-icon">✅</div>
+          <div class="pro-banner-text">
+            <h4>Validación Cruzada (Leave-One-Out)</h4>
+            <p>Compará IDW vs Kriging con diferentes modelos — Medí la precisión real de la interpolación</p>
+          </div>
+        </div>
+        <div class="engine-card">
+          <div class="engine-card-header">
+            <div class="card-title">Ejecutar Validación</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select class="form-input" id="validNutrient" style="width:150px;font-size:13px;padding:6px 10px">
+                <option value="pH_H2O">pH</option><option value="P" selected>Fósforo</option><option value="K">Potasio</option>
+                <option value="Ca">Calcio</option><option value="Mg">Magnesio</option><option value="V">V%</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="admin.runCrossValidation()">Ejecutar Validación</button>
+            </div>
+          </div>
+          <div id="validationResults">
+            <div class="validation-grid" style="margin-bottom:20px" id="validationStatsGrid">
+              <div class="validation-stat"><div class="val">—</div><div class="label">RMSE IDW</div></div>
+              <div class="validation-stat"><div class="val">—</div><div class="label">RMSE Kriging</div></div>
+              <div class="validation-stat"><div class="val">—</div><div class="label">R² IDW</div></div>
+              <div class="validation-stat"><div class="val">—</div><div class="label">R² Kriging</div></div>
+              <div class="validation-stat"><div class="val">—</div><div class="label">Mejor Método</div></div>
+            </div>
+            <div class="grid-2">
+              <div>
+                <div class="card-title" style="margin-bottom:8px;font-size:14px">IDW — Predicho vs Real</div>
+                <div class="variogram-chart-wrap"><canvas id="validationChartIDW" width="400" height="300"></canvas></div>
+              </div>
+              <div>
+                <div class="card-title" style="margin-bottom:8px;font-size:14px">Kriging — Predicho vs Real</div>
+                <div class="variogram-chart-wrap"><canvas id="validationChartKriging" width="400" height="300"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-<!-- ===== COLLECT MODAL ===== -->
-<div class="modal-overlay" id="collectModal">
-    <div class="modal-sheet">
-        <div class="modal-handle"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <!-- ===== REPORT: PROTOCOL ===== -->
+      <div id="view-report-protocol" class="view">
+        <div class="engine-card">
+          <div class="engine-card-header">
+            <div class="engine-card-title">
+              <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>
+              Protocolo de Aplicación
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="admin.generateProtocol()">Generar Protocolo</button>
+              <button class="btn btn-outline btn-sm" onclick="admin.printProtocol()">Imprimir / PDF</button>
+            </div>
+          </div>
+          <div id="protocolContent">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/></svg>
+              <h3>Generá el protocolo de aplicación</h3>
+              <p>Se necesitan datos de análisis de suelo y recomendaciones de fertilización</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== REPORT: FINANCIAL ===== -->
+      <div id="view-report-financial" class="view">
+        <div class="engine-card">
+          <div class="engine-card-header">
+            <div class="engine-card-title">
+              <div class="icon" style="background:linear-gradient(135deg, #f59e0b, #ef4444)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+              Estudio Financiero
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="admin.generateFinancialStudy()">Calcular Costos</button>
+          </div>
+          <div id="financialContent">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              <h3>Estudio de costos por hectárea</h3>
+              <p>Se necesitan recomendaciones de fertilización generadas</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== REPORT: EXPORT MAPS ===== -->
+      <div id="view-report-export" class="view">
+        <div class="engine-card">
+          <div class="engine-card-header">
+            <div class="engine-card-title">
+              <div class="icon" style="background:linear-gradient(135deg, #3b82f6, #6366f1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+              Exportar Mapas
+            </div>
+          </div>
+          <div class="grid-3" style="margin-top:16px">
+            <div class="card" style="text-align:center;cursor:pointer" onclick="admin.downloadAllNutrientMapsPDF()">
+              <div style="font-size:32px;margin-bottom:8px">🗺️</div>
+              <div class="card-title" style="font-size:14px">Todos los Nutrientes</div>
+              <div class="card-subtitle">PDF con 15 mapas</div>
+            </div>
+            <div class="card" style="text-align:center;cursor:pointer" onclick="admin.exportAllRelationMaps()">
+              <div style="font-size:32px;margin-bottom:8px">⚖️</div>
+              <div class="card-title" style="font-size:14px">Mapas de Relaciones</div>
+              <div class="card-subtitle">Ca/Mg, Ca/K, Mg/K, (Ca+Mg)/K</div>
+            </div>
+            <div class="card" style="text-align:center;cursor:pointer" onclick="admin.exportGISPrescription()">
+              <div style="font-size:32px;margin-bottom:8px">📋</div>
+              <div class="card-title" style="font-size:14px">Prescripción VRT</div>
+              <div class="card-subtitle">GeoJSON + Shapefile</div>
+            </div>
+          </div>
+          <div style="margin-top:16px">
+            <div class="card-title" style="margin-bottom:12px">Mapas Individuales</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap" id="exportMapButtons">
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('pH_H2O')">pH</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('P')">P</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('K')">K</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('Ca')">Ca</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('Mg')">Mg</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('MO')">MO</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('V')">V%</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('S')">S</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('B')">B</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('Cu')">Cu</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('Fe')">Fe</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('Mn')">Mn</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('Zn')">Zn</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('Al')">Al</button>
+              <button class="btn btn-sm btn-outline" onclick="admin.downloadNutrientMapPDF('clay')">Arcilla</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== MANAGE: CROPS ===== -->
+      <div id="view-manage-crops" class="view">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Base de Datos de Cultivos</div><div class="card-subtitle">Rangos de suficiencia, extracción y eficiencia por cultivo</div></div>
+          </div>
+          <div id="cropsManagerContent"></div>
+        </div>
+      </div>
+
+      <!-- ===== MANAGE: CLIENTS ===== -->
+      <div id="view-manage-clients" class="view">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Gestión de Clientes</div><div class="card-subtitle">Base de datos local de clientes y propiedades</div></div>
+            <button class="btn btn-primary btn-sm" onclick="admin.addNewClient()">+ Nuevo Cliente</button>
+          </div>
+          <div id="clientsManagerContent">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+              <h3>Sin clientes registrados</h3>
+              <p>Agregá clientes para asociar análisis y reportes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SETTINGS ===== -->
+      <div id="view-settings" class="view">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Configuración</div><div class="card-subtitle">Preferencias de la aplicación</div></div>
+          </div>
+          <div class="grid-2">
             <div>
-                <div class="modal-title" id="collectPointName">Punto —</div>
-                <div style="font-size:12px;color:var(--text-muted)" id="collectCoords">—</div>
-            </div>
-            <button class="fab-btn secondary" style="width:32px;height:32px" onclick="app.closeCollectForm()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-        </div>
-
-        <div class="collect-form">
-            <!-- Barcode / IBRA Megalab QR -->
-            <div class="form-group">
-                <label class="form-label">Código de bolsa (QR IBRA Megalab)</label>
-                <div class="barcode-display" id="barcodeDisplay">
-                    <span class="barcode-value" id="barcodeValue">Sin escanear</span>
-                    <button class="barcode-btn" onclick="app.scanBarcode()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7z"/></svg>
-                        Escanear QR
-                    </button>
-                </div>
-                <div class="ibra-details" id="ibraDetails" style="display:none"></div>
-            </div>
-
-            <!-- Depth -->
-            <div class="form-group">
-                <label class="form-label">Profundidad (cm)</label>
-                <div class="depth-selector">
-                    <button class="depth-chip active" data-depth="0-20" onclick="app.selectDepth(this,'0-20')">0-20</button>
-                    <button class="depth-chip" data-depth="20-40" onclick="app.selectDepth(this,'20-40')">20-40</button>
-                    <button class="depth-chip" data-depth="40-60" onclick="app.selectDepth(this,'40-60')">40-60</button>
-                    <button class="depth-chip" data-depth="0-10" onclick="app.selectDepth(this,'0-10')">0-10</button>
-                    <button class="depth-chip" data-depth="10-20" onclick="app.selectDepth(this,'10-20')">10-20</button>
-                </div>
-            </div>
-
-            <!-- Sample type -->
-            <div class="form-group">
-                <label class="form-label">Tipo de análisis</label>
-                <select class="form-input" id="sampleType">
-                    <option value="quimico">Químico completo</option>
-                    <option value="fertilidad">Fertilidad</option>
-                    <option value="fisico">Físico</option>
-                    <option value="microbiologico">Microbiológico</option>
-                    <option value="nematodos">Nematodos</option>
-                    <option value="carbono">Carbono</option>
-                    <option value="completo">Completo (Químico + Físico)</option>
+              <div class="form-group">
+                <label class="form-label">Método de Interpolación por Defecto</label>
+                <select class="form-input" id="settingsDefaultMethod">
+                  <option value="idw">IDW (Inverse Distance Weighting)</option>
+                  <option value="kriging-spherical">Kriging Esférico</option>
+                  <option value="kriging-gaussian">Kriging Gaussiano</option>
+                  <option value="kriging-exponential">Kriging Exponencial</option>
                 </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Resolución por Defecto</label>
+                <select class="form-input" id="settingsDefaultRes">
+                  <option value="50">50 (Rápido)</option>
+                  <option value="80" selected>80 (Estándar)</option>
+                  <option value="120">120 (HD)</option>
+                  <option value="200">200 (Ultra HD)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Paleta de Colores</label>
+                <select class="form-input" id="settingsColorPalette">
+                  <option value="fertility">Fertilidad (Verde-Amarillo-Rojo)</option>
+                  <option value="reversed">Invertida (Rojo-Amarillo-Verde)</option>
+                  <option value="prescription">Prescripción (Azul-Verde-Rojo)</option>
+                </select>
+              </div>
             </div>
-
-            <!-- Collector -->
-            <div class="form-group">
-                <label class="form-label">Recolector</label>
-                <input type="text" class="form-input" id="collectorField" placeholder="Nombre del recolector">
+            <div>
+              <div class="form-group">
+                <label class="form-label">Unidad de Cationes</label>
+                <select class="form-input" id="settingsCationUnit">
+                  <option value="cmolc">cmolc/dm³</option>
+                  <option value="mmolc">mmolc/dm³</option>
+                  <option value="meq">meq/100g</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Unidad de Materia Orgánica</label>
+                <select class="form-input" id="settingsMOUnit">
+                  <option value="g/dm3">g/dm³</option>
+                  <option value="g/kg">g/kg</option>
+                  <option value="dag/kg">dag/kg (%)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Formato de Exportación</label>
+                <select class="form-input" id="settingsExportFormat">
+                  <option value="geojson">GeoJSON</option>
+                  <option value="shapefile">Shapefile (SHP)</option>
+                  <option value="both">Ambos</option>
+                </select>
+              </div>
             </div>
-
-            <!-- Photo -->
-            <div class="form-group">
-                <label class="form-label">Foto</label>
-                <div class="photo-preview" onclick="app.takePhoto()">
-                    <img id="photoPreviewImg" style="display:none">
-                    <div id="photoPlaceholder" style="display:flex;flex-direction:column;align-items:center;gap:8px">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                        <span>Tocar para tomar foto</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Notes -->
-            <div class="form-group">
-                <label class="form-label">Observaciones</label>
-                <textarea class="form-input" id="sampleNotes" rows="2" placeholder="Notas adicionales..."></textarea>
-            </div>
-
-            <!-- Save button -->
-            <button class="sync-btn" onclick="app.saveSample()" style="margin-top:8px">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
-                Guardar Muestra
-            </button>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="admin.saveSettings()">Guardar Configuración</button>
+            <button class="btn btn-secondary" onclick="admin.resetSettings()">Restablecer</button>
+          </div>
         </div>
+      </div>
+
+      <!-- ===== COLLABORATORS MANAGEMENT ===== -->
+      <div id="view-manage-collaborators" class="view" style="padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <div>
+            <div style="font-size:22px;font-weight:700">Gestión de Colaboradores</div>
+            <div style="font-size:13px;color:var(--text-muted)">Crear y gestionar credenciales para PIX Muestreo APK</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="admin.syncCollaboratorsToDrive()" title="Sincronizar a Drive">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9"/></svg>
+              Sync a Drive
+            </button>
+            <button class="btn btn-primary" onclick="admin.showCollaboratorForm()">+ Nuevo Colaborador</button>
+          </div>
+        </div>
+        <div id="collaboratorsList"></div>
+
+        <!-- Collaborator Form Modal -->
+        <div id="collabModal" class="modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.7);align-items:center;justify-content:center">
+          <div style="background:var(--dark-2);border-radius:16px;padding:24px;width:420px;max-width:92vw;border:1px solid var(--border)">
+            <div style="font-size:18px;font-weight:700;margin-bottom:16px" id="collabModalTitle">Nuevo Colaborador</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <input type="text" class="form-input" id="collabName" placeholder="Nombre completo" aria-label="Nombre">
+              <input type="email" class="form-input" id="collabEmail" placeholder="Email (para login)" aria-label="Email">
+              <input type="password" class="form-input" id="collabPassword" placeholder="Contraseña" aria-label="Contraseña">
+              <select class="form-input" id="collabRole" aria-label="Rol">
+                <option value="tecnico">Técnico</option>
+                <option value="admin">Administrador</option>
+                <option value="cliente">Cliente</option>
+              </select>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('collabModal').style.display='none'">Cancelar</button>
+                <button class="btn btn-primary" style="flex:1" onclick="admin.saveCollaborator()">Guardar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
+  </main>
 </div>
 
-<!-- ===== ZONE COMPLETE MODAL ===== -->
-<div class="modal-overlay" id="zoneCompleteModal">
-    <div class="modal-sheet">
-        <div class="modal-handle"></div>
-        <div style="text-align:center;padding:8px 0 16px">
-            <div id="zoneCompleteBadge" style="display:inline-block;padding:6px 18px;border-radius:20px;font-weight:700;font-size:14px;margin-bottom:12px;color:#fff"></div>
-            <h3 style="color:#fff;margin:8px 0 4px;font-size:20px" id="zoneCompleteTitle">Zona completa!</h3>
-            <p style="color:var(--text-muted);font-size:13px" id="zoneCompleteSubtitle">Todas las submuestras recolectadas</p>
-        </div>
+<script>
+// ===== PIX ADMIN AUTH (SHA-256 hash-based) =====
+const PIX_USERS = {
+  '57c712d37789c12225e9fa5c5af81338cfb2a7787cf84047d52d2b40fb73afb0': // pix
+    '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'  // admin
+};
 
-        <div class="form-group">
-            <label class="form-label">Escanear QR de la bolsa IBRA para esta zona</label>
-            <div class="barcode-display" id="zoneBarcodeDisplay">
-                <span class="barcode-value" id="zoneBarcodeValue">Sin escanear</span>
-                <button class="barcode-btn" onclick="app.scanZoneBarcode()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7z"/></svg>
-                    Escanear QR IBRA
-                </button>
-            </div>
-            <div class="ibra-details" id="zoneIbraDetails" style="display:none"></div>
-        </div>
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
 
-        <div style="display:flex;gap:10px;margin-top:16px">
-            <button class="sync-btn" onclick="app.nextZone()" style="flex:1;background:linear-gradient(135deg,#7FD633,#0d9488)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                Siguiente zona
-            </button>
-        </div>
-        <p style="color:var(--text-muted);font-size:11px;text-align:center;margin-top:10px">Podés escanear el QR ahora o despues en Sync</p>
-    </div>
-</div>
+(function checkAuth() {
+  const s = sessionStorage.getItem('pix_auth');
+  if (s === 'authenticated') {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appLayout').style.display = '';
+    const savedUser = sessionStorage.getItem('pix_user');
+    if (savedUser) {
+      const ud = document.getElementById('sidebarUserName');
+      if (ud) ud.textContent = savedUser.charAt(0).toUpperCase() + savedUser.slice(1);
+      const av = document.getElementById('sidebarUserAvatar');
+      if (av) av.textContent = savedUser.charAt(0).toUpperCase();
+    }
+  }
+})();
 
-<!-- ===== IMPORT MODAL ===== -->
-<div class="modal-overlay" id="importModal">
-    <div class="modal-sheet">
-        <div class="modal-handle"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <div class="modal-title">Importar desde Drive</div>
-            <button class="fab-btn secondary" style="width:32px;height:32px" onclick="app.closeImportModal()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-        </div>
-        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
-            Archivos en la carpeta <strong>"PIX Muestreo"</strong> de Google Drive
-        </p>
-        <div id="importFileList"></div>
-    </div>
-</div>
+async function pixLogin(e) {
+  e.preventDefault();
+  const user = document.getElementById('loginUser').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
 
-<!-- ===== SCANNER OVERLAY ===== -->
-<div class="scanner-overlay" id="scannerOverlay">
-    <div class="scanner-header">
-        <span class="scanner-title">Escanear código</span>
-        <button class="fab-btn secondary" style="width:36px;height:36px" onclick="app.closeScannerOverlay()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-    </div>
-    <div id="scannerViewfinder"></div>
-    <p style="margin-top:16px;font-size:14px;color:var(--text-muted);text-align:center">Apuntá la cámara al código de barras o QR</p>
-</div>
+  // Default admin credential check via hash comparison (not plain text)
+  const defaultUserHash = '57c712d37789c12225e9fa5c5af81338cfb2a7787cf84047d52d2b40fb73afb0'; // sha256('pix')
+  const defaultPassHash = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'; // sha256('admin')
+  const inputUserHash = await sha256(user);
+  const inputPassHash = await sha256(pass);
+  if (inputUserHash === defaultUserHash && inputPassHash === defaultPassHash) {
+    _completeLogin(user, errEl);
+    return false;
+  }
 
-<!-- ===== ORDER MODAL ===== -->
-<div class="modal-overlay" id="orderModal">
-    <div class="modal-sheet">
-        <div class="modal-handle"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <div class="modal-title" id="orderModalTitle">Nueva Orden de Servicio</div>
-            <button class="fab-btn secondary" style="width:32px;height:32px" onclick="pixOrders.closeOrderModal()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-        </div>
-        <div class="collect-form">
-            <div class="form-group">
-                <label class="form-label">Proyecto</label>
-                <select class="form-input" id="orderProject" onchange="pixOrders.onProjectChange(this.value)">
-                    <option value="">Seleccionar proyecto...</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Campo / Lote</label>
-                <select class="form-input" id="orderField">
-                    <option value="">Seleccionar campo...</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Cliente</label>
-                <input type="text" class="form-input" id="orderClient" placeholder="Nombre del cliente">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Tecnico asignado</label>
-                <select class="form-input" id="orderTechnician">
-                    <option value="">Seleccionar tecnico...</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Tipo de servicio</label>
-                <select class="form-input" id="orderType">
-                    <option value="muestreo_suelo">Muestreo de Suelo</option>
-                    <option value="muestreo_foliar">Muestreo Foliar</option>
-                    <option value="mapeo_dron">Mapeo con Dron</option>
-                    <option value="consultoria">Consultoria</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Prioridad</label>
-                <select class="form-input" id="orderPriority">
-                    <option value="alta">Alta</option>
-                    <option value="media" selected>Media</option>
-                    <option value="baja">Baja</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Fecha limite</label>
-                <input type="date" class="form-input" id="orderDueDate">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Notas</label>
-                <textarea class="form-input" id="orderNotes" rows="2" placeholder="Observaciones..."></textarea>
-            </div>
-            <button class="sync-btn" onclick="pixOrders.saveOrder()" style="margin-top:8px">
-                Guardar Orden
-            </button>
-        </div>
-    </div>
-</div>
+  // Try IndexedDB multi-user auth
+  if (typeof admin !== 'undefined' && admin._db) {
+    const dbUser = await admin.verifyAdminUser(user, pass);
+    if (dbUser) {
+      _completeLogin(user, errEl);
+      return false;
+    }
+  }
 
-<!-- ===== USER MODAL ===== -->
-<div class="modal-overlay" id="userModal">
-    <div class="modal-sheet">
-        <div class="modal-handle"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <div class="modal-title" id="userModalTitle">Nuevo Usuario</div>
-            <button class="fab-btn secondary" style="width:32px;height:32px" onclick="pixAdmin.closeUserModal()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-        </div>
-        <div class="collect-form">
-            <div class="form-group">
-                <label class="form-label">Nombre</label>
-                <input type="text" class="form-input" id="userName" placeholder="Nombre completo">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Email</label>
-                <input type="email" class="form-input" id="userEmail" placeholder="email@ejemplo.com">
-            </div>
-            <div class="form-group" id="userPasswordGroup">
-                <label class="form-label">Contrasena</label>
-                <input type="password" class="form-input" id="userPassword" placeholder="Contrasena">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Rol</label>
-                <select class="form-input" id="userRole">
-                    <option value="tecnico">Tecnico</option>
-                    <option value="admin">Administrador</option>
-                    <option value="cliente">Cliente</option>
-                </select>
-            </div>
-            <button class="sync-btn" onclick="pixAdmin.saveUser()" style="margin-top:8px">
-                Guardar Usuario
-            </button>
-        </div>
-    </div>
-</div>
+  // Fallback: SHA-256 hash comparison
+  const userHash = await sha256(user);
+  const passHash = await sha256(pass);
+  if (PIX_USERS[userHash] && PIX_USERS[userHash] === passHash) {
+    _completeLogin(user, errEl);
+  } else {
+    errEl.style.display = 'block';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
+  }
+  return false;
+}
 
-<!-- Scripts -->
-<script src="lib/leaflet.js"></script>
-<script src="lib/html5-qrcode.min.js"></script>
-<script src="js/db.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/drive.js"></script>
-<script src="js/gps.js"></script>
-<script src="js/scanner.js"></script>
-<script src="js/map.js"></script>
-<script src="js/orders.js"></script>
-<script src="js/sync.js"></script>
-<script src="js/admin.js"></script>
-<script src="js/app.js"></script>
-<script src="js/agent-field.js"></script>
+function _completeLogin(user, errEl) {
+  sessionStorage.setItem('pix_auth', 'authenticated');
+  sessionStorage.setItem('pix_user', user);
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appLayout').style.display = '';
+  errEl.style.display = 'none';
+  const ud = document.getElementById('sidebarUserName');
+  if (ud) ud.textContent = user.charAt(0).toUpperCase() + user.slice(1);
+  const av = document.getElementById('sidebarUserAvatar');
+  if (av) av.textContent = user.charAt(0).toUpperCase();
+}
+
+function pixLogout() {
+  sessionStorage.removeItem('pix_auth');
+  sessionStorage.removeItem('pix_user');
+  document.getElementById('loginScreen').style.display = '';
+  document.getElementById('appLayout').style.display = 'none';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/crops-data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/interpolation.js?v=13"></script>
+<script src="js/report-generator.js"></script>
+<script src="js/kriging.js?v=13"></script>
+<script src="js/zones-engine.js?v=13"></script>
+<script src="js/gee-zones-engine.js?v=13"></script>
+<script src="js/sampling-engine.js?v=13"></script>
+<script src="js/admin-app.js?v=13"></script>
+<script src="js/agent-admin.js"></script>
+<script>
+// Pre-fetch DRIS/IBRA norms so they are ready before any leaf analysis is requested.
+// The engine caches the result; concurrent calls are deduplicated automatically.
+InterpretationEngine.loadNorms('data/ibra-norms.json')
+  .then(() => console.log('DRIS/IBRA norms loaded'))
+  .catch(err => console.warn('Could not load DRIS/IBRA norms:', err));
+
+// Register PWA Service Worker with auto-update
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    console.log('PIX Admin SW registered', reg.scope);
+    // Check for updates immediately and every 60s
+    reg.update();
+    setInterval(() => reg.update(), 60000);
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated') {
+          console.log('PIX Admin updated - reloading');
+          window.location.reload();
+        }
+      });
+    });
+  }).catch(err => console.warn('SW registration failed:', err));
+}
+
+// PWA Install prompt
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show install button in sidebar
+  const btn = document.getElementById('pwaInstallBtn');
+  if (btn) btn.style.display = '';
+});
+
+function pixInstallApp() {
+  if (!deferredInstallPrompt) {
+    alert('Para instalar:\n\n Android: Menú (3 puntos) → "Instalar app" o "Agregar a pantalla de inicio"\n\n iPhone: Botón compartir (↑) → "Agregar a pantalla de inicio"');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(r => {
+    if (r.outcome === 'accepted') console.log('PIX Admin installed');
+    deferredInstallPrompt = null;
+    const btn = document.getElementById('pwaInstallBtn');
+    if (btn) btn.style.display = 'none';
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  console.log('PIX Admin PWA installed');
+  const btn = document.getElementById('pwaInstallBtn');
+  if (btn) btn.style.display = 'none';
+});
+</script>
 </body>
 </html>
