@@ -1,0 +1,15 @@
+# Build outputs
+.gradle/
+build/
+app/build/
+local.properties
+node_modules/
+
+# Signing credentials
+keystore.properties
+*.keystore
+*.jks
+
+# IDE
+.idea/
+*.iml

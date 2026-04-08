@@ -6,6 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0F1B2D">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com; connect-src 'self' https://*.googleapis.com https://pixadvisor.network; font-src 'self' data:; worker-src 'self';">
     <title>PIX Muestreo - Pixadvisor</title>
     
     <link rel="icon" type="image/png" href="icons/icon-192.png">
@@ -187,6 +188,9 @@
                         Proyectos
                     </div>
                     <div style="display:flex;gap:8px">
+                        <button class="fab-btn primary" style="width:36px;height:36px" onclick="app.showCreateProjectModal()" title="Crear proyecto">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </button>
                         <button class="fab-btn secondary" style="width:36px;height:36px" onclick="app.importLocalFile()" title="Importar archivo local">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
                         </button>

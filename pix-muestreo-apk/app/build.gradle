@@ -50,6 +50,13 @@ def twaManifest = [
     orientation: 'portrait',
 ]
 
+// Load signing credentials from keystore.properties (gitignored)
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     compileSdkVersion 36
     namespace "network.pixadvisor.muestreo"
@@ -57,8 +64,8 @@ android {
         applicationId "network.pixadvisor.muestreo"
         minSdkVersion 24
         targetSdkVersion 35
-        versionCode 10
-        versionName "3.4.2"
+        versionCode 11
+        versionName "3.4.3"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
@@ -152,10 +159,10 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('C:\\Users\\Usuario\\Downloads\\PIX-MUESTREO\\pixadvisor.keystore')
-            storePassword 'pixadvisor123'
-            keyAlias 'pixadvisor'
-            keyPassword 'pixadvisor123'
+            storeFile file(keystoreProperties['storeFile'] ?: 'pixadvisor.keystore')
+            storePassword keystoreProperties['storePassword'] ?: ''
+            keyAlias keystoreProperties['keyAlias'] ?: 'pixadvisor'
+            keyPassword keystoreProperties['keyPassword'] ?: ''
         }
     }
     buildTypes {
