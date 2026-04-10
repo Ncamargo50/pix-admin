@@ -1,6 +1,7 @@
 // PIX Muestreo - Service Worker for Offline Support
-// v41b — Audit fixes: Kalman NaN guard, fetch timeout, DB init guard, XSS hardening, memory leaks
-const CACHE_NAME = 'pix-muestreo-v43';
+// IMPORTANT: Keep CACHE_NAME in sync with APP_VERSION in js/cloud.js
+// v44 — APK v3.7.0 release, audit fixes synced
+const CACHE_NAME = 'pix-muestreo-v44';
 const TILE_CACHE = 'pix-tiles-v1';
 
 // Derive base path dynamically — works in both web (/pix-muestreo/) and APK WebView
