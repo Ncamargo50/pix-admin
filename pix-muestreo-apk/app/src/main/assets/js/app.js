@@ -1820,8 +1820,8 @@ class PixApp {
     const key = await pixDB.getSetting('cloud_key');
     const urlEl = document.getElementById('cloudUrl');
     const keyEl = document.getElementById('cloudKey');
-    if (urlEl && url) urlEl.value = url;
-    if (keyEl && key) keyEl.value = key;
+    if (urlEl) urlEl.value = url || (typeof _CLOUD_DEFAULT_URL !== 'undefined' ? _CLOUD_DEFAULT_URL : '');
+    if (keyEl) keyEl.value = key || (typeof _CLOUD_DEFAULT_KEY !== 'undefined' ? _CLOUD_DEFAULT_KEY : '');
   }
 
   // Export all data as JSON (offline backup)

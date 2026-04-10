@@ -2,6 +2,10 @@
 // Uses direct REST API (PostgREST) — no external library needed
 // Works alongside Google Drive sync — independent fallback paths
 
+// Default Supabase credentials (PIX Muestreo project)
+const _CLOUD_DEFAULT_URL = 'https://fnoocboaupjmxpkhdnij.supabase.co';
+const _CLOUD_DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZub29jYm9hdXBqbXhwa2hkbmlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NzA3MTYsImV4cCI6MjA5MTM0NjcxNn0.WCoLdveWAwpcwzWpvLFSgQeXeot6X263DTffdEWoCfg';
+
 class PixCloud {
   constructor() {
     this.url = '';       // e.g. 'https://xxxxx.supabase.co'
@@ -9,16 +13,19 @@ class PixCloud {
     this._enabled = false;
   }
 
-  // Initialize from saved settings
+  // Initialize from saved settings (falls back to hardcoded defaults)
   async init() {
     try {
-      this.url = (await pixDB.getSetting('cloud_url') || '').trim().replace(/\/+$/, '');
-      this.key = (await pixDB.getSetting('cloud_key') || '').trim();
+      this.url = (await pixDB.getSetting('cloud_url') || _CLOUD_DEFAULT_URL).trim().replace(/\/+$/, '');
+      this.key = (await pixDB.getSetting('cloud_key') || _CLOUD_DEFAULT_KEY).trim();
       this._enabled = !!(this.url && this.key);
       if (this._enabled) console.log('[Cloud] Initialized:', this.url);
     } catch (e) {
-      console.warn('[Cloud] Init error:', e.message);
-      this._enabled = false;
+      // Even on DB error, try defaults
+      this.url = _CLOUD_DEFAULT_URL;
+      this.key = _CLOUD_DEFAULT_KEY;
+      this._enabled = true;
+      console.warn('[Cloud] Init from defaults (DB error):', e.message);
     }
   }
 
