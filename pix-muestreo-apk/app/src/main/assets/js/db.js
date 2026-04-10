@@ -125,7 +125,7 @@ class PixDB {
         id: 'admin-default',
         name: 'Administrador',
         email: 'admin@pixadvisor.local',
-        passwordHash: '7a17b544989777f595141ea66cc7b88f7e6d5efcb9f6d5f4fef6c1f1e187127e', // pix2026
+        passwordHash: '7a17b544989777f595141ea66cc7b88f7e6d5efcb9f6d5f4fef6c1f1e187127e',
         role: 'admin',
         active: true,
         createdAt: new Date().toISOString()

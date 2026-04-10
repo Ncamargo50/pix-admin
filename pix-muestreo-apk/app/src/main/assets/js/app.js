@@ -1973,6 +1973,48 @@ class PixApp {
     if (keyEl) keyEl.value = key || (typeof _CLOUD_DEFAULT_KEY !== 'undefined' ? _CLOUD_DEFAULT_KEY : '');
   }
 
+  // ═══════════════════════════════════════════════
+  // MASTER KEY MANAGEMENT (admin only)
+  // ═══════════════════════════════════════════════
+
+  async saveMasterKey() {
+    const newPass = document.getElementById('masterKeyNew')?.value || '';
+    const confirm = document.getElementById('masterKeyConfirm')?.value || '';
+
+    if (!newPass) {
+      this.toast('Ingresa la nueva clave maestra', 'warning');
+      return;
+    }
+    if (newPass.length < 6) {
+      this.toast('La clave debe tener al menos 6 caracteres', 'warning');
+      return;
+    }
+    if (newPass !== confirm) {
+      this.toast('Las claves no coinciden', 'error');
+      return;
+    }
+
+    try {
+      await pixAuth.setMasterKey(newPass);
+      document.getElementById('masterKeyNew').value = '';
+      document.getElementById('masterKeyConfirm').value = '';
+      this._loadMasterKeyStatus();
+      this.toast('Clave maestra actualizada correctamente', 'success');
+    } catch (e) {
+      this.toast('Error: ' + e.message, 'error');
+    }
+  }
+
+  _loadMasterKeyStatus() {
+    const el = document.getElementById('masterKeyStatus');
+    if (!el) return;
+    if (pixAuth.hasMasterKey()) {
+      el.innerHTML = '<span style="color:#22c55e">&#x1f512; Clave maestra configurada</span> — podes cambiarla abajo';
+    } else {
+      el.innerHTML = '<span style="color:#f59e0b">&#x26a0; Sin clave maestra</span> — configura una para acceso de emergencia';
+    }
+  }
+
   // Export all data as JSON (offline backup)
   async exportLocalBackup() {
     const data = {

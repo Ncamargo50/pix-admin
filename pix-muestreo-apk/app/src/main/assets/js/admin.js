@@ -417,6 +417,27 @@ class PixAdmin {
         </div>
       </div>
 
+      <div class="settings-group" style="border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:16px;background:rgba(239,68,68,0.03)">
+        <div class="settings-group-title" style="color:#ef4444;display:flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Seguridad — Clave Maestra
+        </div>
+        <div id="masterKeyStatus" style="font-size:12px;color:var(--text-muted);margin:8px 0;padding:8px;background:var(--dark-2);border-radius:6px">
+          Verificando...
+        </div>
+        <div class="setting-item" style="flex-direction:column;align-items:stretch">
+          <label class="form-label">Nueva clave maestra</label>
+          <input type="password" id="masterKeyNew" class="form-input" placeholder="Minimo 6 caracteres">
+          <label class="form-label" style="margin-top:8px">Confirmar clave</label>
+          <input type="password" id="masterKeyConfirm" class="form-input" placeholder="Repetir clave">
+          <button class="action-btn primary" onclick="app.saveMasterKey()" style="margin-top:10px;background:linear-gradient(135deg,#ef4444,#f59e0b);border:none">Guardar Clave Maestra</button>
+        </div>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5">
+          La clave maestra permite acceso admin con cualquier email/nombre.
+          Solo vos debes conocerla. Si la olvidas, podes resetearla aqui.
+        </p>
+      </div>
+
       <div style="text-align:center;padding:24px 0;color:var(--text-muted);font-size:12px">
         <img src="icons/icon-192.png" alt="PIX" style="width:40px;height:40px;border-radius:12px;margin-bottom:8px;display:block;margin:0 auto 8px">
         PIX Muestreo v3.4.2<br>
@@ -426,6 +447,10 @@ class PixAdmin {
     // Update tile cache stats
     if (typeof app !== 'undefined' && app.updateTileCacheStats) {
       app.updateTileCacheStats();
+    }
+    // Load master key status
+    if (typeof app !== 'undefined' && app._loadMasterKeyStatus) {
+      app._loadMasterKeyStatus();
     }
   }
 }
