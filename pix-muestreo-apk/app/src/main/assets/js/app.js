@@ -3255,6 +3255,56 @@ ${detailHTML}
           }
         }
       }
+
+      // ── Bridge cloud technicians → local IndexedDB users (enables APK login) ──
+      for (const t of techs) {
+        if (!t.username && !t.email) continue;
+        const email = (t.email || t.username || '').toLowerCase().trim();
+        if (!email) continue;
+        try {
+          const existing = await pixDB.getByIndex('users', 'email', email);
+          if (existing) {
+            // Update password + role if cloud is newer
+            let changed = false;
+            if (t.password_hash && t.password_hash !== existing.passwordHash) {
+              existing.passwordHash = t.password_hash;
+              changed = true;
+            }
+            if (t.role && t.role !== existing.role) {
+              existing.role = t.role;
+              changed = true;
+            }
+            if (t.full_name && t.full_name !== existing.name) {
+              existing.name = t.full_name;
+              changed = true;
+            }
+            if (changed) {
+              existing.updatedAt = new Date().toISOString();
+              existing._syncedFrom = 'cloud';
+              await pixDB.putUser(existing);
+            }
+          } else {
+            // Create new local user from cloud technician
+            if (!t.password_hash) continue; // Skip techs without password
+            const user = {
+              id: 'cloud-' + (t.id || Date.now() + '-' + Math.random().toString(36).substr(2, 6)),
+              name: t.full_name || t.username || email,
+              email: email,
+              passwordHash: t.password_hash,
+              role: t.role || 'tecnico',
+              phone: t.phone || '',
+              active: true,
+              createdAt: new Date().toISOString(),
+              _syncedFrom: 'cloud'
+            };
+            await pixDB.putUser(user);
+            console.log(`[Cloud] Created local user: ${user.name} (${email})`);
+          }
+        } catch (e) {
+          console.warn(`[Cloud] User bridge failed for ${email}:`, e.message);
+        }
+      }
+
     } catch (e) {
       console.warn('[App] Credential sync:', e.message);
     }
