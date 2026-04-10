@@ -11,6 +11,7 @@ class PixCloud {
     this.url = '';       // e.g. 'https://xxxxx.supabase.co'
     this.key = '';       // anon public key
     this._enabled = false;
+    this._syncing = false; // Mutex: prevent concurrent syncAll
   }
 
   // Initialize from saved settings (falls back to hardcoded defaults)
@@ -125,7 +126,10 @@ class PixCloud {
 
   async syncAll(onProgress) {
     if (!this._enabled) throw new Error('Cloud no configurado');
+    if (this._syncing) throw new Error('Sync ya en progreso');
+    this._syncing = true;
 
+    try {
     const projects = await pixDB.getAll('projects');
     const allSamples = await pixDB.getAll('samples');
     const allFields = await pixDB.getAll('fields');
@@ -167,6 +171,7 @@ class PixCloud {
     }
 
     return { synced, total };
+    } finally { this._syncing = false; }
   }
 
   // ═══════════════════════════════════════════════

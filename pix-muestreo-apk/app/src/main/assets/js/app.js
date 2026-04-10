@@ -130,13 +130,15 @@ class PixApp {
       } catch (e) { console.log('Drive init deferred'); }
     }
 
-    // Init Cloud sync (Supabase)
-    await pixCloud.init();
-    this._updateCloudStatus();
-    if (pixCloud.isEnabled()) {
-      const cloudBtn = document.getElementById('cloudSyncBtn');
-      if (cloudBtn) cloudBtn.style.display = '';
-    }
+    // Init Cloud sync (Supabase) — guarded like Drive
+    try {
+      await pixCloud.init();
+      this._updateCloudStatus();
+      if (pixCloud.isEnabled()) {
+        const cloudBtn = document.getElementById('cloudSyncBtn');
+        if (cloudBtn) cloudBtn.style.display = '';
+      }
+    } catch (e) { console.warn('[Cloud] Init deferred:', e.message); }
 
     // Load projects
     this.loadProjects();
