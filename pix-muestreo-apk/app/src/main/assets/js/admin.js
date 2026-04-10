@@ -120,16 +120,16 @@ class PixAdmin {
         <div class="card user-card" style="margin-bottom:8px;opacity:${u.active ? '1' : '0.5'}">
           <div class="card-header">
             <div>
-              <div class="card-title">${u.name}</div>
-              <div style="font-size:12px;color:var(--text-muted)">${u.email}</div>
+              <div class="card-title">${escH(u.name)}</div>
+              <div style="font-size:12px;color:var(--text-muted)">${escH(u.email)}</div>
             </div>
             <div style="display:flex;gap:6px;align-items:center">
               <span class="card-badge ${pixAuth.getRoleBadgeClass(u.role)}">${pixAuth.getRoleLabel(u.role)}</span>
               ${u.id !== 'admin-default' ? `
-                <button class="fab-btn secondary" style="width:28px;height:28px" onclick="pixAdmin.showUserForm('${u.id}')" title="Editar">
+                <button class="fab-btn secondary" style="width:28px;height:28px" onclick="pixAdmin.showUserForm('${escJS(u.id)}')" title="Editar">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                 </button>
-                <button class="fab-btn secondary" style="width:28px;height:28px" onclick="pixAdmin.toggleUser('${u.id}')" title="${u.active ? 'Desactivar' : 'Activar'}">
+                <button class="fab-btn secondary" style="width:28px;height:28px" onclick="pixAdmin.toggleUser('${escJS(u.id)}')" title="${u.active ? 'Desactivar' : 'Activar'}">
                   <svg viewBox="0 0 24 24" fill="none" stroke="${u.active ? 'var(--danger)' : 'var(--success)'}" stroke-width="2" style="width:14px;height:14px">
                     ${u.active ? '<path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>' : '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>'}
                   </svg>

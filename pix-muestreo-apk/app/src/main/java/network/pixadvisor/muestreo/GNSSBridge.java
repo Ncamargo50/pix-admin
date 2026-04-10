@@ -219,8 +219,10 @@ public class GNSSBridge {
             listening = true;
             Log.i(TAG, "GNSS listeners registered (GnssStatus + NMEA)");
         } catch (SecurityException e) {
+            listening = false;
             Log.e(TAG, "No location permission for GNSS: " + e.getMessage());
         } catch (Exception e) {
+            listening = false;
             Log.e(TAG, "Failed to register GNSS listeners: " + e.getMessage());
         }
     }
@@ -291,13 +293,17 @@ public class GNSSBridge {
             if (Build.VERSION.SDK_INT >= 26 && status.hasCarrierFrequencyHz(i)) {
                 float freq = status.getCarrierFrequencyHz(i);
                 carrierFreq = true;
-                // L1 band ≈ 1575.42 MHz (GPS/Galileo/BeiDou/QZSS)
-                if (freq > 1500e6) countL1++;
-                // L5 band ≈ 1176.45 MHz (GPS/Galileo/NavIC)
-                if (freq > 1100e6 && freq < 1300e6) {
+                float freqMHz = freq / 1e6f;
+                // L1 band ≈ 1575.42 MHz (±20 MHz tolerance)
+                if (freqMHz > 1555 && freqMHz < 1596) countL1++;
+                // L5 band ≈ 1176.45 MHz (±20 MHz tolerance)
+                if (freqMHz > 1156 && freqMHz < 1197) {
                     countL5++;
                     dualFreq = true;
                 }
+                // L2 band ≈ 1227.60 MHz (GLONASS/GPS military, some civilian)
+                // Not counted but detected as dual-freq
+                if (freqMHz > 1207 && freqMHz < 1248) dualFreq = true;
             }
 
             // Build per-satellite detail JSON (only satellites with signal)
@@ -311,10 +317,14 @@ public class GNSSBridge {
                     sat.put("azimuth", Math.round(azimuth));
                     sat.put("usedInFix", inFix);
                     if (Build.VERSION.SDK_INT >= 26 && status.hasCarrierFrequencyHz(i)) {
-                        float freq = status.getCarrierFrequencyHz(i);
-                        sat.put("freqMHz", round1(freq / 1e6f));
-                        sat.put("band", freq > 1500e6 ? "L1"
-                            : (freq > 1100e6 && freq < 1300e6) ? "L5" : "Other");
+                        float fq = status.getCarrierFrequencyHz(i);
+                        float fqMHz = fq / 1e6f;
+                        sat.put("freqMHz", round1(fqMHz));
+                        String band = "Other";
+                        if (fqMHz > 1555 && fqMHz < 1596) band = "L1";
+                        else if (fqMHz > 1156 && fqMHz < 1197) band = "L5";
+                        else if (fqMHz > 1207 && fqMHz < 1248) band = "L2";
+                        sat.put("band", band);
                     }
                     details.put(sat);
                 } catch (Exception ignored) {}

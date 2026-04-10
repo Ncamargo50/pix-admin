@@ -5,6 +5,11 @@ function escH(str) {
   if (str == null) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+// XSS protection — escape for JS string context inside onclick handlers
+function escJS(str) {
+  if (str == null) return '';
+  return String(str).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/</g,'\\x3c').replace(/>/g,'\\x3e');
+}
 
 // Field-friendly modal system — large touch targets, readable in sunlight
 const pixModal = {
@@ -3076,14 +3081,14 @@ h1{font-size:16px;color:#333}h2{font-size:14px;color:#555;margin:16px 0 8px}
   // Check if all points in a zone are collected
   async _checkZoneComplete(zona) {
     const points = await pixDB.getAllByIndex('points', 'fieldId', this.currentField.id);
-    const zonePoints = points.filter(p => this._detectZone(p) == zona);
+    const zonePoints = points.filter(p => String(this._detectZone(p)) === String(zona));
     return zonePoints.length > 0 && zonePoints.every(p => p.status === 'collected');
   }
 
   // Show zone complete modal with QR IBRA scan
   async _openZoneCompleteModal(zona) {
     const points = await pixDB.getAllByIndex('points', 'fieldId', this.currentField.id);
-    const zonePoints = points.filter(p => this._detectZone(p) == zona);
+    const zonePoints = points.filter(p => String(this._detectZone(p)) === String(zona));
     const subs = zonePoints.filter(p => this._detectPointType(p) === 'submuestra');
     const principal = zonePoints.find(p => this._detectPointType(p) === 'principal');
 

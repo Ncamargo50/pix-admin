@@ -163,8 +163,10 @@ class GPSNavigator {
     this.targetPoint = null;
   }
 
-  // Haversine distance (meters)
+  // Haversine distance (meters) — null-safe
   distanceTo(lat1, lng1, lat2, lng2) {
+    if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return NaN;
+    if (!isFinite(lat1) || !isFinite(lng1) || !isFinite(lat2) || !isFinite(lng2)) return NaN;
     const R = 6371000;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
@@ -341,7 +343,9 @@ class GPSNavigator {
             let bestAcc = Infinity;
 
             for (const r of filtered) {
-              const weight = 1 / (r.accuracy * r.accuracy); // peso cuadrático inverso
+              // Guard: accuracy must be positive to avoid Infinity weight
+              const acc = Math.max(r.accuracy, 0.1);
+              const weight = 1 / (acc * acc); // peso cuadrático inverso
               totalWeight += weight;
               wLat += r.lat * weight;
               wLng += r.lng * weight;
@@ -349,9 +353,10 @@ class GPSNavigator {
               if (r.accuracy < bestAcc) bestAcc = r.accuracy;
             }
 
-            const avgLat = wLat / totalWeight;
-            const avgLng = wLng / totalWeight;
-            const avgAlt = wAlt / totalWeight;
+            // Guard: if totalWeight is zero/NaN, fall back to simple average
+            const avgLat = totalWeight > 0 ? wLat / totalWeight : filtered.reduce((s, r) => s + r.lat, 0) / filtered.length;
+            const avgLng = totalWeight > 0 ? wLng / totalWeight : filtered.reduce((s, r) => s + r.lng, 0) / filtered.length;
+            const avgAlt = totalWeight > 0 ? wAlt / totalWeight : 0;
 
             // Calcular dispersión real de las lecturas filtradas (desvío estándar en metros)
             let sumSqDist = 0;
@@ -466,6 +471,15 @@ class GPSNavigator {
    * ADAPTIVE: responds fast to movement, smooths when still.
    */
   _kalmanUpdate(measurement, accuracy, timestamp) {
+    // Guard: reject NaN/undefined measurements (would poison filter permanently)
+    if (!isFinite(measurement.lat) || !isFinite(measurement.lng) || !isFinite(accuracy) || accuracy <= 0) {
+      // Return last known good position or raw measurement
+      if (this.kalman.initialized) {
+        return { lat: this.kalman.lat, lng: this.kalman.lng, accuracy: Math.sqrt(this.kalman.variance) };
+      }
+      return { lat: measurement.lat || 0, lng: measurement.lng || 0, accuracy: accuracy || 999 };
+    }
+
     if (!this.kalman.initialized) {
       this.kalman.lat = measurement.lat;
       this.kalman.lng = measurement.lng;
@@ -495,6 +509,13 @@ class GPSNavigator {
 
     // Prevent variance from collapsing to near-zero (would freeze the filter)
     this.kalman.variance = Math.max(this.kalman.variance, 0.0000001);
+
+    // Safety: if NaN leaked through despite guards, reset filter
+    if (!isFinite(this.kalman.lat) || !isFinite(this.kalman.lng)) {
+      console.warn('[GPS] Kalman NaN detected — resetting filter');
+      this.resetKalman();
+      return { lat: measurement.lat, lng: measurement.lng, accuracy: accuracy };
+    }
 
     return {
       lat: this.kalman.lat,
@@ -538,7 +559,7 @@ class GPSNavigator {
       }
     }
 
-    // 2.3 FIX: After 90s without achieving <15m, force warm-up with degraded flag
+    // 2.3 FIX: After 45s without achieving <15m, force warm-up with degraded flag
     // Prevents technician from being stuck indefinitely under tree cover/valleys
     if (!this.isWarmedUp && this._warmupStartTime) {
       const elapsed = (Date.now() - this._warmupStartTime) / 1000;

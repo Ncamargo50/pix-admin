@@ -1,6 +1,6 @@
 // PIX Muestreo - Service Worker for Offline Support
-// v41 — Native GNSS bridge: real satellite count, HDOP/PDOP/VDOP, constellations, L1/L5, C/N0
-const CACHE_NAME = 'pix-muestreo-v41';
+// v41b — Audit fixes: Kalman NaN guard, fetch timeout, DB init guard, XSS hardening, memory leaks
+const CACHE_NAME = 'pix-muestreo-v41b';
 const TILE_CACHE = 'pix-tiles-v1';
 
 // Derive base path dynamically — works in both web (/pix-muestreo/) and APK WebView
