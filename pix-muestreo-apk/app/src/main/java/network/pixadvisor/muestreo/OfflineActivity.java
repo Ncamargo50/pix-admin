@@ -54,8 +54,29 @@ public class OfflineActivity extends Activity {
      */
     private class WebAppInterface {
         @JavascriptInterface
-        public void startGoogleAuth(String clientId) {
-            String authUrl = "https://accounts.google.com/o/oauth2/v2/auth"
+        public void openAuthUrl(final String authUrl) {
+            Log.i(TAG, "[OAuth] openAuthUrl: " + (authUrl != null ? authUrl.substring(0, Math.min(80, authUrl.length())) + "..." : "NULL"));
+            runOnUiThread(() -> {
+                try {
+                    CustomTabsIntent customTabsIntent = new CustomTabsIntent.Builder().build();
+                    customTabsIntent.launchUrl(OfflineActivity.this, Uri.parse(authUrl));
+                } catch (Exception e) {
+                    Log.e(TAG, "[OAuth] Custom Tabs failed: " + e.getMessage());
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(authUrl)));
+                    } catch (Exception ex) {
+                        Log.e(TAG, "[OAuth] Browser fallback also failed: " + ex.getMessage());
+                        Toast.makeText(OfflineActivity.this, "Error: No se pudo abrir el navegador", Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void startGoogleAuth(final String clientId) {
+            Log.i(TAG, "[OAuth] startGoogleAuth (legacy) clientId: " + (clientId != null ? clientId.substring(0, Math.min(20, clientId.length())) + "..." : "NULL"));
+
+            final String authUrl = "https://accounts.google.com/o/oauth2/v2/auth"
                 + "?client_id=" + Uri.encode(clientId)
                 + "&redirect_uri=" + Uri.encode("https://pixadvisor.network/pix-muestreo/oauth-callback.html")
                 + "&response_type=token"
@@ -63,15 +84,26 @@ public class OfflineActivity extends Activity {
                 + "&prompt=consent"
                 + "&include_granted_scopes=true";
 
-            try {
-                CustomTabsIntent customTabsIntent = new CustomTabsIntent.Builder().build();
-                customTabsIntent.launchUrl(OfflineActivity.this, Uri.parse(authUrl));
-            } catch (Exception e) {
-                // Fallback to system browser
+            runOnUiThread(() -> {
                 try {
-                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(authUrl)));
-                } catch (Exception ex) { /* ignore */ }
-            }
+                    CustomTabsIntent customTabsIntent = new CustomTabsIntent.Builder().build();
+                    customTabsIntent.launchUrl(OfflineActivity.this, Uri.parse(authUrl));
+                } catch (Exception e) {
+                    Log.e(TAG, "[OAuth] Custom Tabs failed: " + e.getMessage());
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(authUrl)));
+                    } catch (Exception ex) {
+                        Log.e(TAG, "[OAuth] Browser fallback also failed: " + ex.getMessage());
+                        Toast.makeText(OfflineActivity.this, "Error: No se pudo abrir el navegador", Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public String ping() {
+            // Debug method to verify bridge is working
+            return "AndroidBridge OK";
         }
     }
 
