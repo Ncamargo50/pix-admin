@@ -21,8 +21,8 @@
     "path": "C:\Users\Usuario\Downloads\PIX-MUESTREO\pixadvisor.keystore",
     "alias": "pixadvisor"
   },
-  "appVersionCode": 9,
-  "appVersionName": "3.4.1",
+  "appVersionCode": 13,
+  "appVersionName": "3.6.0",
   "webManifestUrl": "https://pixadvisor.network/pix-muestreo/manifest.json",
   "generatorApp": "bubblewrap-cli",
   "fallbackType": "webview",

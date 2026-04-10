@@ -255,8 +255,14 @@ public class OfflineActivity extends Activity {
             if (token != null && webView != null) {
                 int expSeconds = 3600;
                 try { expSeconds = Integer.parseInt(expiresIn); } catch (Exception e) {}
-                String js = "driveSync.setTokenFromNative('" + token.replace("'", "\\'") + "', " + expSeconds + ")";
-                webView.evaluateJavascript(js, null);
+                // Use Base64 encoding to prevent JS injection via malformed tokens
+                try {
+                    String b64Token = Base64.encodeToString(token.getBytes("UTF-8"), Base64.NO_WRAP);
+                    String js = "if(typeof driveSync!=='undefined')driveSync.setTokenFromNative(atob('" + b64Token + "'), " + expSeconds + ")";
+                    webView.evaluateJavascript(js, null);
+                } catch (Exception encErr) {
+                    Log.e(TAG, "Token encoding error", encErr);
+                }
             }
             return;
         }
