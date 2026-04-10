@@ -197,6 +197,9 @@ class PixApp {
       });
     }
 
+    // Auto-sync check: triggers if >24h since last sync or when online
+    this._checkAutoSync();
+
     console.log('PIX Muestreo initialized');
   }
 
@@ -1753,7 +1756,9 @@ class PixApp {
         try { await this._pullCloudOrders(); } catch (e) { console.warn('[Sync] pullOrders:', e.message); }
         try { await this._registerDevice(); } catch (e) { console.warn('[Sync] registerDevice:', e.message); }
         try { await this._syncCloudCredentials(); } catch (e) { console.warn('[Sync] credentials:', e.message); }
+        try { await this._syncBoundariesToCloud(); } catch (e) { console.warn('[Sync] boundaries:', e.message); }
       }
+      await pixDB.setSetting('lastSyncTime', String(Date.now()));
     } catch (e) {
       this.addSyncLog(`✗ Error: ${e.message}`);
       this.toast('Error al sincronizar', 'error');
@@ -1786,6 +1791,8 @@ class PixApp {
       try { await this._pullCloudOrders(); } catch (e) { console.warn('[Sync] pullOrders:', e.message); }
       try { await this._registerDevice(); } catch (e) { console.warn('[Sync] registerDevice:', e.message); }
       try { await this._syncCloudCredentials(); } catch (e) { console.warn('[Sync] credentials:', e.message); }
+      try { await this._syncBoundariesToCloud(); } catch (e) { console.warn('[Sync] boundaries:', e.message); }
+      await pixDB.setSetting('lastSyncTime', String(Date.now()));
     } catch (e) {
       this.addSyncLog(`☁ Cloud error: ${e.message}`);
       this.toast('Error Cloud: ' + e.message, 'error');
@@ -2144,6 +2151,272 @@ ${detailHTML}
     const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
     log.innerHTML += `<div class="sync-log-entry"><span class="time">${time}</span>${message}</div>`;
     log.scrollTop = log.scrollHeight;
+  }
+
+  // ═══════════════════════════════════════════════
+  // AUTO-SAVE REPORTS OFFLINE — on field completion
+  // ═══════════════════════════════════════════════
+
+  async _autoSaveFieldReports(field) {
+    if (!field) return;
+    const project = this.currentProject || await pixDB.get('projects', field.projectId);
+    if (!project) return;
+
+    const fieldName = (field.name || 'campo').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const today = new Date().toISOString().slice(0, 10);
+
+    // 1. Auto-generate IBRA report HTML and save to Downloads
+    try {
+      const ibra = await this.loadIbraSettings();
+      const fields = [field];
+      const allSamples = await pixDB.getAll('samples');
+      const collector = await pixDB.getSetting('collectorName') || '';
+      const html = this._buildIbraReportHTML(project, fields, allSamples, ibra, collector, today);
+
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `IBRA_${fieldName}_${today}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+      this.addSyncLog(`📄 Informe IBRA guardado: ${a.download}`);
+    } catch (e) {
+      console.warn('[AutoSave] IBRA report error:', e.message);
+    }
+
+    // 2. Auto-save track report (recorridos del dia)
+    try {
+      const tracks = await pixDB.getAllByIndex('tracks', 'fieldId', field.id);
+      if (tracks.length > 0) {
+        const trackGeoJSON = this._buildTrackGeoJSON(tracks, field, project);
+        const tBlob = new Blob([JSON.stringify(trackGeoJSON, null, 2)], { type: 'application/json' });
+        const tUrl = URL.createObjectURL(tBlob);
+        const tA = document.createElement('a');
+        tA.href = tUrl;
+        tA.download = `trayecto_${fieldName}_${today}.geojson`;
+        tA.click();
+        URL.revokeObjectURL(tUrl);
+        this.addSyncLog(`🗺 Trayecto guardado: ${tA.download}`);
+      }
+    } catch (e) {
+      console.warn('[AutoSave] Track report error:', e.message);
+    }
+
+    // 3. Auto-save field boundary as GeoJSON
+    if (field.boundary) {
+      try {
+        const bBlob = new Blob([JSON.stringify(field.boundary, null, 2)], { type: 'application/json' });
+        const bUrl = URL.createObjectURL(bBlob);
+        const bA = document.createElement('a');
+        bA.href = bUrl;
+        bA.download = `perimetro_${fieldName}_${today}.geojson`;
+        bA.click();
+        URL.revokeObjectURL(bUrl);
+        this.addSyncLog(`📐 Perimetro guardado: ${bA.download}`);
+      } catch (e) {
+        console.warn('[AutoSave] Boundary save error:', e.message);
+      }
+    }
+
+    // Store the generated reports in IndexedDB for later cloud sync
+    await pixDB.setSetting(`report_pending_${field.id}`, JSON.stringify({
+      fieldId: field.id, fieldName: field.name, projectName: project.name,
+      generatedAt: new Date().toISOString(), synced: false
+    }));
+
+    this.toast('Reportes guardados en Downloads', 'success');
+  }
+
+  // Build track GeoJSON with daily trajectory
+  _buildTrackGeoJSON(tracks, field, project) {
+    const features = tracks.map((t, idx) => ({
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: (t.positions || []).map(p => [p.lng, p.lat])
+      },
+      properties: {
+        field: field.name,
+        project: project.name,
+        trackIndex: idx + 1,
+        startTime: t.startTime,
+        endTime: t.endTime,
+        pointCount: (t.positions || []).length,
+        distanceKm: this._calcTrackDistance(t.positions || [])
+      }
+    }));
+    return { type: 'FeatureCollection', features };
+  }
+
+  _calcTrackDistance(positions) {
+    let dist = 0;
+    for (let i = 1; i < positions.length; i++) {
+      dist += gpsNav.distanceTo(positions[i - 1].lat, positions[i - 1].lng, positions[i].lat, positions[i].lng);
+    }
+    return Math.round(dist) / 1000; // meters → km, rounded
+  }
+
+  // Reuse report generation logic but return HTML string (not open window)
+  _buildIbraReportHTML(project, fields, allSamples, ibra, collector, today) {
+    // Delegate to the existing generateFieldReport logic but capture HTML
+    let zonesHTML = '';
+    let detailHTML = '';
+    let totalMuestras = 0;
+    let totalPuntos = 0;
+
+    for (const field of fields) {
+      const fieldSamples = allSamples.filter(s => s.fieldId === field.id);
+      const points = [];
+      // Build zone data from samples (offline — no async DB calls needed)
+      const zoneMap = {};
+      for (const s of fieldSamples) {
+        const z = s.zona || 1;
+        if (!zoneMap[z]) zoneMap[z] = { samples: [], barcode: '', clase: '' };
+        zoneMap[z].samples.push(s);
+        if (s.zoneBarcode) zoneMap[z].barcode = s.zoneBarcode;
+        if (s.zoneIbraSampleId) zoneMap[z].ibraId = s.zoneIbraSampleId;
+      }
+
+      const sortedZones = Object.keys(zoneMap).sort((a, b) => a - b);
+
+      for (const z of sortedZones) {
+        const zd = zoneMap[z];
+        const nPts = zd.samples.length;
+        totalMuestras++;
+        totalPuntos += nPts;
+        const depths = [...new Set(zd.samples.map(s => s.depth || '0-20'))].join(', ');
+        const types = [...new Set(zd.samples.map(s => s.sampleType || 'quimico'))].join(', ');
+        const status = nPts > 0 ? 'Completa' : 'Pendiente';
+
+        zonesHTML += `<tr>
+          <td style="text-align:center;font-weight:700">${z}</td>
+          <td>${zd.ibraId || zd.barcode || '—'}</td>
+          <td>${zd.clase || '—'}</td>
+          <td style="text-align:center">${nPts}</td>
+          <td>${depths}</td>
+          <td>${types}</td>
+          <td><span style="color:${status === 'Completa' ? '#4CAF50' : '#F44336'}">${status}</span></td>
+        </tr>`;
+
+        // Detail rows
+        for (const s of zd.samples) {
+          detailHTML += `<tr>
+            <td style="text-align:center">${z}</td>
+            <td>${s.pointType === 'principal' ? '<b>Principal</b>' : 'Sub'}</td>
+            <td>${s.pointName || '—'}</td>
+            <td>${s.lat ? s.lat.toFixed(6) : '—'}</td>
+            <td>${s.lng ? s.lng.toFixed(6) : '—'}</td>
+            <td>${s.accuracy ? s.accuracy.toFixed(1) + 'm' : '—'}</td>
+            <td>${s.depth || '0-20'}</td>
+            <td>${s.collectedAt ? new Date(s.collectedAt).toLocaleTimeString('es') : '—'}</td>
+          </tr>`;
+        }
+      }
+    }
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>IBRA ${project.name} ${today}</title>
+<style>body{font-family:Arial,sans-serif;font-size:12px;color:#333;margin:20px}
+table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border:1px solid #ddd;padding:6px 8px;font-size:11px}
+th{background:#f5f5f5;font-weight:600}.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #333;padding-bottom:8px;margin-bottom:16px}
+h1{font-size:16px;color:#333}h2{font-size:14px;color:#555;margin:16px 0 8px}
+.footer{margin-top:20px;text-align:center;font-size:10px;color:#999;border-top:1px solid #ddd;padding-top:8px}
+@media print{.page-break{page-break-before:always}}</style></head><body>
+<div class="header"><div><h1>Ficha de Envio de Muestras — IBRA Megalab</h1><p style="margin:4px 0;font-size:11px">${project.name}</p></div>
+<div style="text-align:right;font-size:11px"><b>Fecha:</b> ${today}<br><b>Colector:</b> ${collector}</div></div>
+<table><tr><td><b>Solicitante:</b> ${ibra.solicitante || '—'}</td><td><b>Responsavel:</b> ${ibra.responsavel || '—'}</td></tr>
+<tr><td><b>Telefone:</b> ${ibra.telefone || '—'}</td><td><b>Email:</b> ${ibra.email || '—'}</td></tr>
+<tr><td><b>CNPJ/CPF:</b> ${ibra.cnpj || '—'}</td><td><b>Endereco:</b> ${ibra.endereco || '—'}</td></tr>
+<tr><td><b>Municipio:</b> ${ibra.municipio || '—'} / ${ibra.uf || '—'}</td><td><b>CEP:</b> ${ibra.cep || '—'}</td></tr></table>
+<h2>Resumen por Zona de Manejo</h2>
+<table><thead><tr><th>Zona</th><th>QR IBRA</th><th>Clase</th><th>Puntos</th><th>Prof.</th><th>Analisis</th><th>Estado</th></tr></thead>
+<tbody>${zonesHTML}</tbody></table>
+<p style="font-size:11px;color:#666">Total: ${totalMuestras} zonas, ${totalPuntos} puntos</p>
+<div class="page-break"></div>
+<h2>Detalle de Puntos por Zona</h2>
+<table><thead><tr><th>Zona</th><th>Tipo</th><th>Punto</th><th>Lat</th><th>Lng</th><th>Prec.</th><th>Prof.</th><th>Hora</th></tr></thead>
+<tbody>${detailHTML}</tbody></table>
+<div class="footer">PIX Muestreo — Pixadvisor Agricultura de Precision — pixadvisor.network — ${new Date().toLocaleString('es')}</div>
+</body></html>`;
+  }
+
+  // ═══════════════════════════════════════════════
+  // AUTO-SYNC 24H — triggers sync if not synced in 24 hours
+  // ═══════════════════════════════════════════════
+
+  async _checkAutoSync() {
+    const lastSync = await pixDB.getSetting('lastSyncTime');
+    const now = Date.now();
+    if (lastSync) {
+      const elapsed = now - parseInt(lastSync);
+      const TWENTY_FOUR_H = 24 * 60 * 60 * 1000;
+      if (elapsed > TWENTY_FOUR_H) {
+        console.log('[AutoSync] 24h since last sync — auto-triggering');
+        this.addSyncLog('⏰ Auto-sync: 24h sin sincronizar');
+        this._runAutoSync();
+      }
+    }
+    // Also listen for connectivity changes
+    window.addEventListener('online', () => {
+      setTimeout(() => this._runAutoSync(), 3000);
+    });
+  }
+
+  async _runAutoSync() {
+    if (this._autoSyncing) return;
+    this._autoSyncing = true;
+    try {
+      // Sync to Cloud first (lighter)
+      if (pixCloud.isEnabled()) {
+        const result = await pixCloud.syncAll();
+        this.addSyncLog(`☁ Auto-sync: ${result.synced} campos`);
+        // Upload pending boundaries
+        await this._syncBoundariesToCloud();
+        try { await this._registerDevice(); } catch (e) { /* silent */ }
+        try { await this._pullCloudOrders(); } catch (e) { /* silent */ }
+        try { await this._syncCloudCredentials(); } catch (e) { /* silent */ }
+      }
+      // Sync to Drive if authenticated
+      if (driveSync.isAuthenticated()) {
+        const result = await driveSync.syncAll();
+        this.addSyncLog(`📁 Auto-sync: ${result.synced} muestras a Drive`);
+      }
+      await pixDB.setSetting('lastSyncTime', String(Date.now()));
+      this.toast('Auto-sync completado', 'success');
+    } catch (e) {
+      console.warn('[AutoSync] Error:', e.message);
+    }
+    this._autoSyncing = false;
+  }
+
+  // ═══════════════════════════════════════════════
+  // SYNC BOUNDARIES TO CLOUD — upload perimeters as GeoJSON
+  // ═══════════════════════════════════════════════
+
+  async _syncBoundariesToCloud() {
+    if (!pixCloud.isEnabled()) return;
+    const settings = pixCloud.getSettings ? pixCloud.getSettings() : null;
+    if (!settings) return;
+    try {
+      const allFields = await pixDB.getAll('fields');
+      for (const field of allFields) {
+        if (!field.boundary) continue;
+        const project = await pixDB.get('projects', field.projectId);
+        if (!project) continue;
+        // PATCH boundary into field_syncs via direct REST
+        const url = settings.url + '/rest/v1/field_syncs?project=eq.' + encodeURIComponent(project.name) + '&field_name=eq.' + encodeURIComponent(field.name);
+        await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'apikey': settings.key, 'Authorization': 'Bearer ' + settings.key,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ boundary: field.boundary, area_ha: field.area || null, updated_at: new Date().toISOString() })
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[Cloud] Boundary sync error:', e.message);
+    }
   }
 
   // ===== SETTINGS =====
@@ -2686,6 +2959,12 @@ ${detailHTML}
   }
 
   // Navigate to next zone after completing current one
+  // Skip IBRA QR scanning — just close modal and move on
+  skipZoneIBRA() {
+    this.toast('Zona sin QR IBRA — continuando', 'info');
+    this.nextZone();
+  }
+
   async nextZone() {
     document.getElementById('zoneCompleteModal').classList.remove('active');
 
@@ -2700,6 +2979,11 @@ ${detailHTML}
       pixMap.clearNavigationLine();
       this.isNavigating = false;
       const _ov2 = document.getElementById('mapDistOverlay'); if (_ov2) _ov2.style.display = 'none';
+
+      // Auto-save IBRA report + track report to Downloads
+      this._autoSaveFieldReports(this.currentField).catch(e => {
+        console.warn('[AutoSave] Report error:', e.message);
+      });
     } else {
       // Navigate to next zone's principal
       this.nextPoint();
