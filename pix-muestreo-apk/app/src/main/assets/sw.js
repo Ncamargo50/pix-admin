@@ -1,6 +1,6 @@
 // PIX Muestreo - Service Worker for Offline Support
-// v34 — Audit fixes: cloud import IDs, field_data format, credential sync
-const CACHE_NAME = 'pix-muestreo-v34';
+// v35 — Auto order status lifecycle, collectorName auto-match, resilient sync
+const CACHE_NAME = 'pix-muestreo-v35';
 const TILE_CACHE = 'pix-tiles-v1';
 
 // Derive base path dynamically — works in both web (/pix-muestreo/) and APK WebView

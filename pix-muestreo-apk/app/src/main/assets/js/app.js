@@ -1118,6 +1118,9 @@ class PixApp {
     this.closeCollectForm();
     this.toast(`${isSubmuestra ? 'Submuestra' : 'Muestra'} guardada: ${escH(this.currentPoint.name)}`, 'success');
 
+    // Auto-update cloud order status: asignada → en_progreso on first sample
+    this._autoUpdateOrderStatus(this.currentField.id, 'en_progreso').catch(() => {});
+
     // Check if current zone is complete → show QR modal
     const currentZone = this._detectZone(this.currentPoint);
     const zoneComplete = await this._checkZoneComplete(currentZone);
@@ -1746,10 +1749,10 @@ class PixApp {
           this.addSyncLog(`☁ Cloud: ${ce.message}`);
         }
 
-        // Pull orders + register device + sync credentials after sync
-        await this._pullCloudOrders();
-        await this._registerDevice();
-        await this._syncCloudCredentials();
+        // Pull orders + register device + sync credentials (each independently)
+        try { await this._pullCloudOrders(); } catch (e) { console.warn('[Sync] pullOrders:', e.message); }
+        try { await this._registerDevice(); } catch (e) { console.warn('[Sync] registerDevice:', e.message); }
+        try { await this._syncCloudCredentials(); } catch (e) { console.warn('[Sync] credentials:', e.message); }
       }
     } catch (e) {
       this.addSyncLog(`✗ Error: ${e.message}`);
@@ -1779,10 +1782,10 @@ class PixApp {
       this.addSyncLog(`☁ ${result.synced} campos sincronizados a Cloud`);
       this.toast(`${result.synced} campos subidos al Cloud`, 'success');
 
-      // Pull orders + register device + sync credentials
-      await this._pullCloudOrders();
-      await this._registerDevice();
-      await this._syncCloudCredentials();
+      // Pull orders + register device + sync credentials (each independently)
+      try { await this._pullCloudOrders(); } catch (e) { console.warn('[Sync] pullOrders:', e.message); }
+      try { await this._registerDevice(); } catch (e) { console.warn('[Sync] registerDevice:', e.message); }
+      try { await this._syncCloudCredentials(); } catch (e) { console.warn('[Sync] credentials:', e.message); }
     } catch (e) {
       this.addSyncLog(`☁ Cloud error: ${e.message}`);
       this.toast('Error Cloud: ' + e.message, 'error');
@@ -2621,6 +2624,8 @@ ${detailHTML}
     const nextBtn = document.querySelector('#zoneCompleteModal .sync-btn');
     if (allDone && nextBtn) {
       nextBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg> Campo Completo!';
+      // Auto-update cloud order: check if ALL fields in the project are done → completada
+      this._autoCheckOrderComplete(this.currentField).catch(() => {});
     }
 
     gpsNav.clearTarget();
@@ -3225,9 +3230,94 @@ ${detailHTML}
       if (techs && techs.length > 0) {
         await pixDB.setSetting('cloudCredentials', JSON.stringify(techs));
         console.log(`[Cloud] ${techs.length} credentials synced`);
+
+        // Auto-match collectorName to exact full_name from cloud
+        // This ensures pullOrders() eq. filter matches exactly
+        const currentName = (await pixDB.getSetting('collectorName') || '').trim();
+        if (currentName) {
+          const lower = currentName.toLowerCase();
+          const exactMatch = techs.find(t => (t.full_name || '').toLowerCase() === lower);
+          if (exactMatch) {
+            // Already exact — no change needed
+          } else {
+            // Try partial match (user typed first name only)
+            const partial = techs.find(t =>
+              (t.full_name || '').toLowerCase().includes(lower) ||
+              lower.includes((t.full_name || '').toLowerCase().split(' ')[0])
+            );
+            if (partial) {
+              await pixDB.setSetting('collectorName', partial.full_name);
+              // Update visible input if present
+              document.querySelectorAll('#collectorName').forEach(inp => inp.value = partial.full_name);
+              console.log(`[Cloud] Auto-matched collectorName: "${currentName}" → "${partial.full_name}"`);
+              this.addSyncLog(`👤 Nombre auto-corregido: ${partial.full_name}`);
+            }
+          }
+        }
       }
     } catch (e) {
       console.warn('[App] Credential sync:', e.message);
+    }
+  }
+
+  // ═══════════════════════════════════════════════
+  // AUTO ORDER STATUS — asignada → en_progreso → completada
+  // ═══════════════════════════════════════════════
+
+  // Called after each sample save: if field belongs to a cloud order, mark en_progreso
+  async _autoUpdateOrderStatus(fieldId, targetStatus) {
+    if (!pixCloud.isEnabled()) return;
+    try {
+      const field = await pixDB.get('fields', fieldId);
+      if (!field) return;
+      const project = await pixDB.get('projects', field.projectId);
+      if (!project || !project.cloudOrderId) return; // Not a cloud order
+
+      // Only transition forward: pendiente → asignada → en_progreso
+      // Avoid redundant API calls by checking locally cached status
+      const cachedStatus = project._cloudStatus || 'asignada';
+      if (cachedStatus === 'en_progreso' || cachedStatus === 'completada') return;
+
+      await pixCloud.updateOrderStatus(project.cloudOrderId, targetStatus);
+      project._cloudStatus = targetStatus;
+      await pixDB.put('projects', project);
+      this.addSyncLog(`📋 Orden "${project.orderTitle || project.name}" → ${targetStatus}`);
+      console.log(`[Cloud] Order ${project.cloudOrderId} → ${targetStatus}`);
+    } catch (e) {
+      console.warn('[App] Auto order status:', e.message);
+    }
+  }
+
+  // Called when a field is 100% complete: check if ALL fields in the order are done
+  async _autoCheckOrderComplete(field) {
+    if (!pixCloud.isEnabled() || !field) return;
+    try {
+      const project = await pixDB.get('projects', field.projectId);
+      if (!project || !project.cloudOrderId) return;
+      if (project._cloudStatus === 'completada') return;
+
+      // Check all fields in this project
+      const allFields = await pixDB.getAllByIndex('fields', 'projectId', project.id);
+      let allFieldsComplete = true;
+
+      for (const f of allFields) {
+        const points = await pixDB.getAllByIndex('points', 'fieldId', f.id);
+        if (points.length === 0 || !points.every(p => p.status === 'collected')) {
+          allFieldsComplete = false;
+          break;
+        }
+      }
+
+      if (allFieldsComplete) {
+        await pixCloud.updateOrderStatus(project.cloudOrderId, 'completada');
+        project._cloudStatus = 'completada';
+        await pixDB.put('projects', project);
+        this.addSyncLog(`✅ Orden "${project.orderTitle || project.name}" → completada`);
+        this.toast('Orden completada! Todos los campos muestreados.', 'success');
+        console.log(`[Cloud] Order ${project.cloudOrderId} → completada`);
+      }
+    } catch (e) {
+      console.warn('[App] Auto order complete check:', e.message);
     }
   }
 }
