@@ -1746,9 +1746,10 @@ class PixApp {
           this.addSyncLog(`☁ Cloud: ${ce.message}`);
         }
 
-        // Pull orders + register device after sync
+        // Pull orders + register device + sync credentials after sync
         await this._pullCloudOrders();
         await this._registerDevice();
+        await this._syncCloudCredentials();
       }
     } catch (e) {
       this.addSyncLog(`✗ Error: ${e.message}`);
@@ -1778,9 +1779,10 @@ class PixApp {
       this.addSyncLog(`☁ ${result.synced} campos sincronizados a Cloud`);
       this.toast(`${result.synced} campos subidos al Cloud`, 'success');
 
-      // Pull orders + register device
+      // Pull orders + register device + sync credentials
       await this._pullCloudOrders();
       await this._registerDevice();
+      await this._syncCloudCredentials();
     } catch (e) {
       this.addSyncLog(`☁ Cloud error: ${e.message}`);
       this.toast('Error Cloud: ' + e.message, 'error');
@@ -3134,18 +3136,20 @@ ${detailHTML}
         return;
       }
 
+      // Load existing projects ONCE before loop (avoid O(n) per order)
+      const existingProjects = await pixDB.getAll('projects');
+      const importedOrderIds = new Set(existingProjects.filter(p => p.cloudOrderId).map(p => p.cloudOrderId));
+
       let imported = 0;
+      let globalPointIdx = 0; // Global counter to avoid ID collisions across fields
+
       for (const order of orders) {
         // Skip orders already imported
-        const existingProject = (await pixDB.getAll('projects')).find(
-          p => p.cloudOrderId === order.id
-        );
-        if (existingProject) continue;
+        if (importedOrderIds.has(order.id)) continue;
 
         // Import order as a new project
         if (order.field_data && order.field_data.fields) {
           const project = {
-            id: 'proj-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
             name: order.project || order.title,
             client: order.client || '',
             cloudOrderId: order.id,
@@ -3154,38 +3158,41 @@ ${detailHTML}
             orderDeadline: order.deadline,
             createdAt: new Date().toISOString()
           };
-          await pixDB.put('projects', project);
+          // Use add() for auto-increment integer IDs (not put() with string IDs)
+          const projectId = await pixDB.add('projects', project);
 
           for (const fieldData of order.field_data.fields) {
             const field = {
-              id: 'fld-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-              projectId: project.id,
+              projectId: projectId,
               name: fieldData.name || 'Campo',
               area: fieldData.area_ha || null,
               boundary: fieldData.boundary || null,
+              zones: fieldData.zones || 1,
               createdAt: new Date().toISOString()
             };
-            await pixDB.put('fields', field);
+            const fieldId = await pixDB.add('fields', field);
 
             // Import sampling points from GeoJSON
             if (fieldData.points && fieldData.points.features) {
-              let pointIdx = 0;
+              let localIdx = 0;
               for (const feat of fieldData.points.features) {
                 if (feat.geometry && feat.geometry.type === 'Point') {
                   const coords = feat.geometry.coordinates;
                   const props = feat.properties || {};
+                  localIdx++;
+                  globalPointIdx++;
                   const point = {
-                    id: 'pt-' + Date.now() + '-' + (pointIdx++),
-                    fieldId: field.id,
-                    pointName: props.name || props.pointName || `P${pointIdx}`,
+                    fieldId: fieldId,
+                    name: props.name || props.pointName || `P${localIdx}`,
                     lat: coords[1],
                     lng: coords[0],
                     zona: props.zona || props.zone || 1,
                     depth: props.depth || '0-20',
                     sampleType: props.sampleType || 'simple',
-                    collected: false
+                    status: 'pending',
+                    createdAt: new Date().toISOString()
                   };
-                  await pixDB.put('points', point);
+                  await pixDB.add('points', point);
                 }
               }
             }
