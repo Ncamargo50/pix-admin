@@ -39,6 +39,11 @@ class GPSNavigator {
     this.isMoving = false;
     this._lastPos = null;
     this._lastTime = 0;
+
+    // Native GNSS bridge data (Level 2: real satellite metadata)
+    // Populated from Android GNSSBridge via JavascriptInterface
+    this.nativeGNSS = null;      // { satellites, dop, quality, available }
+    this._gnssPollingId = null;
   }
 
   // Start watching position
@@ -48,6 +53,9 @@ class GPSNavigator {
     }
 
     this.onPositionUpdate = callback;
+
+    // Start native GNSS polling if Android bridge is available
+    this._startNativeGNSSPolling();
 
     this.watchId = navigator.geolocation.watchPosition(
       pos => {
@@ -130,6 +138,7 @@ class GPSNavigator {
       navigator.geolocation.clearWatch(this.watchId);
       this.watchId = null;
     }
+    this._stopNativeGNSSPolling();
   }
 
   // Start tracking route
@@ -593,12 +602,157 @@ class GPSNavigator {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // HDOP ESTIMATION
+  // HDOP — Real (native) or estimated (fallback)
   // ═══════════════════════════════════════════════════════════
 
+  /**
+   * Returns real HDOP from native GNSS bridge if available,
+   * otherwise estimates from accuracy (accuracy ≈ HDOP × 5m base error).
+   */
   getEstimatedHDOP() {
+    // Real HDOP from native bridge (parsed from NMEA GSA)
+    if (this.nativeGNSS?.dop?.hdop && this.nativeGNSS.dop.hdop < 50) {
+      return this.nativeGNSS.dop.hdop;
+    }
+    // Fallback: estimate from reported accuracy
     if (!this.accuracy) return null;
     return Math.round(this.accuracy / 5 * 10) / 10;
+  }
+
+  /**
+   * Returns true if real HDOP is available (not estimated).
+   */
+  hasRealHDOP() {
+    return !!(this.nativeGNSS?.dop?.hdop && this.nativeGNSS.dop.hdop < 50);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // NATIVE GNSS BRIDGE — Polls Android GNSSBridge for satellite data
+  // Level 2: Real satellite count, HDOP/PDOP, SNR, L1/L5, constellations
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Checks if native GNSS bridge is available (running inside PIX Muestreo APK).
+   */
+  hasNativeGNSS() {
+    return typeof window.AndroidGNSS !== 'undefined';
+  }
+
+  /**
+   * Start polling native GNSS data every 2 seconds.
+   * Called automatically from startWatch() if AndroidGNSS bridge exists.
+   */
+  _startNativeGNSSPolling() {
+    if (!this.hasNativeGNSS()) {
+      console.log('[GPS] Native GNSS bridge not available (browser/non-APK)');
+      return;
+    }
+
+    console.log('[GPS] Native GNSS bridge detected — starting satellite polling');
+
+    // Initial poll
+    this._pollNativeGNSS();
+
+    // Poll every 2 seconds (GNSS status updates ~1/sec from Android)
+    this._gnssPollingId = setInterval(() => this._pollNativeGNSS(), 2000);
+  }
+
+  /**
+   * Stop native GNSS polling.
+   */
+  _stopNativeGNSSPolling() {
+    if (this._gnssPollingId) {
+      clearInterval(this._gnssPollingId);
+      this._gnssPollingId = null;
+    }
+  }
+
+  /**
+   * Single poll of native GNSS data.
+   * Updates this.nativeGNSS with satellite info and DOP values.
+   */
+  _pollNativeGNSS() {
+    try {
+      if (!window.AndroidGNSS || !window.AndroidGNSS.isAvailable()) return;
+
+      const satRaw = window.AndroidGNSS.getSatelliteInfo();
+      const dopRaw = window.AndroidGNSS.getDOPValues();
+
+      const satellites = satRaw ? JSON.parse(satRaw) : {};
+      const dop = dopRaw ? JSON.parse(dopRaw) : {};
+
+      this.nativeGNSS = {
+        satellites,
+        dop,
+        available: true,
+        timestamp: Date.now()
+      };
+    } catch (e) {
+      // Bridge call failed — don't crash, just log once
+      if (!this._gnssErrorLogged) {
+        console.warn('[GPS] Native GNSS poll error:', e.message);
+        this._gnssErrorLogged = true;
+      }
+    }
+  }
+
+  /**
+   * Get formatted satellite summary for display.
+   * Returns object with display-ready strings.
+   */
+  getGNSSDisplayInfo() {
+    if (!this.nativeGNSS?.available) {
+      return {
+        available: false,
+        satText: '',
+        dopText: '',
+        constellationText: '',
+        qualityText: '',
+        dualFreqText: ''
+      };
+    }
+
+    const s = this.nativeGNSS.satellites;
+    const d = this.nativeGNSS.dop;
+
+    // Satellite count: "12/20 sats"
+    const satText = `${s.usedSatellites || 0}/${s.totalSatellites || 0} sats`;
+
+    // DOP: "HDOP 1.2"
+    const hdopVal = d.hdop && d.hdop < 50 ? d.hdop : null;
+    const dopText = hdopVal ? `HDOP ${hdopVal}` : '';
+
+    // Constellations: "G8 R2 E4" (compact)
+    const parts = [];
+    if (s.gps > 0) parts.push(`G${s.gps}`);
+    if (s.glonass > 0) parts.push(`R${s.glonass}`);
+    if (s.galileo > 0) parts.push(`E${s.galileo}`);
+    if (s.beidou > 0) parts.push(`C${s.beidou}`);
+    if (s.sbas > 0) parts.push(`S${s.sbas}`);
+    const constellationText = parts.join(' ');
+
+    // Signal quality: "C/N0 avg 32.5 dB"
+    const qualityText = s.avgCn0 > 0 ? `C/N0 ${s.avgCn0}dB` : '';
+
+    // Dual frequency
+    const dualFreqText = s.hasDualFreq ? `L1+L5 (${s.l5Count})` : (s.l1Count > 0 ? 'L1' : '');
+
+    return {
+      available: true,
+      satText,
+      dopText,
+      constellationText,
+      qualityText,
+      dualFreqText,
+      usedSats: s.usedSatellites || 0,
+      totalSats: s.totalSatellites || 0,
+      hdop: hdopVal,
+      fixType: d.fixType || 0,
+      fixLabel: d.fixLabel || '',
+      hasDualFreq: !!s.hasDualFreq,
+      avgCn0: s.avgCn0 || 0,
+      bestCn0: s.bestCn0 || 0
+    };
   }
 }
 

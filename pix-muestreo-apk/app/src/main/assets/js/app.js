@@ -649,21 +649,56 @@ class PixApp {
       fill.className = 'gps-quality-fill ' + (quality >= 75 ? 'good' : quality >= 40 ? 'medium' : 'poor');
     }
 
+    // Native GNSS satellite info (Level 2 bridge)
+    const gnss = gpsNav.getGNSSDisplayInfo();
+
+    // Update satellite info row (only visible when native bridge is active)
+    const satRow = document.getElementById('gnssSatRow');
+    if (satRow) {
+      if (gnss.available) {
+        satRow.style.display = 'flex';
+        const satEl = document.getElementById('gnssSatText');
+        if (satEl) satEl.textContent = `${gnss.satText} | ${gnss.constellationText}${gnss.hasDualFreq ? ' | L1+L5' : ''}`;
+      } else {
+        satRow.style.display = 'none';
+      }
+    }
+
     // Update status row
     const statusRow = document.getElementById('gpsStatusRow');
     const statusDot = document.getElementById('gpsStatusDot');
     const statusText = document.getElementById('gpsStatusText');
     if (statusRow) {
       statusRow.style.display = 'flex';
+
+      // Build HDOP text — real or estimated
+      const hdop = gpsNav.getEstimatedHDOP();
+      const hdopPrefix = gpsNav.hasRealHDOP() ? 'HDOP' : 'HDOP~';
+      const hdopStr = hdop ? `${hdopPrefix}${hdop}` : 'HDOP ?';
+
+      // Build status text with native GNSS data when available
       if (gpsNav.isWarmedUp && gpsNav.isStabilized) {
         statusDot.className = 'gps-status-dot ready';
-        statusText.textContent = `Listo | HDOP ~${gpsNav.getEstimatedHDOP() || '?'} | ${gpsNav.isStabilized ? 'Estable' : 'Mov.'}`;
+        if (gnss.available) {
+          const fix3d = gnss.fixType === 3 ? '3D' : gnss.fixType === 2 ? '2D' : '';
+          statusText.textContent = `Listo ${fix3d} | ${hdopStr} | ${gnss.satText} | Estable`;
+        } else {
+          statusText.textContent = `Listo | ${hdopStr} | Estable`;
+        }
       } else if (gpsNav.isWarmedUp) {
         statusDot.className = 'gps-status-dot warming';
-        statusText.textContent = 'GPS listo, estabilizando posición...';
+        if (gnss.available) {
+          statusText.textContent = `${hdopStr} | ${gnss.satText} | Estabilizando...`;
+        } else {
+          statusText.textContent = 'GPS listo, estabilizando posición...';
+        }
       } else {
         statusDot.className = 'gps-status-dot warming';
-        statusText.textContent = 'GPS calentando, esperá mejor señal...';
+        if (gnss.available && gnss.usedSats > 0) {
+          statusText.textContent = `Calentando | ${gnss.satText} | ${gnss.constellationText}`;
+        } else {
+          statusText.textContent = 'GPS calentando, esperá mejor señal...';
+        }
       }
     }
   }
@@ -1082,6 +1117,18 @@ class PixApp {
       return;
     }
 
+    // Capture native GNSS metadata at moment of collection (Level 2)
+    const gnssSnap = gpsNav.getGNSSDisplayInfo();
+    const gnssMetadata = gnssSnap.available ? {
+      usedSats: gnssSnap.usedSats,
+      totalSats: gnssSnap.totalSats,
+      hdop: gnssSnap.hdop,
+      fixType: gnssSnap.fixType,
+      hasDualFreq: gnssSnap.hasDualFreq,
+      avgCn0: gnssSnap.avgCn0,
+      constellations: gnssSnap.constellationText
+    } : null;
+
     const sample = {
       pointId: this.currentPoint.id,
       fieldId: this.currentField.id,
@@ -1092,6 +1139,7 @@ class PixApp {
       lng: gpsLng,
       accuracy: gpsAcc,
       gpsMethod: gpsMethod,
+      gnss: gnssMetadata,
       depth: depth,
       sampleType: effectiveType,
       barcode: this.collectForm.barcode,

@@ -24,6 +24,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.location.LocationManager;
 import android.webkit.JavascriptInterface;
 import android.widget.Toast;
 import androidx.browser.customtabs.CustomTabsIntent;
@@ -47,6 +48,7 @@ public class OfflineActivity extends Activity {
     private String pendingFileJson = null;
     private String pendingFileName = null;
     private boolean webViewReady = false;
+    private GNSSBridge gnssBridge;  // Native GNSS satellite data bridge
 
     /**
      * JavaScript bridge for native Android features (OAuth, etc.)
@@ -227,6 +229,10 @@ public class OfflineActivity extends Activity {
         // Register JavaScript bridge for native auth
         webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
 
+        // Register GNSS bridge for real satellite data (HDOP, constellation, SNR, L1/L5)
+        gnssBridge = new GNSSBridge(this);
+        webView.addJavascriptInterface(gnssBridge, "AndroidGNSS");
+
         // Load from HTTPS local origin (motor interno)
         webView.loadUrl("https://appassets.androidplatform.net/assets/index.html");
 
@@ -288,6 +294,7 @@ public class OfflineActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        if (gnssBridge != null) gnssBridge.stopListening();
         if (webView != null) {
             webView.onPause();
             webView.pauseTimers();
@@ -301,6 +308,14 @@ public class OfflineActivity extends Activity {
             webView.onResume();
             webView.resumeTimers();
         }
+        // Start GNSS listeners (requires location permission already granted)
+        if (gnssBridge != null) {
+            if (Build.VERSION.SDK_INT >= 23
+                    && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                       == PackageManager.PERMISSION_GRANTED) {
+                gnssBridge.startListening();
+            }
+        }
     }
 
     @Override
@@ -313,6 +328,10 @@ public class OfflineActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (gnssBridge != null) {
+            gnssBridge.stopListening();
+            gnssBridge = null;
+        }
         if (webView != null) {
             webView.stopLoading();
             webView.setWebViewClient(null);
@@ -338,6 +357,9 @@ public class OfflineActivity extends Activity {
             Toast.makeText(this,
                 "GPS es necesario para georreferenciar muestras. Active el permiso en Configuración.",
                 Toast.LENGTH_LONG).show();
+        } else {
+            // Permission just granted — start GNSS bridge
+            if (gnssBridge != null) gnssBridge.startListening();
         }
     }
 
