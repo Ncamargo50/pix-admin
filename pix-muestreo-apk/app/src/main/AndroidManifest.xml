@@ -116,23 +116,33 @@
                 <data android:scheme="file" />
                 <data android:mimeType="application/geo+json" />
             </intent-filter>
+            <!-- WhatsApp sends content:// URIs as octet-stream without file extension in path -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <!-- File managers use file:// URIs with extensions -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="file" />
                 <data android:mimeType="application/octet-stream" />
                 <data android:pathPattern=".*\\.json" />
                 <data android:pathPattern=".*\\.geojson" />
+                <data android:pathPattern=".*\\.kml" />
+                <data android:pathPattern=".*\\.csv" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:mimeType="*/*" />
                 <data android:pathPattern=".*\\.json" />
                 <data android:pathPattern=".*\\.geojson" />
+                <data android:pathPattern=".*\\.kml" />
+                <data android:pathPattern=".*\\.csv" />
             </intent-filter>
             <!-- Receive shared files (Share to PIX Muestreo) -->
             <intent-filter>
@@ -159,6 +169,12 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/csv" />
+            </intent-filter>
+            <!-- text/plain covers files WhatsApp may classify as plain text -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
             <!-- Removed wildcard */* SEND filter (security: was exposing app as universal file receiver) -->
         </activity>
