@@ -272,10 +272,10 @@
         <div class="kpi-card"><div class="kpi-value" id="kpiFields">-</div><div class="kpi-label">Lotes Activos</div></div>
         <div class="kpi-card warning"><div class="kpi-value" id="kpiAlerts">-</div><div class="kpi-label">Alertas Pendientes</div></div>
         <div class="kpi-card info"><div class="kpi-value" id="kpiLastScan">-</div><div class="kpi-label">Ultimo Scan</div></div>
-        <div class="kpi-card"><div class="kpi-value" id="kpiAvgNDVI">-</div><div class="kpi-label">NDVI Promedio</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="kpiAvgNDVI">-</div><div class="kpi-label">Health Score</div></div>
       </div>
       <div class="chart-container">
-        <div class="chart-title">Tendencia NDVI — Ultimos 90 dias</div>
+        <div class="chart-title">Tendencia Health Score — Ultimos 90 dias</div>
         <canvas id="dashboardChart" height="180"></canvas>
       </div>
       <div>
@@ -597,16 +597,27 @@ function renderDashboard() {
   }
   document.getElementById('kpiLastScan').textContent = lastScan;
 
-  // Avg NDVI (from last check values)
-  let ndviSum = 0, ndviCount = 0;
+  // Health Score (MICS composite) — replaces NDVI which saturates
+  let healthSum = 0, healthCount = 0;
   state.fields.forEach(f => {
     const last = f.monitoring?.lastResult || f.last_result;
-    if (last && last.currentValues && last.currentValues.NDVI != null) {
-      ndviSum += last.currentValues.NDVI;
-      ndviCount++;
+    if (last?.healthScore != null) {
+      healthSum += last.healthScore;
+      healthCount++;
+    } else if (last?.currentValues?.NDVI != null) {
+      // Fallback: approximate health from NDVI (legacy data)
+      healthSum += Math.min(100, last.currentValues.NDVI * 120);
+      healthCount++;
     }
   });
-  document.getElementById('kpiAvgNDVI').textContent = ndviCount > 0 ? (ndviSum / ndviCount).toFixed(3) : '-';
+  const kpiEl = document.getElementById('kpiAvgNDVI');
+  if (healthCount > 0) {
+    const avg = Math.round(healthSum / healthCount);
+    kpiEl.textContent = avg;
+    kpiEl.style.color = avg >= 80 ? '#7FD633' : avg >= 60 ? '#4CAF50' : avg >= 40 ? '#FF9800' : '#FF5722';
+  } else {
+    kpiEl.textContent = '-';
+  }
 
   // Recent activity
   const activity = [];
@@ -763,10 +774,16 @@ function renderFields() {
     const monitoring = f.monitoring || {};
     const active = monitoring.active;
     const lastResult = monitoring.lastResult || f.last_result;
+    const healthScore = lastResult?.healthScore;
     const ndvi = lastResult?.currentValues?.NDVI;
     let statusClass = 'gray';
-    if (ndvi != null) {
+    let statusColor = 'var(--text-dim)';
+    if (healthScore != null) {
+      statusClass = healthScore >= 80 ? 'green' : healthScore >= 60 ? 'green' : healthScore >= 40 ? 'yellow' : 'red';
+      statusColor = healthScore >= 80 ? '#7FD633' : healthScore >= 60 ? '#4CAF50' : healthScore >= 40 ? '#FF9800' : '#FF5722';
+    } else if (ndvi != null) {
       statusClass = ndvi >= 0.65 ? 'green' : ndvi >= 0.45 ? 'green' : ndvi >= 0.25 ? 'yellow' : 'red';
+      statusColor = statusClass === 'red' ? 'var(--danger)' : statusClass === 'yellow' ? 'var(--warning)' : 'var(--success)';
     }
     const emoji = CROP_EMOJI[f.crop] || '🌱';
     const alerts = state.alerts.filter(a => a.fieldId === f.id && a.status === 'active').length;
@@ -780,7 +797,7 @@ function renderFields() {
         <span>${esc(client?.name || '-')}</span>
         <span>${f.areaHa || 0} ha</span>
         <span>${f.crop || '-'}</span>
-        ${ndvi != null ? `<span>NDVI: <b style="color:${statusClass === 'red' ? 'var(--danger)' : statusClass === 'yellow' ? 'var(--warning)' : 'var(--success)'}">${ndvi.toFixed(3)}</b></span>` : ''}
+        ${healthScore != null ? `<span>Health: <b style="color:${statusColor}">${Math.round(healthScore)}</b></span>` : ndvi != null ? `<span>NDVI: <b style="color:${statusColor}">${ndvi.toFixed(3)}</b></span>` : ''}
         ${alerts ? `<span style="color:var(--danger)">${alerts} alertas</span>` : ''}
       </div>
     </div>`;
@@ -878,27 +895,80 @@ async function showFieldDetail(fieldId) {
       <button class="btn btn-sm btn-secondary" onclick="editField('${fieldId}')">Editar</button>
       <button class="btn btn-sm btn-danger" onclick="deleteField('${fieldId}')">Eliminar</button>
     </div>
+    ${lastResult.healthScore != null ? `<div class="card" style="margin:8px 0;padding:10px;border-left:4px solid ${lastResult.healthColor || '#7FD633'}">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:28px;font-weight:700;color:${lastResult.healthColor || '#7FD633'}">${Math.round(lastResult.healthScore)}</div>
+        <div>
+          <div style="font-size:13px;font-weight:600">Health Score — ${lastResult.healthLabel || ''}</div>
+          <div style="font-size:10px;color:var(--text-muted)">MICS: ${lastResult.mics ? Object.entries(lastResult.mics.indexValues || {}).map(([k,v]) => k+'='+v.toFixed(3)).join(' | ') : '-'}</div>
+          <div style="font-size:10px;color:var(--text-dim)">${lastResult.mics ? Object.entries(lastResult.mics.activeRoles || {}).map(([k,v]) => k+': '+v).join(' | ') : ''}</div>
+        </div>
+      </div>
+    </div>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
       <div><b>Cliente:</b> ${esc(client?.name || '-')}</div>
-      <div><b>Cultivo:</b> ${CROP_EMOJI[field.crop] || ''} ${field.crop || '-'}</div>
+      <div><b>Cultivo:</b> ${CROP_EMOJI[field.crop] || ''} ${field.crop || '-'}${lastResult.spectralCropDetection && !lastResult.spectralCropDetection.matchesField ? ' <span style="color:var(--warning);font-size:10px">(espectral: '+lastResult.spectralCropDetection.detected+' '+lastResult.spectralCropDetection.confidence+'%)</span>' : ''}</div>
       <div><b>Area:</b> ${field.areaHa || 0} ha</div>
       <div><b>Siembra:</b> ${field.plantingDate || '-'}</div>
-      <div><b>Etapa:</b> ${esc(lastResult.stageDesc || lastResult.stage || '-')}</div>
+      <div><b>Etapa:</b> ${esc(lastResult.stageDesc || lastResult.stage || '-')}${lastResult.spectralStageDetection ? ' <span style="color:var(--text-muted);font-size:10px">(espectral: '+lastResult.spectralStageDetection.detected+' '+lastResult.spectralStageDetection.confidence+'%)</span>' : ''}</div>
       <div><b>Dia:</b> ${lastResult.daysSincePlanting || '-'}</div>
       <div><b>Ultimo Check:</b> ${formatDate(monitoring.lastCheck)}</div>
       <div><b>Z-Score:</b> ${lastResult.zScore != null ? lastResult.zScore : '-'}</div>
       <div><b>Fuente:</b> ${lastResult.dataSource || 'S2_SR'}</div>
       <div><b>Primario:</b> ${lastResult.primaryIndex || '-'}</div>
     </div>
+    ${lastResult.absoluteThresholdViolations?.length ? `<div class="card" style="margin-top:8px;border-left:3px solid var(--danger)">
+      <div style="font-size:12px;font-weight:600">Umbrales Absolutos</div>
+      ${lastResult.absoluteThresholdViolations.map(v => `<div style="font-size:11px;color:var(--text-muted)"><span class="severity-badge ${v.severity}">${v.severity}</span> ${esc(v.message)}</div>`).join('')}
+    </div>` : ''}
     ${lastResult.sarData ? `<div class="card" style="margin-top:8px;border-left:3px solid var(--info)">
       <div style="font-size:12px;font-weight:600">SAR Fallback (Sentinel-1)</div>
       <div style="font-size:11px;color:var(--text-muted)">RVI: ${lastResult.sarData.RVI}, VV: ${lastResult.sarData.VV} dB, VH: ${lastResult.sarData.VH} dB</div>
     </div>` : ''}
+    ${lastResult.pastureMetrics ? (() => {
+      const pm = lastResult.pastureMetrics;
+      const animalRows = pm.stocking_by_animal ? Object.entries(pm.stocking_by_animal).map(([name, d]) => {
+        const labels = {vaca_cria:'Vaca cria',novillo:'Novillo',ternero:'Ternero',oveja:'Oveja'};
+        return `<tr><td>${labels[name]||name}</td><td>${d.weight_kg}kg</td><td>${d.intake_kg_day}</td><td style="font-weight:600;color:var(--teal)">${d.rotacional}</td><td>${d.continuo}</td></tr>`;
+      }).join('') : '';
+      const recColor = pm.recommendation_icon === 'entry' ? 'var(--teal)' : pm.recommendation_icon === 'rest' ? 'var(--warning)' : pm.recommendation_icon === 'critical' ? 'var(--danger)' : pm.recommendation_icon === 'urgent_entry' ? '#FF9800' : 'var(--info)';
+      return `<div class="card" style="margin-top:10px;border-left:4px solid var(--teal);padding:10px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:6px">Metricas de Pastura</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+          <div class="card" style="text-align:center;padding:6px;background:var(--bg)">
+            <div style="font-size:20px;font-weight:700;color:var(--teal)">${pm.biomass_kgDM_ha}</div>
+            <div style="font-size:9px;color:var(--text-muted)">kg MS/ha</div>
+            <div style="font-size:8px;color:var(--text-dim)">Biomasa</div>
+          </div>
+          <div class="card" style="text-align:center;padding:6px;background:var(--bg)">
+            <div style="font-size:20px;font-weight:700;color:${pm.growth_rate_color || '#9E9E9E'}">${pm.growth_rate_kgDM_ha_day != null ? pm.growth_rate_kgDM_ha_day : '-'}</div>
+            <div style="font-size:9px;color:var(--text-muted)">kg MS/ha/dia</div>
+            <div style="font-size:8px;color:${pm.growth_rate_color || '#9E9E9E'}">${pm.growth_rate_label || '-'}</div>
+          </div>
+          <div class="card" style="text-align:center;padding:6px;background:var(--bg)">
+            <div style="font-size:20px;font-weight:700;color:var(--teal)">${pm.stocking_rate_rotational_UA_ha}</div>
+            <div style="font-size:9px;color:var(--text-muted)">UA/ha rotacional</div>
+            <div style="font-size:8px;color:var(--text-dim)">${pm.stocking_rate_continuous_UA_ha} continuo</div>
+          </div>
+        </div>
+        <div style="font-size:11px;padding:6px;background:var(--bg);border-radius:4px;border-left:3px solid ${recColor};margin-bottom:8px">
+          <b>${pm.recommendation}</b>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px"><b>Calidad:</b> ${pm.quality_label || '-'}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px"><b>Biomasa disponible:</b> ${pm.available_biomass_kg} kg (residuo min: ${pm.residual_minimum_kg} kg) | NDVI: ${pm.ndvi_current} (entrada: ${pm.ndvi_entry_threshold}, salida: ${pm.ndvi_exit_threshold})</div>
+        ${animalRows ? `<div style="font-size:11px;font-weight:600;margin-bottom:4px">Carga por Tipo de Animal (cabezas/ha, ciclo 30d)</div>
+        <table style="width:100%;font-size:10px;border-collapse:collapse">
+          <tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:2px 4px">Animal</th><th>Peso</th><th>Consumo/dia</th><th>Rotacional</th><th>Continuo</th></tr>
+          ${animalRows}
+        </table>` : ''}
+        <div style="font-size:9px;color:var(--text-dim);margin-top:6px">${pm.confidence}</div>
+      </div>`;
+    })() : ''}
     ${indicesHtml}
     ${agronomicHtml}
     ${alertsHtml}
     <div style="margin-top:12px">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Serie Temporal NDVI</div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Serie Temporal Multi-Indice (NDVI + NDRE + EVI)</div>
       <canvas id="fieldTsChart" height="160"></canvas>
     </div>
   `;
@@ -922,14 +992,18 @@ function renderFieldChart(tsData) {
   });
   const ndviData = tsData.map(t => t.values?.NDVI ?? null);
   const ndreData = tsData.map(t => t.values?.NDRE ?? null);
+  const eviData = tsData.map(t => t.values?.EVI ?? null);
+  const ndmiData = tsData.map(t => t.values?.NDMI ?? null);
 
   state.charts.fieldTs = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [
-        { label: 'NDVI', data: ndviData, borderColor: '#7FD633', backgroundColor: 'rgba(127,214,51,0.1)', fill: true, tension: 0.3, pointRadius: 2 },
-        { label: 'NDRE', data: ndreData, borderColor: '#00A4CC', backgroundColor: 'rgba(0,164,204,0.05)', fill: false, tension: 0.3, pointRadius: 2, borderDash: [4,2] }
+        { label: 'NDVI', data: ndviData, borderColor: '#7FD633', backgroundColor: 'rgba(127,214,51,0.08)', fill: true, tension: 0.3, pointRadius: 2 },
+        { label: 'NDRE', data: ndreData, borderColor: '#00A4CC', backgroundColor: 'rgba(0,164,204,0.04)', fill: false, tension: 0.3, pointRadius: 2, borderDash: [4,2] },
+        { label: 'EVI', data: eviData, borderColor: '#FF9800', backgroundColor: 'rgba(255,152,0,0.04)', fill: false, tension: 0.3, pointRadius: 2, borderDash: [6,3] },
+        { label: 'NDMI', data: ndmiData, borderColor: '#E91E63', backgroundColor: 'rgba(233,30,99,0.04)', fill: false, tension: 0.3, pointRadius: 1, borderDash: [2,2], borderWidth: 1 }
       ]
     },
     options: {
