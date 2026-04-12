@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-PORT = 9102
+PORT = int(os.environ.get('PORT', 9102))
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Import monitoring API logic
@@ -39,8 +39,12 @@ from monitoring_api_core import (
     load_db, save_db, now_iso, gen_id,
     CROP_PHENOLOGY, detect_stage, compute_monitoring,
     compute_pasture_metrics, generate_report, init_gee,
-    GEE_KEY_PATH
+    GEE_KEY_PATH, GEE_SERVICE_ACCOUNT_KEY,
+    safe_getInfo, compute_sar_fallback, interpret_anomalies,
+    STRESS_SIGNATURES, INDEX_THRESHOLDS
 )
+import db as sqlite_db
+import scheduler as sched
 
 # Inline user DB (shared with user-api.py)
 USER_DB_FILE = os.path.join(os.path.dirname(STATIC_DIR), 'pix-admin', 'data', 'users.db.json')
@@ -53,6 +57,12 @@ def load_users():
 
 
 class UnifiedHandler(BaseHTTPRequestHandler):
+
+    def handle_one_request(self):
+        try:
+            super().handle_one_request()
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass  # Browser closed connection during reload — normal on Windows
 
     def _cors(self):
         self.send_header('Access-Control-Allow-Origin', '*')
@@ -72,7 +82,12 @@ class UnifiedHandler(BaseHTTPRequestHandler):
 
     def _body(self):
         length = int(self.headers.get('Content-Length', 0))
-        return json.loads(self.rfile.read(length).decode('utf-8')) if length > 0 else {}
+        if length <= 0:
+            return {}
+        try:
+            return json.loads(self.rfile.read(length).decode('utf-8'))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return {}
 
     def _serve_static(self, path):
         """Serve static files from pix-monitor directory."""
@@ -100,7 +115,14 @@ class UnifiedHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        path = urlparse(self.path).path.rstrip('/')
+        path = urlparse(self.path).path
+
+        # Root → index.html
+        if path == '/' or path == '':
+            self._serve_static('/')
+            return
+
+        path = path.rstrip('/')
 
         # ── API Routes ──
         if path == '/api/health':
@@ -135,10 +157,29 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             db = load_db()
             self._json({'fieldId': field_id, 'timeseries': db.get('timeseries', {}).get(field_id, [])})
 
+        elif path == '/api/config':
+            config = sqlite_db.get_all_config()
+            config['indices_available'] = list(INDEX_THRESHOLDS.keys())
+            config['stress_types'] = list(STRESS_SIGNATURES.keys())
+            self._json({'config': config})
+
+        elif path == '/api/scheduler':
+            jobs = sched.list_jobs()
+            self._json({'jobs': jobs})
+
+        elif path.startswith('/api/monitoring/history/'):
+            field_id = path.split('/')[-1]
+            history = sqlite_db.get_monitoring_history(field_id)
+            self._json({'fieldId': field_id, 'history': history})
+
         elif path == '/api/users/sync':
             data = load_users()
             self._json({'_type': 'pix_users_sync', 'version': data.get('version', 0),
                         'updatedAt': data.get('updatedAt', ''), 'users': data.get('users', [])})
+
+        elif path.startswith('/reports/'):
+            # Serve report files (PDF, KMZ)
+            self._serve_static(path)
 
         elif path.startswith('/api/'):
             self._error('Not found', 404)
@@ -206,6 +247,10 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                 traceback.print_exc()
                 self._error(str(e), 500); return
 
+            # Bug 3 fix: check for GEE errors before saving
+            if 'error' in result:
+                self._error(result['error'], 500); return
+
             field['monitoring']['lastCheck'] = now_iso()
             field['monitoring']['currentStage'] = result.get('stage')
             field['monitoring']['checkCount'] = field['monitoring'].get('checkCount', 0) + 1
@@ -218,8 +263,12 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                 for a in result['anomalies']:
                     db['alerts'].append(a)
 
+            # Bug 8 fix: ensure timeseries key exists
+            if 'timeseries' not in db:
+                db['timeseries'] = {}
             ts_key = field['id']
-            if ts_key not in db.get('timeseries', {}): db['timeseries'][ts_key] = []
+            if ts_key not in db['timeseries']:
+                db['timeseries'][ts_key] = []
             db['timeseries'][ts_key].append({
                 'date': now_iso(), 'stage': result.get('stage'),
                 'values': result.get('currentValues', {}),
@@ -227,6 +276,97 @@ class UnifiedHandler(BaseHTTPRequestHandler):
                 'cloudBlocked': result.get('cloudBlocked', False)
             })
             save_db(db)
+
+            # ── AUTO REPORT: Generate PDF + send email if data obtained ──
+            if not result.get('cloudBlocked') and result.get('currentValues'):
+                has_data = any(v is not None for v in result.get('currentValues', {}).values())
+                if has_data:
+                    try:
+                        client = next((c for c in db['clients'] if c['id'] == field.get('clientId')), None)
+                        field_alerts = [a for a in db['alerts'] if a.get('fieldId') == field_id and a.get('status') == 'active']
+                        ts = db.get('timeseries', {}).get(field_id, [])
+                        report = generate_report(field, client, field_alerts, ts)
+                        result['report'] = report
+
+                        # Auto-send email to client if email exists
+                        client_email = client.get('email', '') if client else ''
+                        if client_email and '@' in client_email:
+                            import threading
+                            def send_report_email(email, report_data, field_data, result_data):
+                                try:
+                                    import smtplib
+                                    from email.mime.multipart import MIMEMultipart
+                                    from email.mime.text import MIMEText
+                                    from email.mime.base import MIMEBase
+                                    from email import encoders
+
+                                    smtp_user = os.environ.get('SMTP_USER', '')
+                                    smtp_pass = os.environ.get('SMTP_PASS', '')
+                                    if not smtp_user or not smtp_pass:
+                                        print(f'[Email] SMTP not configured — skipping email to {email}')
+                                        return
+
+                                    vals = result_data.get('currentValues', {})
+                                    health = report_data.get('health', '?')
+                                    stage_desc = result_data.get('stageDesc', '?')
+                                    primary = result_data.get('primaryIndex', 'NDVI')
+
+                                    html = f"""<div style="font-family:Arial;max-width:600px;margin:0 auto;background:#0a1220;color:#F1F5F9;padding:20px;border-radius:12px">
+<h1 style="color:#7FD633;font-size:18px;text-align:center">PIX Monitor — Informe Automatico</h1>
+<p style="color:#94A3B8;font-size:11px;text-align:center">Sentinel-2 | Google Earth Engine | Indices Israel</p>
+<div style="background:#162236;padding:12px;border-radius:8px;margin:10px 0;border-left:4px solid {'#22C55E' if health in ['EXCELENTE','BUENO'] else '#F5A623' if health=='MODERADO' else '#EF4444'}">
+<h2 style="color:{'#22C55E' if health in ['EXCELENTE','BUENO'] else '#F5A623' if health=='MODERADO' else '#EF4444'};font-size:14px;margin:0 0 6px 0">ESTADO: {health}</h2>
+<p style="font-size:12px;margin:2px 0"><b>Lote:</b> {field_data.get('name','')} ({field_data.get('areaHa',0)} ha)</p>
+<p style="font-size:12px;margin:2px 0"><b>Etapa:</b> {stage_desc}</p>
+<p style="font-size:12px;margin:2px 0"><b>Indice primario:</b> {primary}</p>
+<p style="font-size:12px;margin:2px 0"><b>Imagen:</b> {result_data.get('imageDate','?')}</p>
+</div>
+<div style="background:#162236;padding:12px;border-radius:8px;margin:10px 0">
+<h3 style="color:#7FD633;font-size:12px;margin:0 0 6px 0">INDICES</h3>
+<table style="width:100%;font-size:11px;color:#E2E8F0;border-collapse:collapse">"""
+                                    for k in ['TCARI_OSAVI','SIF_proxy','CWSI','SALINITY','NDVI','NDRE','NDMI','PSRI']:
+                                        v = vals.get(k)
+                                        if v is not None:
+                                            html += f'<tr style="background:#0F1B2D"><td style="padding:3px">{k}</td><td style="text-align:center">{v:.4f}</td></tr>'
+                                    html += f"""</table></div>
+<div style="text-align:center;margin:12px 0">
+<a href="{report_data.get('googleMapsLink','#')}" style="background:#7FD633;color:#000;padding:8px 16px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:12px">Navegar al Lote</a>
+</div>
+<p style="color:#64748B;font-size:9px;text-align:center">Pixadvisor — www.pixadvisor.network</p>
+</div>"""
+
+                                    msg = MIMEMultipart()
+                                    msg['From'] = smtp_user
+                                    msg['To'] = email
+                                    msg['Subject'] = f'PIX Monitor — {field_data.get("name","")} — {health}'
+                                    msg.attach(MIMEText(html, 'html'))
+
+                                    # Attach PDF if exists
+                                    pdf_path = report_data.get('pdfPath', '')
+                                    if pdf_path and os.path.exists(pdf_path):
+                                        with open(pdf_path, 'rb') as f:
+                                            part = MIMEBase('application', 'pdf')
+                                            part.set_payload(f.read())
+                                            encoders.encode_base64(part)
+                                            part.add_header('Content-Disposition', f'attachment; filename="{report_data.get("pdf","report.pdf")}"')
+                                            msg.attach(part)
+
+                                    server = smtplib.SMTP('smtp.gmail.com', 587)
+                                    server.starttls()
+                                    server.login(smtp_user, smtp_pass)
+                                    server.send_message(msg)
+                                    server.quit()
+                                    print(f'[Email] Sent to {email}: {field_data.get("name","")} — {health}')
+                                except Exception as e:
+                                    print(f'[Email] Error sending to {email}: {e}')
+
+                            threading.Thread(target=send_report_email, args=(client_email, report, field, result), daemon=True).start()
+                            print(f'[Auto] Report generated + email queued to {client_email}')
+                        else:
+                            print(f'[Auto] Report generated (no client email)')
+                    except Exception as e:
+                        print(f'[Auto] Report error: {e}')
+
             self._json(result)
 
         elif path.endswith('/pause'):
@@ -249,6 +389,17 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             save_db(db)
             self._json({'resumed': True})
 
+        elif path == '/api/scheduler':
+            body = self._body()
+            field_id = body.get('fieldId') or body.get('field_id')
+            if not field_id:
+                self._error('fieldId required')
+                return
+            interval = body.get('interval_days', 14)
+            enabled = body.get('enabled', True)
+            job = sched.create_job(field_id, interval_days=interval, enabled=enabled)
+            self._json(job, 201)
+
         elif path.startswith('/api/reports/'):
             field_id = path.split('/')[-1]
             db = load_db()
@@ -268,7 +419,18 @@ class UnifiedHandler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         path = urlparse(self.path).path.rstrip('/')
-        if path.startswith('/api/fields/'):
+        if path.startswith('/api/clients/'):
+            client_id = path.split('/')[-1]
+            body = self._body()
+            db = load_db()
+            client = next((c for c in db['clients'] if c['id'] == client_id), None)
+            if not client: self._error('Not found', 404); return
+            for k in ['name', 'contact', 'email', 'phone', 'notes']:
+                if k in body: client[k] = body[k]
+            save_db(db)
+            self._json(client)
+
+        elif path.startswith('/api/fields/'):
             field_id = path.split('/')[-1]
             body = self._body()
             db = load_db()
@@ -279,6 +441,26 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             if 'boundary' in body: field['boundary'] = body['boundary']
             save_db(db)
             self._json(field)
+
+        elif path == '/api/config':
+            body = self._body()
+            for key, value in body.items():
+                sqlite_db.set_config(key, value)
+            self._json({'updated': True, 'config': sqlite_db.get_all_config()})
+
+        elif path.startswith('/api/alerts/'):
+            alert_id = path.split('/')[-1]
+            body = self._body()
+            updates = {}
+            if body.get('status'):
+                updates['status'] = body['status']
+            if body.get('status') == 'read':
+                updates['read_at'] = now_iso()
+            if body.get('status') == 'actioned':
+                updates['actioned_at'] = now_iso()
+            sqlite_db.update_alert(alert_id, updates)
+            self._json({'updated': True, 'alertId': alert_id})
+
         else:
             self._error('Not found', 404)
 
@@ -304,6 +486,10 @@ class UnifiedHandler(BaseHTTPRequestHandler):
             db['alerts'] = [a for a in db['alerts'] if a['id'] != alert_id]
             save_db(db)
             self._json({'deleted': True})
+        elif path.startswith('/api/scheduler/'):
+            job_id = path.split('/')[-1]
+            sched.remove_job(job_id)
+            self._json({'deleted': True})
         else:
             self._error('Not found', 404)
 
@@ -312,19 +498,39 @@ class UnifiedHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    print('=== PIX Monitor — Unified Server ===')
+    print('=== PIX Monitor 2.0 — Unified Server ===')
     print(f'Port: {PORT}')
     print(f'Frontend: {STATIC_DIR}')
-    print(f'GEE: {"OK" if os.path.exists(GEE_KEY_PATH) else "NOT FOUND"}')
+    gee_available = os.path.exists(GEE_KEY_PATH) or bool(GEE_SERVICE_ACCOUNT_KEY)
+    print(f'GEE: {"OK" if gee_available else "NOT FOUND"}')
     print(f'Users DB: {USER_DB_FILE}')
     print()
 
-    if os.path.exists(GEE_KEY_PATH):
+    # Initialize SQLite DB
+    sqlite_db.init_db()
+
+    # Migrate from JSON if SQLite is empty
+    json_db = os.path.join(STATIC_DIR, 'monitoring.db.json')
+    if os.path.exists(json_db):
+        clients = sqlite_db.get_clients()
+        if not clients:
+            sqlite_db.migrate_from_json(json_db)
+
+    if gee_available:
         init_gee()
 
     db = load_db()
     print(f'Data: {len(db["clients"])} clients, {len(db["fields"])} fields, {len(db["alerts"])} alerts')
-    print(f'')
+
+    # Start scheduler
+    def _save_result(field_id, result):
+        sqlite_db.save_monitoring_result(field_id, result.get('stage'), result, result.get('dataSource', 'S2_SR'))
+    def _save_alert(alert):
+        sqlite_db.save_alert(alert)
+
+    sched.start_scheduler(compute_monitoring, _save_result, _save_alert)
+
+    print()
     print(f'Local:  http://localhost:{PORT}/')
     print(f'To expose online: ngrok http {PORT}')
     print()
@@ -333,5 +539,6 @@ if __name__ == '__main__':
     try:
         server.serve_forever()
     except KeyboardInterrupt:
+        sched.stop_scheduler()
         print('\nShutting down...')
         server.server_close()

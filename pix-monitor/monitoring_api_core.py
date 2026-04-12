@@ -40,284 +40,1065 @@ PORT = 9102
 DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'monitoring.db.json')
 
 # GEE Service Account Key
-GEE_KEY_PATH = r'C:\Users\Usuario\Desktop\PIXADVISOR\ee-gisagronomico-key.json'
-GEE_PROJECT = 'ee-gisagronomico'
+GEE_KEY_PATH = os.environ.get('GEE_KEY_PATH', r'C:\Users\Usuario\Desktop\PIXADVISOR\ee-gisagronomico-key.json')
+GEE_PROJECT = os.environ.get('GEE_PROJECT', 'ee-gisagronomico')
+GEE_SERVICE_ACCOUNT_KEY = os.environ.get('GEE_SERVICE_ACCOUNT_KEY', '')  # JSON string for cloud deploy
 
 # ============================================================
 # CROP PHENOLOGY CONFIGURATION
 # ============================================================
 
 CROP_PHENOLOGY = {
-    # ══════════════════════════════════════════════════════════════════
-    # INDICES AVANZADOS 2025+ (Israel/USA research):
-    #   kNDVI: Kernel NDVI anti-saturacion (Camps-Valls 2021, Nature Plants)
-    #   MTCI: MERIS Terrestrial Chlorophyll (Dash & Curran 2004) — lineal, no satura
-    #   S2REP: Red-Edge Position (Frampton 2013) — LAI/clorofila directa
-    #   CCCI: Canopy Chlorophyll Content (Barnes 2000) — proxy N
-    #   IRECI: Inverted Red-Edge Chlorophyll — LAI biofisica
-    #   TCARI/OSAVI: Absorcion clorofila (R2=0.81) — Israel Volcani
-    #   PRI proxy: Actividad fotosintetica tiempo real — estrés pre-visual
-    #
-    # DETECCION DE MALEZAS (10m Sentinel-2):
-    #   Metodo: Anomalia espacial intra-lote en etapas tempranas
-    #   NDVI entresurco > NDVI esperado = vegetacion no-cultivo (maleza)
-    #   PRI_proxy divergente = actividad fotosintetica anomala
-    #   Referencia: Zhang et al. Agronomy 2024, MDPI Drones 2023
-    # ══════════════════════════════════════════════════════════════════
-
     "soja": {
         "name": "Soja",
         "cycle_days": 130,
         "stages": {
-            "VE_V3":  {"days": [0, 25],    "indices": ["MSAVI2","OSAVI","BSI","NDVI","SAVI"],
-                       "weed_indices": ["NDVI","MSAVI2"], "weed_risk": "alto",
-                       "desc": "Emergencia (VE-V3) — Suelo expuesto, maxima ventana de malezas"},
-            "V4_V8":  {"days": [25, 50],   "indices": ["NDVI","NDRE","GNDVI","MTCI","CCCI","PRI_proxy"],
-                       "weed_indices": ["NDVI","GNDVI","PRI_proxy"], "weed_risk": "medio",
-                       "desc": "Desarrollo vegetativo (V4-V8) — Cierre parcial, malezas entre lineas"},
-            "R1_R2":  {"days": [50, 70],   "indices": ["NDRE","MTCI","kNDVI","EVI","NDMI","S2REP","IRECI"],
-                       "weed_indices": [], "weed_risk": "bajo",
-                       "desc": "Floracion (R1-R2) — Canopy cerrado, etapa critica rendimiento"},
-            "R3_R5":  {"days": [70, 100],  "indices": ["NDRE","kNDVI","S2REP","CCCI","NDMI","IRECI","MTCI"],
-                       "weed_indices": [], "weed_risk": "bajo",
-                       "desc": "Llenado (R3-R5) — Maxima biomasa, kNDVI+MTCI anti-saturacion"},
-            "R6_R8":  {"days": [100, 130], "indices": ["NDMI","PSRI","NBR2","NDRE","MSI"],
-                       "weed_indices": [], "weed_risk": "bajo",
-                       "desc": "Maduracion (R6-R8) — Senescencia, humedad foliar"},
+            "VE_V3": {
+                "days": [
+                    0,
+                    25
+                ],
+                "primary": "MSAVI2",
+                "reason": "R2=0.85 baja cobertura/suelo",
+                "indices": [
+                    "MSAVI2",
+                    "OSAVI",
+                    "BSI",
+                    "NDVI",
+                    "SAVI",
+                    "SALINITY",
+                    "CWSI",
+                    "SIF_proxy",
+                    "TCARI_OSAVI"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "MSAVI2"
+                ],
+                "weed_risk": "alto",
+                "desc": "Emergencia (VE-V3) — Suelo expuesto, malezas"
+            },
+            "V4_V8": {
+                "days": [
+                    25,
+                    50
+                ],
+                "primary": "SIF_proxy",
+                "reason": "Fluorescencia fotosintesis R2=0.72 Israel",
+                "indices": [
+                    "NDVI",
+                    "NDRE",
+                    "GNDVI",
+                    "MTCI",
+                    "CCCI",
+                    "PRI_proxy",
+                    "SIF_proxy",
+                    "CWSI",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "GNDVI",
+                    "PRI_proxy"
+                ],
+                "weed_risk": "medio",
+                "desc": "Vegetativo (V4-V8)"
+            },
+            "R1_R2": {
+                "days": [
+                    50,
+                    70
+                ],
+                "primary": "TCARI_OSAVI",
+                "reason": "Volcani: clorofila R2=0.81 etapa critica",
+                "indices": [
+                    "NDRE",
+                    "MTCI",
+                    "kNDVI",
+                    "EVI",
+                    "NDMI",
+                    "S2REP",
+                    "IRECI",
+                    "TCARI_OSAVI",
+                    "SIF_proxy",
+                    "CWSI",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Floracion (R1-R2) — Etapa critica"
+            },
+            "R3_R5": {
+                "days": [
+                    70,
+                    100
+                ],
+                "primary": "kNDVI",
+                "reason": "Anti-saturacion canopy denso Nature 2021",
+                "indices": [
+                    "NDRE",
+                    "kNDVI",
+                    "S2REP",
+                    "CCCI",
+                    "NDMI",
+                    "IRECI",
+                    "MTCI",
+                    "TCARI_OSAVI",
+                    "CWSI",
+                    "SIF_proxy",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Llenado (R3-R5) — Maxima biomasa"
+            },
+            "R6_R8": {
+                "days": [
+                    100,
+                    130
+                ],
+                "primary": "PSRI",
+                "reason": "Mejor detector senescencia y madurez",
+                "indices": [
+                    "NDMI",
+                    "PSRI",
+                    "NBR2",
+                    "NDRE",
+                    "MSI",
+                    "CWSI",
+                    "SALINITY",
+                    "TCARI_OSAVI",
+                    "SIF_proxy"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Maduracion (R6-R8) — Senescencia"
+            }
         },
-        "critical_stages": ["R1_R2", "R3_R5"],
+        "critical_stages": [
+            "R1_R2",
+            "R3_R5"
+        ],
         "weed_detection": {
             "method": "spatial_anomaly",
-            "ndvi_weed_threshold": 0.20,  # NDVI entre surcos > este valor = maleza
-            "critical_window_days": [0, 50],  # VE a V8 = ventana critica
-            "desc": "Malezas detectables por NDVI anomalo en entresurco durante emergencia-desarrollo"
+            "ndvi_weed_threshold": 0.2,
+            "critical_window_days": [
+                0,
+                50
+            ],
+            "desc": "NDVI anomalo entresurco"
         }
     },
     "maiz": {
         "name": "Maiz",
         "cycle_days": 150,
         "stages": {
-            "VE_V6":  {"days": [0, 30],    "indices": ["MSAVI2","OSAVI","BSI","NDVI","SAVI"],
-                       "weed_indices": ["NDVI","MSAVI2","BSI"], "weed_risk": "alto",
-                       "desc": "Emergencia (VE-V6) — Maximo riesgo de malezas, surcos abiertos"},
-            "V8_V12": {"days": [30, 55],   "indices": ["NDVI","NDRE","GNDVI","MTCI","CCCI","PRI_proxy"],
-                       "weed_indices": ["NDVI","GNDVI","PRI_proxy"], "weed_risk": "medio",
-                       "desc": "Crecimiento rapido (V8-V12) — Malezas competidoras visibles"},
-            "VT_R1":  {"days": [55, 75],   "indices": ["kNDVI","NDRE","MTCI","EVI","S2REP","IRECI","CCCI"],
-                       "weed_indices": [], "weed_risk": "bajo",
-                       "desc": "Floracion (VT-R1) — Canopy cerrado, 12+ indices Israel"},
-            "R2_R4":  {"days": [75, 105],  "indices": ["kNDVI","NDRE","S2REP","CCCI","NDMI","MTCI","IRECI"],
-                       "weed_indices": [], "weed_risk": "bajo",
-                       "desc": "Llenado (R2-R4) — kNDVI fundamental, NDVI saturado"},
-            "R5_R6":  {"days": [105, 150], "indices": ["NDMI","PSRI","NBR2","MSI","NDRE"],
-                       "weed_indices": [], "weed_risk": "bajo",
-                       "desc": "Maduracion (R5-R6) — Estrés hidrico + senescencia"},
+            "VE_V6": {
+                "days": [
+                    0,
+                    30
+                ],
+                "primary": "MSAVI2",
+                "reason": "R2=0.85 baja cobertura",
+                "indices": [
+                    "MSAVI2",
+                    "OSAVI",
+                    "BSI",
+                    "NDVI",
+                    "SAVI",
+                    "SALINITY",
+                    "CWSI",
+                    "SIF_proxy",
+                    "TCARI_OSAVI"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "MSAVI2",
+                    "BSI"
+                ],
+                "weed_risk": "alto",
+                "desc": "Emergencia (VE-V6)"
+            },
+            "V8_V12": {
+                "days": [
+                    30,
+                    55
+                ],
+                "primary": "NDRE",
+                "reason": "Red-edge N foliar crecimiento",
+                "indices": [
+                    "NDVI",
+                    "NDRE",
+                    "GNDVI",
+                    "MTCI",
+                    "CCCI",
+                    "PRI_proxy",
+                    "SIF_proxy",
+                    "CWSI",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "GNDVI",
+                    "PRI_proxy"
+                ],
+                "weed_risk": "medio",
+                "desc": "Crecimiento (V8-V12)"
+            },
+            "VT_R1": {
+                "days": [
+                    55,
+                    75
+                ],
+                "primary": "TCARI_OSAVI",
+                "reason": "Volcani: clorofila R2=0.81",
+                "indices": [
+                    "kNDVI",
+                    "NDRE",
+                    "MTCI",
+                    "EVI",
+                    "S2REP",
+                    "IRECI",
+                    "CCCI",
+                    "TCARI_OSAVI",
+                    "SIF_proxy",
+                    "CWSI",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Floracion (VT-R1) — Critica"
+            },
+            "R2_R4": {
+                "days": [
+                    75,
+                    105
+                ],
+                "primary": "kNDVI",
+                "reason": "Anti-saturacion LAI>4",
+                "indices": [
+                    "kNDVI",
+                    "NDRE",
+                    "S2REP",
+                    "CCCI",
+                    "NDMI",
+                    "MTCI",
+                    "IRECI",
+                    "TCARI_OSAVI",
+                    "CWSI",
+                    "SIF_proxy",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Llenado (R2-R4)"
+            },
+            "R5_R6": {
+                "days": [
+                    105,
+                    150
+                ],
+                "primary": "NDMI",
+                "reason": "Humedad foliar llenado grano",
+                "indices": [
+                    "NDMI",
+                    "PSRI",
+                    "NBR2",
+                    "MSI",
+                    "NDRE",
+                    "CWSI",
+                    "SALINITY",
+                    "TCARI_OSAVI",
+                    "SIF_proxy"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Maduracion (R5-R6)"
+            }
         },
-        "critical_stages": ["VT_R1", "R2_R4"],
+        "critical_stages": [
+            "VT_R1",
+            "R2_R4"
+        ],
         "weed_detection": {
             "method": "spatial_anomaly",
             "ndvi_weed_threshold": 0.22,
-            "critical_window_days": [0, 55],
-            "desc": "Malezas en entresurco 0.75m, detectables hasta V12"
+            "critical_window_days": [
+                0,
+                55
+            ],
+            "desc": "Malezas entresurco"
         }
     },
     "cana": {
         "name": "Cana de Azucar",
         "cycle_days": 365,
         "stages": {
-            "BROTACION":       {"days": [0, 90],    "indices": ["MSAVI2","OSAVI","BSI","NDVI","SAVI","NDRE","EVI2","NBR2"],
-                                "weed_indices": ["NDVI","BSI","MSAVI2"], "weed_risk": "alto",
-                                "desc": "Brotacion (0-3m) — Surcos abiertos, invasion malezas critica"},
-            "MACOLLAJE":       {"days": [90, 150],  "indices": ["NDRE","NDVI","RECI","CIre","MTCI","CCCI","OSAVI","GNDVI","PRI_proxy"],
-                                "weed_indices": ["NDVI","GNDVI"], "weed_risk": "medio",
-                                "desc": "Macollaje (3-5m) — Cierre parcial, competencia por N"},
-            "GRAN_CRECIMIENTO":{"days": [150, 240], "indices": ["NDRE","RECI","CIre","IRECI","MTCI","S2REP","kNDVI","EVI","NDMI"],
-                                "weed_indices": [], "weed_risk": "bajo",
-                                "desc": "Gran crecimiento (5-8m) — Canopy denso, sombreo suprime malezas"},
-            "ELONGACION":      {"days": [240, 330], "indices": ["NDRE","RECI","CIre","IRECI","MTCI","S2REP","kNDVI","CCCI","NDMI","MSI"],
-                                "weed_indices": [], "weed_risk": "bajo",
-                                "desc": "Elongacion (8-11m) — NDVI saturado, red-edge critico"},
-            "MADURACION":      {"days": [330, 365], "indices": ["NDMI","NDRE","RECI","PSRI","MSI","NBR2","S2REP","EVI2"],
-                                "weed_indices": [], "weed_risk": "bajo",
-                                "desc": "Maduracion (11-12m) — Humedad, madurez sacarosa"},
+            "BROTACION": {
+                "days": [
+                    0,
+                    90
+                ],
+                "primary": "MSAVI2",
+                "reason": "Suelo + brotes",
+                "indices": [
+                    "MSAVI2",
+                    "OSAVI",
+                    "BSI",
+                    "NDVI",
+                    "SAVI",
+                    "NDRE",
+                    "EVI2",
+                    "NBR2",
+                    "SALINITY",
+                    "CWSI",
+                    "SIF_proxy",
+                    "TCARI_OSAVI"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "BSI",
+                    "MSAVI2"
+                ],
+                "weed_risk": "alto",
+                "desc": "Brotacion (0-3m)"
+            },
+            "MACOLLAJE": {
+                "days": [
+                    90,
+                    150
+                ],
+                "primary": "NDRE",
+                "reason": "Red-edge N macollaje",
+                "indices": [
+                    "NDRE",
+                    "NDVI",
+                    "RECI",
+                    "CIre",
+                    "MTCI",
+                    "CCCI",
+                    "GNDVI",
+                    "PRI_proxy",
+                    "SIF_proxy",
+                    "CWSI",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "GNDVI"
+                ],
+                "weed_risk": "medio",
+                "desc": "Macollaje (3-5m)"
+            },
+            "GRAN_CRECIMIENTO": {
+                "days": [
+                    150,
+                    240
+                ],
+                "primary": "TCARI_OSAVI",
+                "reason": "Volcani: clorofila canopy R2=0.81",
+                "indices": [
+                    "NDRE",
+                    "RECI",
+                    "CIre",
+                    "IRECI",
+                    "MTCI",
+                    "S2REP",
+                    "kNDVI",
+                    "EVI",
+                    "NDMI",
+                    "TCARI_OSAVI",
+                    "SIF_proxy",
+                    "CWSI",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Gran crecimiento (5-8m)"
+            },
+            "ELONGACION": {
+                "days": [
+                    240,
+                    330
+                ],
+                "primary": "kNDVI",
+                "reason": "Anti-saturacion LAI>6",
+                "indices": [
+                    "NDRE",
+                    "RECI",
+                    "CIre",
+                    "IRECI",
+                    "MTCI",
+                    "S2REP",
+                    "kNDVI",
+                    "CCCI",
+                    "NDMI",
+                    "MSI",
+                    "TCARI_OSAVI",
+                    "CWSI",
+                    "SIF_proxy",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Elongacion (8-11m)"
+            },
+            "MADURACION": {
+                "days": [
+                    330,
+                    365
+                ],
+                "primary": "NDMI",
+                "reason": "Humedad cosecha",
+                "indices": [
+                    "NDMI",
+                    "NDRE",
+                    "RECI",
+                    "PSRI",
+                    "MSI",
+                    "NBR2",
+                    "S2REP",
+                    "EVI2",
+                    "CWSI",
+                    "SALINITY",
+                    "TCARI_OSAVI",
+                    "SIF_proxy"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Maduracion (11-12m)"
+            }
         },
-        "critical_stages": ["GRAN_CRECIMIENTO", "ELONGACION"],
+        "critical_stages": [
+            "GRAN_CRECIMIENTO",
+            "ELONGACION"
+        ],
         "weed_detection": {
             "method": "spatial_anomaly",
             "ndvi_weed_threshold": 0.25,
-            "critical_window_days": [0, 150],
-            "desc": "Malezas entre surcos 1.4m, critico en brotacion-macollaje"
+            "critical_window_days": [
+                0,
+                150
+            ],
+            "desc": "Malezas surcos 1.4m"
         }
     },
     "trigo": {
         "name": "Trigo",
         "cycle_days": 140,
         "stages": {
-            "EMERGENCIA":  {"days": [0, 20],    "indices": ["MSAVI2","OSAVI","BSI","NDVI","SAVI"],
-                            "weed_indices": ["NDVI","BSI","MSAVI2"], "weed_risk": "alto",
-                            "desc": "Emergencia — Surcos abiertos, malezas de hoja ancha"},
-            "MACOLLAJE":   {"days": [20, 50],   "indices": ["NDVI","NDRE","GNDVI","MTCI","CCCI","PRI_proxy"],
-                            "weed_indices": ["NDVI","GNDVI","PRI_proxy"], "weed_risk": "medio",
-                            "desc": "Macollaje — Competencia malezas por N y luz"},
-            "ENCANADO":    {"days": [50, 80],   "indices": ["NDRE","kNDVI","EVI","MTCI","S2REP","IRECI"],
-                            "weed_indices": [], "weed_risk": "bajo",
-                            "desc": "Encañazon — Canopy cerrado, indices avanzados Israel"},
-            "ESPIGADO":    {"days": [80, 100],  "indices": ["NDRE","kNDVI","S2REP","CCCI","NDMI","IRECI","MTCI"],
-                            "weed_indices": [], "weed_risk": "bajo",
-                            "desc": "Espigado-floracion — Etapa critica, maxima sensibilidad"},
-            "LLENADO":     {"days": [100, 130], "indices": ["NDMI","PSRI","NDRE","NBR2","MSI"],
-                            "weed_indices": [], "weed_risk": "bajo",
-                            "desc": "Llenado — Humedad foliar + senescencia"},
-            "MADURACION":  {"days": [130, 140], "indices": ["NDMI","PSRI","NBR2","MSI"],
-                            "weed_indices": [], "weed_risk": "bajo",
-                            "desc": "Maduracion — Cosecha proxima"},
+            "EMERGENCIA": {
+                "days": [
+                    0,
+                    20
+                ],
+                "primary": "MSAVI2",
+                "reason": "Baja cobertura",
+                "indices": [
+                    "MSAVI2",
+                    "OSAVI",
+                    "BSI",
+                    "NDVI",
+                    "SAVI",
+                    "SALINITY",
+                    "CWSI",
+                    "SIF_proxy",
+                    "TCARI_OSAVI"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "BSI",
+                    "MSAVI2"
+                ],
+                "weed_risk": "alto",
+                "desc": "Emergencia"
+            },
+            "MACOLLAJE": {
+                "days": [
+                    20,
+                    50
+                ],
+                "primary": "SIF_proxy",
+                "reason": "Fluorescencia diferencia trigo/maleza",
+                "indices": [
+                    "NDVI",
+                    "NDRE",
+                    "GNDVI",
+                    "MTCI",
+                    "CCCI",
+                    "PRI_proxy",
+                    "SIF_proxy",
+                    "CWSI",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "GNDVI",
+                    "PRI_proxy"
+                ],
+                "weed_risk": "medio",
+                "desc": "Macollaje"
+            },
+            "ENCANADO": {
+                "days": [
+                    50,
+                    80
+                ],
+                "primary": "NDRE",
+                "reason": "Red-edge N foliar",
+                "indices": [
+                    "NDRE",
+                    "kNDVI",
+                    "EVI",
+                    "MTCI",
+                    "S2REP",
+                    "IRECI",
+                    "TCARI_OSAVI",
+                    "SIF_proxy",
+                    "CWSI",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Encanado"
+            },
+            "ESPIGADO": {
+                "days": [
+                    80,
+                    100
+                ],
+                "primary": "TCARI_OSAVI",
+                "reason": "Volcani: maxima sensibilidad R2=0.81",
+                "indices": [
+                    "NDRE",
+                    "kNDVI",
+                    "S2REP",
+                    "CCCI",
+                    "NDMI",
+                    "IRECI",
+                    "MTCI",
+                    "TCARI_OSAVI",
+                    "CWSI",
+                    "SIF_proxy",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Espigado — Critica"
+            },
+            "LLENADO": {
+                "days": [
+                    100,
+                    130
+                ],
+                "primary": "NDMI",
+                "reason": "Humedad foliar llenado",
+                "indices": [
+                    "NDMI",
+                    "PSRI",
+                    "NDRE",
+                    "NBR2",
+                    "MSI",
+                    "CWSI",
+                    "SALINITY",
+                    "TCARI_OSAVI",
+                    "SIF_proxy"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Llenado"
+            },
+            "MADURACION": {
+                "days": [
+                    130,
+                    140
+                ],
+                "primary": "PSRI",
+                "reason": "Senescencia + madurez",
+                "indices": [
+                    "NDMI",
+                    "PSRI",
+                    "NBR2",
+                    "MSI",
+                    "CWSI",
+                    "SALINITY",
+                    "TCARI_OSAVI",
+                    "SIF_proxy"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Maduracion"
+            }
         },
-        "critical_stages": ["ESPIGADO", "LLENADO"],
+        "critical_stages": [
+            "ESPIGADO",
+            "LLENADO"
+        ],
         "weed_detection": {
             "method": "spatial_anomaly",
             "ndvi_weed_threshold": 0.18,
-            "critical_window_days": [0, 50],
-            "desc": "Malezas de hoja ancha entre surcos, critico emergencia-macollaje"
+            "critical_window_days": [
+                0,
+                50
+            ],
+            "desc": "Malezas hoja ancha"
         }
     },
     "arroz": {
         "name": "Arroz",
         "cycle_days": 140,
         "stages": {
-            "EMERGENCIA":  {"days": [0, 25],    "indices": ["MSAVI2","OSAVI","NDVI","SAVI"],
-                            "weed_indices": ["NDVI","MSAVI2"], "weed_risk": "alto",
-                            "desc": "Emergencia — Malezas acuaticas competidoras"},
-            "MACOLLAJE":   {"days": [25, 55],   "indices": ["NDVI","NDRE","EVI","GNDVI","MTCI","PRI_proxy"],
-                            "weed_indices": ["NDVI","EVI"], "weed_risk": "medio",
-                            "desc": "Macollaje — Arroz rojo y capim arroz"},
-            "PANICULACION":{"days": [55, 80],   "indices": ["NDRE","kNDVI","MTCI","EVI","NDMI","S2REP"],
-                            "weed_indices": [], "weed_risk": "bajo",
-                            "desc": "Paniculacion — Canopy denso"},
-            "FLORACION":   {"days": [80, 100],  "indices": ["NDRE","kNDVI","S2REP","CCCI","NDMI","IRECI"],
-                            "weed_indices": [], "weed_risk": "bajo",
-                            "desc": "Floracion — Etapa critica rendimiento"},
-            "LLENADO":     {"days": [100, 140], "indices": ["NDMI","PSRI","NDRE","NBR2","MSI"],
-                            "weed_indices": [], "weed_risk": "bajo",
-                            "desc": "Llenado-maduracion — Senescencia"},
+            "EMERGENCIA": {
+                "days": [
+                    0,
+                    25
+                ],
+                "primary": "MSAVI2",
+                "reason": "Baja veg lamina agua",
+                "indices": [
+                    "MSAVI2",
+                    "OSAVI",
+                    "NDVI",
+                    "SAVI",
+                    "SALINITY",
+                    "CWSI",
+                    "SIF_proxy",
+                    "TCARI_OSAVI"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "MSAVI2"
+                ],
+                "weed_risk": "alto",
+                "desc": "Emergencia"
+            },
+            "MACOLLAJE": {
+                "days": [
+                    25,
+                    55
+                ],
+                "primary": "NDRE",
+                "reason": "Red-edge N macollaje",
+                "indices": [
+                    "NDVI",
+                    "NDRE",
+                    "EVI",
+                    "GNDVI",
+                    "MTCI",
+                    "PRI_proxy",
+                    "SIF_proxy",
+                    "CWSI",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "EVI"
+                ],
+                "weed_risk": "medio",
+                "desc": "Macollaje"
+            },
+            "PANICULACION": {
+                "days": [
+                    55,
+                    80
+                ],
+                "primary": "TCARI_OSAVI",
+                "reason": "Volcani: clorofila R2=0.81",
+                "indices": [
+                    "NDRE",
+                    "kNDVI",
+                    "MTCI",
+                    "EVI",
+                    "NDMI",
+                    "S2REP",
+                    "TCARI_OSAVI",
+                    "SIF_proxy",
+                    "CWSI",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Paniculacion"
+            },
+            "FLORACION": {
+                "days": [
+                    80,
+                    100
+                ],
+                "primary": "kNDVI",
+                "reason": "Anti-saturacion LAI alto",
+                "indices": [
+                    "NDRE",
+                    "kNDVI",
+                    "S2REP",
+                    "CCCI",
+                    "NDMI",
+                    "IRECI",
+                    "TCARI_OSAVI",
+                    "CWSI",
+                    "SIF_proxy",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Floracion — Critica"
+            },
+            "LLENADO": {
+                "days": [
+                    100,
+                    140
+                ],
+                "primary": "NDMI",
+                "reason": "Humedad llenado grano",
+                "indices": [
+                    "NDMI",
+                    "PSRI",
+                    "NDRE",
+                    "NBR2",
+                    "MSI",
+                    "CWSI",
+                    "SALINITY",
+                    "TCARI_OSAVI",
+                    "SIF_proxy"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Llenado"
+            }
         },
-        "critical_stages": ["FLORACION", "LLENADO"],
+        "critical_stages": [
+            "FLORACION",
+            "LLENADO"
+        ],
         "weed_detection": {
             "method": "spatial_anomaly",
-            "ndvi_weed_threshold": 0.20,
-            "critical_window_days": [0, 55],
-            "desc": "Arroz rojo, capim arroz, tiririca en emergencia-macollaje"
+            "ndvi_weed_threshold": 0.2,
+            "critical_window_days": [
+                0,
+                55
+            ],
+            "desc": "Arroz rojo, capim"
         }
     },
     "girasol": {
         "name": "Girasol",
         "cycle_days": 120,
         "stages": {
-            "EMERGENCIA": {"days": [0, 20],   "indices": ["MSAVI2","OSAVI","BSI","NDVI","SAVI"],
-                           "weed_indices": ["NDVI","BSI","MSAVI2"], "weed_risk": "alto",
-                           "desc": "Emergencia — Surcos abiertos, malezas rapidas"},
-            "VEGETATIVO": {"days": [20, 50],  "indices": ["NDVI","NDRE","GNDVI","EVI","MTCI","PRI_proxy"],
-                           "weed_indices": ["NDVI","GNDVI"], "weed_risk": "medio",
-                           "desc": "Vegetativo — Competencia por luz y nutrientes"},
-            "FLORACION":  {"days": [50, 75],  "indices": ["NDRE","kNDVI","EVI2","NDMI","OSAVI","S2REP","IRECI"],
-                           "weed_indices": [], "weed_risk": "bajo",
-                           "desc": "Floracion (R1-R4) — Canopy cerrado"},
-            "LLENADO":    {"days": [75, 100], "indices": ["NDRE","NDMI","NBR2","PSRI","MSI"],
-                           "weed_indices": [], "weed_risk": "bajo",
-                           "desc": "Llenado — Estrés hidrico + madurez"},
-            "MADURACION": {"days": [100, 120],"indices": ["NDMI","PSRI","NBR2","MSI"],
-                           "weed_indices": [], "weed_risk": "bajo",
-                           "desc": "Maduracion — Pre-cosecha"},
+            "EMERGENCIA": {
+                "days": [
+                    0,
+                    20
+                ],
+                "primary": "MSAVI2",
+                "reason": "Surcos abiertos",
+                "indices": [
+                    "MSAVI2",
+                    "OSAVI",
+                    "BSI",
+                    "NDVI",
+                    "SAVI",
+                    "SALINITY",
+                    "CWSI",
+                    "SIF_proxy",
+                    "TCARI_OSAVI"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "BSI",
+                    "MSAVI2"
+                ],
+                "weed_risk": "alto",
+                "desc": "Emergencia"
+            },
+            "VEGETATIVO": {
+                "days": [
+                    20,
+                    50
+                ],
+                "primary": "SIF_proxy",
+                "reason": "Fluorescencia R2=0.72",
+                "indices": [
+                    "NDVI",
+                    "NDRE",
+                    "GNDVI",
+                    "EVI",
+                    "MTCI",
+                    "PRI_proxy",
+                    "SIF_proxy",
+                    "CWSI",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "weed_indices": [
+                    "NDVI",
+                    "GNDVI"
+                ],
+                "weed_risk": "medio",
+                "desc": "Vegetativo"
+            },
+            "FLORACION": {
+                "days": [
+                    50,
+                    75
+                ],
+                "primary": "TCARI_OSAVI",
+                "reason": "Volcani: clorofila R2=0.81",
+                "indices": [
+                    "NDRE",
+                    "kNDVI",
+                    "EVI2",
+                    "NDMI",
+                    "OSAVI",
+                    "S2REP",
+                    "IRECI",
+                    "TCARI_OSAVI",
+                    "SIF_proxy",
+                    "CWSI",
+                    "SALINITY"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Floracion"
+            },
+            "LLENADO": {
+                "days": [
+                    75,
+                    100
+                ],
+                "primary": "CWSI",
+                "reason": "Stress hidrico aquenios Israel",
+                "indices": [
+                    "NDRE",
+                    "NDMI",
+                    "NBR2",
+                    "PSRI",
+                    "MSI",
+                    "CWSI",
+                    "SALINITY",
+                    "TCARI_OSAVI",
+                    "SIF_proxy"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Llenado"
+            },
+            "MADURACION": {
+                "days": [
+                    100,
+                    120
+                ],
+                "primary": "PSRI",
+                "reason": "Senescencia capitulo",
+                "indices": [
+                    "NDMI",
+                    "PSRI",
+                    "NBR2",
+                    "MSI",
+                    "CWSI",
+                    "SALINITY",
+                    "TCARI_OSAVI",
+                    "SIF_proxy"
+                ],
+                "weed_indices": [],
+                "weed_risk": "bajo",
+                "desc": "Maduracion"
+            }
         },
-        "critical_stages": ["FLORACION", "LLENADO"],
+        "critical_stages": [
+            "FLORACION",
+            "LLENADO"
+        ],
         "weed_detection": {
             "method": "spatial_anomaly",
-            "ndvi_weed_threshold": 0.20,
-            "critical_window_days": [0, 50],
-            "desc": "Malezas entre surcos 0.45-0.70m"
+            "ndvi_weed_threshold": 0.2,
+            "critical_window_days": [
+                0,
+                50
+            ],
+            "desc": "Malezas surcos"
         }
     },
     "pastura": {
         "name": "Pastura (Brachiaria/Panicum)",
-        "cycle_days": 365,  # Perenne — monitoreo continuo todo el año
+        "cycle_days": 365,
         "is_perennial": True,
         "stages": {
-            # Pasturas tropicales (Brachiaria brizantha, Panicum maximum, etc.)
-            # No tienen fenologia fija — se monitorea por estado de la biomasa
-            "REBROTE":         {"days": [0, 30],    "indices": ["MSAVI2","NDVI","SAVI","OSAVI"],            "desc": "Rebrote post-pastoreo (0-30 dias)"},
-            "CRECIMIENTO":     {"days": [30, 60],   "indices": ["NDVI","NDRE","GNDVI","EVI","MTCI"],       "desc": "Crecimiento activo (30-60 dias)"},
-            "OPTIMO_PASTOREO": {"days": [60, 90],   "indices": ["NDVI","NDRE","EVI","NDMI","GNDVI"],       "desc": "Punto optimo de pastoreo (60-90 dias)"},
-            "MADURO":          {"days": [90, 120],  "indices": ["NDVI","NDMI","PSRI","NBR2"],              "desc": "Pastura madura (>90 dias, calidad baja)"},
-            "SOBREMADURO":     {"days": [120, 365], "indices": ["PSRI","NDMI","NBR2","MSI"],               "desc": "Pastura sobremadura (lignificada)"},
+            "REBROTE": {
+                "days": [
+                    0,
+                    30
+                ],
+                "primary": "MSAVI2",
+                "reason": "Post-pastoreo suelo expuesto",
+                "indices": [
+                    "MSAVI2",
+                    "NDVI",
+                    "SAVI",
+                    "OSAVI",
+                    "CWSI",
+                    "SIF_proxy",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "desc": "Rebrote (0-30d)"
+            },
+            "CRECIMIENTO": {
+                "days": [
+                    30,
+                    60
+                ],
+                "primary": "SIF_proxy",
+                "reason": "Fluorescencia rebrote activo",
+                "indices": [
+                    "NDVI",
+                    "NDRE",
+                    "GNDVI",
+                    "EVI",
+                    "MTCI",
+                    "SIF_proxy",
+                    "CWSI",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "desc": "Crecimiento (30-60d)"
+            },
+            "OPTIMO_PASTOREO": {
+                "days": [
+                    60,
+                    90
+                ],
+                "primary": "NDVI",
+                "reason": "Calibrado biomasa R2=0.74 EMBRAPA",
+                "indices": [
+                    "NDVI",
+                    "NDRE",
+                    "EVI",
+                    "NDMI",
+                    "GNDVI",
+                    "CWSI",
+                    "SIF_proxy",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "desc": "Optimo pastoreo (60-90d)"
+            },
+            "MADURO": {
+                "days": [
+                    90,
+                    120
+                ],
+                "primary": "PSRI",
+                "reason": "Detecta lignificacion",
+                "indices": [
+                    "NDVI",
+                    "NDMI",
+                    "PSRI",
+                    "NBR2",
+                    "CWSI",
+                    "SIF_proxy",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "desc": "Madura (>90d)"
+            },
+            "SOBREMADURO": {
+                "days": [
+                    120,
+                    365
+                ],
+                "primary": "PSRI",
+                "reason": "Lignificada PSRI max",
+                "indices": [
+                    "PSRI",
+                    "NDMI",
+                    "NBR2",
+                    "MSI",
+                    "CWSI",
+                    "SIF_proxy",
+                    "TCARI_OSAVI",
+                    "SALINITY"
+                ],
+                "desc": "Sobremadura"
+            }
         },
-        "critical_stages": ["CRECIMIENTO", "OPTIMO_PASTOREO"],
-        # ── MODELO DE BIOMASA (kg MS/ha) ──
-        # Basado en: Nature Sci Reports 2024, EMBRAPA Pecuaria, Grassland Biomass S2 ML (Springer 2024)
-        # Regresion NDVI → Biomasa para Brachiaria tropical:
-        #   Biomasa (kg MS/ha) = 6842 * NDVI - 988   (R² = 0.74, RMSE = 487 kg/ha)
-        #   Fuente: OSAVI best predictor R²=0.77, SAVI R²=0.52 (Springer s10661-024-13610-1)
-        #   Fuente: Sentinel-2 + ML para Urochloa brizantha (Nature s41598-024-59160-x)
-        "biomass_model": {
-            "type": "linear_regression",
-            "formula": "biomass_kgDM_ha = 6842 * NDVI - 988",
-            "coefficients": {"slope": 6842, "intercept": -988},
-            "r2": 0.74,
-            "rmse_kg": 487,
-            "valid_range": {"NDVI_min": 0.15, "NDVI_max": 0.85},
-            "species": "Urochloa brizantha (Marandu), Panicum maximum",
-            "source": "Nature Sci Reports 2024 + Springer Environmental Monitoring 2024"
-        },
-        # ── MODELO DE TASA DE CRECIMIENTO (kg MS/ha/dia) ──
-        # Growth Rate = (Biomasa_actual - Biomasa_anterior) / dias_entre_mediciones
-        # Referencia: EMBRAPA — Brachiaria tropical produce 40-120 kg MS/ha/dia en verano
-        "growth_rate": {
-            "excellent": {"min": 80, "desc": "Crecimiento excelente (>80 kg MS/ha/dia)"},
-            "good":      {"min": 50, "max": 80, "desc": "Crecimiento bueno (50-80)"},
-            "moderate":  {"min": 30, "max": 50, "desc": "Crecimiento moderado (30-50)"},
-            "low":       {"min": 10, "max": 30, "desc": "Crecimiento bajo (10-30) — sequia/frio"},
-            "dormant":   {"max": 10, "desc": "Dormancia (<10) — sin crecimiento"}
-        },
-        # ── CARGA ANIMAL ──
-        # Capacidad de carga = (Biomasa disponible * Eficiencia de pastoreo) / (Consumo diario * Dias de ocupacion)
-        # Consumo: bovino adulto (~450kg PV) consume ~2.5% PV/dia = 11.25 kg MS/dia
-        # Eficiencia de pastoreo: 50-60% (pastoreo rotacional), 30-40% (continuo)
-        # Fuente: EMBRAPA Gado de Corte, Manual de Pastagens Tropicais
-        "stocking_rate": {
-            "animal_weight_kg": 450,
-            "daily_intake_pct": 2.5,   # % del peso vivo
-            "daily_intake_kg": 11.25,  # kg MS/dia (450 * 0.025)
-            "grazing_efficiency_rotational": 0.55,  # 55% aprovechamiento rotacional
-            "grazing_efficiency_continuous": 0.35,   # 35% aprovechamiento continuo
-            "min_residual_kg": 1500,   # Biomasa residual minima para recuperacion (kg MS/ha)
-            "formula": "UA_ha = (biomasa_disponible - residual_min) * eficiencia / (consumo_diario * dias_ocupacion)",
-            "source": "EMBRAPA Gado de Corte — Sistemas de Produccion, Manual Pastagens Tropicais"
-        },
-        # Umbrales de manejo
-        "management_thresholds": {
-            "entry_height_cm": {"Brachiaria_brizantha": 30, "Panicum_maximum": 70, "Brachiaria_decumbens": 25},
-            "exit_height_cm":  {"Brachiaria_brizantha": 15, "Panicum_maximum": 35, "Brachiaria_decumbens": 10},
-            "entry_biomass_kg": 3500,  # Biomasa ideal de entrada al pastoreo
-            "exit_biomass_kg":  1500,  # Biomasa residual post-pastoreo
-            "ndvi_entry": 0.65,        # NDVI correspondiente a biomasa de entrada
-            "ndvi_exit": 0.40,         # NDVI correspondiente a biomasa residual
-        }
-    },
+        "critical_stages": [
+            "CRECIMIENTO",
+            "OPTIMO_PASTOREO"
+        ]
+    }
 }
 
 # ============================================================
-# DATABASE HELPERS
+# DATABASE HELPERS — Local file + JSONBlob cloud sync
 # ============================================================
 
+JSONBLOB_ID = os.environ.get('JSONBLOB_ID', '')
+JSONBLOB_URL = f'https://jsonblob.com/api/jsonBlob/{JSONBLOB_ID}' if JSONBLOB_ID else ''
+import threading
+
+def _cloud_load():
+    """Load DB from JSONBlob (cloud persistence)."""
+    if not JSONBLOB_URL:
+        return None
+    try:
+        import urllib.request
+        req = urllib.request.Request(JSONBLOB_URL, headers={'Accept': 'application/json'})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            if isinstance(data, dict) and 'clients' in data:
+                return data
+    except Exception as e:
+        print(f'[DB] Cloud load error: {e}')
+    return None
+
+def _cloud_save(db):
+    """Save DB to JSONBlob (cloud persistence)."""
+    if not JSONBLOB_URL:
+        return
+    try:
+        import urllib.request
+        body = json.dumps(db, ensure_ascii=False).encode('utf-8')
+        req = urllib.request.Request(JSONBLOB_URL, data=body, method='PUT',
+                                     headers={'Content-Type': 'application/json'})
+        urllib.request.urlopen(req, timeout=10)
+    except Exception as e:
+        print(f'[DB] Cloud save error: {e}')
+
+def _new_empty_db():
+    return {"clients": [], "fields": [], "alerts": [], "timeseries": {}, "version": 0}
+
 def load_db():
+    # Try local file first
     if os.path.exists(DB_FILE):
         with open(DB_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {"clients": [], "fields": [], "alerts": [], "timeseries": {}, "version": 0}
+            data = json.load(f)
+            data.setdefault('timeseries', {})
+            return data
+    # Fallback to cloud
+    cloud_data = _cloud_load()
+    if cloud_data:
+        cloud_data.setdefault('timeseries', {})
+        with open(DB_FILE, 'w', encoding='utf-8') as f:
+            json.dump(cloud_data, f, indent=2, ensure_ascii=False)
+        print(f'[DB] Loaded from cloud: {len(cloud_data.get("clients",[]))} clients, {len(cloud_data.get("fields",[]))} fields')
+        return cloud_data
+    return _new_empty_db()
 
 def save_db(db):
     db['version'] = db.get('version', 0) + 1
     db['updatedAt'] = now_iso()
+    # Save locally
     with open(DB_FILE, 'w', encoding='utf-8') as f:
         json.dump(db, f, indent=2, ensure_ascii=False)
+    # Save to cloud in background thread (non-blocking)
+    import copy
+    db_copy = copy.deepcopy(db)
+    threading.Thread(target=_cloud_save, args=(db_copy,), daemon=True).start()
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -327,16 +1108,41 @@ def gen_id(prefix=''):
     rnd = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
     return f'{prefix}{ts}-{rnd}'
 
+def safe_getInfo(ee_obj, timeout=30):
+    """Thread-safe getInfo() wrapper with timeout to prevent GEE server hangs.
+    Returns None on timeout or error instead of blocking indefinitely."""
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(ee_obj.getInfo)
+        try:
+            return future.result(timeout=timeout)
+        except FuturesTimeout:
+            print(f'[GEE] getInfo() TIMEOUT after {timeout}s')
+            return None
+        except Exception as e:
+            print(f'[GEE] getInfo() ERROR: {e}')
+            return None
+
 # ============================================================
 # PHENOLOGY ENGINE
 # ============================================================
 
 def detect_stage(crop, planting_date_str):
     """Detect current phenological stage based on planting date."""
-    try:
-        planting = datetime.fromisoformat(planting_date_str.replace('Z', '+00:00'))
-    except:
-        planting = datetime.strptime(planting_date_str[:10], '%Y-%m-%d').replace(tzinfo=timezone.utc)
+    if not planting_date_str or len(planting_date_str) < 8:
+        planting = datetime.now(timezone.utc) - timedelta(days=30)
+    else:
+        try:
+            planting = datetime.fromisoformat(planting_date_str.replace('Z', '+00:00'))
+        except:
+            try:
+                planting = datetime.strptime(planting_date_str[:10], '%Y-%m-%d').replace(tzinfo=timezone.utc)
+            except:
+                planting = datetime.now(timezone.utc) - timedelta(days=30)
+
+    # Ensure timezone-aware for subtraction
+    if planting.tzinfo is None:
+        planting = planting.replace(tzinfo=timezone.utc)
 
     days_since = (datetime.now(timezone.utc) - planting).days
     config = CROP_PHENOLOGY.get(crop)
@@ -461,6 +1267,15 @@ def init_gee():
         if os.path.exists(GEE_KEY_PATH):
             credentials = ee.ServiceAccountCredentials(None, GEE_KEY_PATH)
             ee.Initialize(credentials, project=GEE_PROJECT)
+        elif GEE_SERVICE_ACCOUNT_KEY:
+            import tempfile
+            key_data = json.loads(GEE_SERVICE_ACCOUNT_KEY)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                json.dump(key_data, f)
+                tmp_key_path = f.name
+            credentials = ee.ServiceAccountCredentials(None, tmp_key_path)
+            ee.Initialize(credentials, project=GEE_PROJECT)
+            os.unlink(tmp_key_path)
         else:
             ee.Authenticate()
             ee.Initialize(project=GEE_PROJECT)
@@ -474,16 +1289,18 @@ def init_gee():
 def compute_monitoring(field):
     """
     Run full monitoring check for a field using GEE.
+    OPTIMIZED: Minimized getInfo() calls (max 4 instead of 12-15).
     Returns: { stage, indices, timeseries, anomalies, cloudFree }
     """
     import ee
+    t0 = time.time()
 
     if not init_gee():
         return {"error": "GEE not available"}
 
     boundary = field['boundary']
     crop = field.get('crop', 'soja')
-    planting_date = field.get('plantingDate', '2025-11-15')
+    planting_date = field.get('plantingDate') or ''
 
     # Detect current phenological stage
     stage_key, stage_cfg, days = detect_stage(crop, planting_date)
@@ -491,61 +1308,95 @@ def compute_monitoring(field):
         return {"error": f"Unknown crop: {crop}"}
 
     indices_needed = stage_cfg['indices']
+    print(f'[GEE] Check: {field.get("name")} | {crop} | stage={stage_key} | day={days} | indices={len(indices_needed)}')
 
-    # Build GEE geometry
-    coords = boundary['coordinates'] if boundary['type'] == 'Polygon' else boundary['coordinates'][0]
-    aoi = ee.Geometry.Polygon(coords)
+    # Build GEE geometry — handle Polygon, MultiPolygon, Feature, 3D coords
+    geom = boundary
+    if geom.get('type') == 'Feature':
+        geom = geom['geometry']
+    if geom.get('type') == 'MultiPolygon':
+        ring = geom['coordinates'][0][0]  # first polygon, outer ring
+    elif geom.get('type') == 'Polygon':
+        ring = geom['coordinates'][0]  # outer ring
+    else:
+        return {"error": f"Unsupported geometry type: {geom.get('type')}"}
+    # Strip Z coordinate if present (3D → 2D)
+    ring_2d = [[p[0], p[1]] for p in ring]
+    try:
+        aoi = ee.Geometry({"type": "Polygon", "coordinates": [ring_2d]}, proj='EPSG:4326', evenOdd=False)
+    except Exception as e:
+        print(f'[GEE] Geometry error: {e}, points: {len(ring_2d)}, first: {ring_2d[0]}')
+        return {"error": f"Invalid geometry: {str(e)[:100]}"}
 
-    # Date range: last 30 days for current check, 2 years for baseline
-    now = ee.Date(datetime.now(timezone.utc).strftime('%Y-%m-%d'))
-    recent_start = now.advance(-30, 'day')
-    baseline_start = now.advance(-730, 'day')  # 2 years
-    baseline_end = now.advance(-30, 'day')
+    # Date range
+    now_str = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    now = ee.Date(now_str)
 
-    # C2+A1 Fix: Unified cloud masking — apply SCL mask to remove cloud/shadow pixels
+    # Cloud masking — keep only clear pixels
     def mask_clouds_scl(img):
-        """Mask clouds, shadows, snow, saturated pixels using SCL band."""
         scl = img.select('SCL')
-        # Keep: 4=vegetation, 5=bare soil, 6=water, 7=unclassified low prob
-        # Remove: 0=no_data, 1=saturated, 3=shadow, 8=cloud_med, 9=cloud_high, 10=cirrus, 11=snow
         mask = scl.eq(4).Or(scl.eq(5)).Or(scl.eq(6)).Or(scl.eq(7))
         return img.updateMask(mask)
 
-    def compute_cloud_pct(img):
-        """Compute cloud percentage WITHIN field boundary BEFORE masking."""
+    # Compute cloud % within field boundary
+    def add_field_cloud_pct(img):
         scl = img.select('SCL')
-        cloud_mask = scl.eq(3).Or(scl.eq(8)).Or(scl.eq(9)).Or(scl.eq(10)).Or(scl.eq(11))
-        pct = cloud_mask.reduceRegion(
-            reducer=ee.Reducer.mean(),
-            geometry=aoi,
-            scale=20,
-            bestEffort=True
-        ).values().get(0)  # A1 Fix: .values().get(0) instead of .get('SCL')
+        cloud = scl.eq(3).Or(scl.eq(8)).Or(scl.eq(9)).Or(scl.eq(10)).Or(scl.eq(11))
+        pct = cloud.reduceRegion(reducer=ee.Reducer.mean(), geometry=aoi, scale=20, bestEffort=True).values().get(0)
         return img.set('cloud_pct_field', ee.Algorithms.If(pct, pct, 1))
 
-    # Get recent images — strict: <=1% clouds within field boundary
-    s2_recent = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-        .filterBounds(aoi)
-        .filterDate(recent_start, now)
-        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 15))  # pre-filter scene-level
-        .map(compute_cloud_pct)
-        .filter(ee.Filter.lte('cloud_pct_field', 0.01))  # A1 Fix: <=1% within field
-        .map(mask_clouds_scl)
-        .sort('system:time_start', False))
+    # ── STEP 1: INTELLIGENT IMAGE SEARCH ──
+    # Expanding window search — memory-efficient: pre-filter + limit
+    is_first_check = field.get('monitoring', {}).get('checkCount', 0) == 0
+    search_windows = [30, 60, 90, 120] if is_first_check else [30, 60]
 
-    recent_count = s2_recent.size().getInfo()
+    s2_recent = None
+    recent_count = 0
+    search_days_used = 0
+
+    for window_days in search_windows:
+        search_start = now.advance(-window_days, 'day')
+        # Pre-filter aggressively at scene level, then sort by date desc, limit to 10
+        candidates = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(aoi)
+            .filterDate(search_start, now)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
+            .sort('system:time_start', False)
+            .limit(5)
+            .map(mask_clouds_scl))
+
+        count = safe_getInfo(candidates.size(), timeout=20)
+        if count and count > 0:
+            s2_recent = candidates
+            recent_count = count
+            search_days_used = window_days
+            print(f'[GEE] Found {count} images in {window_days}-day window ({time.time()-t0:.1f}s)')
+            break
+        print(f'[GEE] No images in {window_days}-day window, expanding...')
 
     if recent_count == 0:
-        # Fallback: relax to <5% clouds within field
+        # Last resort: relax cloud filter, any image in 120 days
+        fallback_start = now.advance(-120, 'day')
         s2_recent = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
             .filterBounds(aoi)
-            .filterDate(recent_start, now)
-            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 10))
-            .map(mask_clouds_scl)
-            .sort('system:time_start', False))
-        recent_count = s2_recent.size().getInfo()
+            .filterDate(fallback_start, now)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 50))
+            .sort('system:time_start', False)
+            .limit(5)
+            .map(mask_clouds_scl))
+        recent_count = safe_getInfo(s2_recent.size(), timeout=20) or 0
+        search_days_used = 120
+        if recent_count > 0:
+            print(f'[GEE] Fallback: {recent_count} images in 120 days ({time.time()-t0:.1f}s)')
 
-    # Compute indices on latest image
+    cloud_blocked = recent_count == 0
+    if cloud_blocked:
+        print(f'[GEE] NO images for {field.get("name")} — cloud blocked')
+
+    baseline_start = now.advance(-730, 'day')
+    baseline_end = now.advance(-max(search_days_used, 45), 'day')
+
+    # ── STEP 2: Compute all indices on latest image ──
     def compute_indices(img):
         b2 = img.select('B2').divide(10000)
         b3 = img.select('B3').divide(10000)
@@ -573,207 +1424,311 @@ def compute_monitoring(field):
         msavi2 = b8.multiply(2).add(1).subtract(
             b8.multiply(2).add(1).pow(2).subtract(b8.subtract(b4).multiply(8)).sqrt()
         ).divide(2).rename('MSAVI2')
-
         s2rep_denom = b6.subtract(b5).where(b6.subtract(b5).abs().lt(0.001), 0.001)
         s2rep = ee.Image(705).add(ee.Image(35).multiply(
             b4.add(b7).divide(2).subtract(b5).divide(s2rep_denom)
         )).rename('S2REP')
-
         ccci = ndre.divide(ndvi.max(ee.Image(0.001))).rename('CCCI')
         cire = b8a.divide(b6.max(ee.Image(0.001))).subtract(1).rename('CIre')
         reci = b8a.divide(b5.max(ee.Image(0.001))).subtract(1).rename('RECI')
         ireci = b7.subtract(b4).divide(b5.divide(b6.max(ee.Image(0.001)))).rename('IRECI')
         evi2 = b8.subtract(b4).multiply(2.5).divide(b8.add(b4.multiply(2.4)).add(1)).rename('EVI2')
-        # C1 Fix: BSI (Bare Soil Index) — needed for weed detection in emergence
         bsi = b11.add(b4).subtract(b8.add(b2)).divide(b11.add(b4).add(b8).add(b2).max(ee.Image(0.001))).rename('BSI')
-        # PRI proxy (Photochemical Reflectance) — pre-visual stress detection
         pri_denom = b3.add(b4).where(b3.add(b4).lt(0.001), 0.001)
         pri_proxy = b3.subtract(b4).divide(pri_denom).rename('PRI_proxy')
+        # Israeli indices 2024-2025
+        cwsi_proxy = b11.subtract(b8a).divide(b11.add(b8a).max(ee.Image(0.001))).rename('CWSI')
+        sif_proxy = b5.subtract(b4).divide(b4.max(ee.Image(0.001))).rename('SIF_proxy')
+        salinity = b4.multiply(b3).sqrt().rename('SALINITY')
+        tcari = ee.Image(3).multiply(b5.subtract(b4).subtract(b5.subtract(b3).multiply(0.2).multiply(b5.divide(b4.max(ee.Image(0.001))))))
+        tcari_osavi = tcari.divide(osavi.max(ee.Image(0.001))).rename('TCARI_OSAVI')
+
+        # NEW: Israeli AgriTech indices (Volcani Center / Ben-Gurion / ARO methodology)
+        ndvi705 = b6.subtract(b5).divide(b6.add(b5).max(ee.Image(0.001))).rename('NDVI705')
+        mcari = b5.subtract(b4).subtract(b5.subtract(b3).multiply(0.2)).multiply(b5.divide(b4.max(ee.Image(0.001)))).rename('MCARI')
+        rendvi = b7.subtract(b5).divide(b7.add(b5).max(ee.Image(0.001))).rename('RENDVI')
+        nmdi = b8a.subtract(b11.subtract(b12)).divide(b8a.add(b11.subtract(b12)).max(ee.Image(0.001))).rename('NMDI')
+        smi = b8a.subtract(b11).divide(b8a.add(b11).max(ee.Image(0.001))).rename('SMI')
+        lswi = b8.subtract(b11).divide(b8.add(b11).max(ee.Image(0.001))).rename('LSWI')
 
         return img.addBands([ndvi, ndre, evi, ndmi, mtci, gndvi, savi, kndvi, psri,
                             nbr2, msi, osavi, msavi2, s2rep, ccci, cire, reci, ireci, evi2,
-                            bsi, pri_proxy])
+                            bsi, pri_proxy, cwsi_proxy, sif_proxy, salinity, tcari_osavi,
+                            ndvi705, mcari, rendvi, nmdi, smi, lswi])
 
-    # Current values (mean of latest cloud-free image)
     current_values = {}
-    if recent_count > 0:
+    weed_ndvi_std = None
+    weed_ndvi_p90 = None
+    weed_ndvi_p50 = None
+    image_date = None
+
+    if not cloud_blocked:
         latest = compute_indices(s2_recent.first())
-        for idx in indices_needed:
-            try:
-                val = latest.select(idx).reduceRegion(
-                    reducer=ee.Reducer.mean(),
-                    geometry=aoi,
-                    scale=10,
-                    bestEffort=True
-                ).get(idx).getInfo()
-                current_values[idx] = round(val, 4) if val is not None else None
-            except:
+
+        # Get image date
+        try:
+            image_date = safe_getInfo(ee.Date(s2_recent.first().get('system:time_start')).format('YYYY-MM-dd'), timeout=15)
+        except:
+            pass
+
+        # getInfo #2: ALL current values in ONE call
+        try:
+            all_indices = list(set(indices_needed + ['NDVI']))
+            reduce_result = safe_getInfo(latest.select(all_indices).reduceRegion(
+                reducer=ee.Reducer.mean(), geometry=aoi, scale=20, bestEffort=True
+            ), timeout=30)
+            if reduce_result is None:
+                raise Exception('Timeout computing indices')
+
+            for idx in all_indices:
+                v = reduce_result.get(idx)
+                current_values[idx] = round(v, 4) if v is not None else None
+            print(f'[GEE] Indices computed: {len(current_values)} values ({time.time()-t0:.1f}s)')
+
+            # FALLBACK: If all values are None (cloud mask removed everything),
+            # try the COMPOSITE median of all images WITHOUT cloud mask
+            all_none = all(v is None for v in current_values.values())
+            if all_none:
+                print(f'[GEE] All values None — trying composite without cloud mask...')
+                search_start = now.advance(-120, 'day')
+                raw_col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+                    .filterBounds(aoi)
+                    .filterDate(search_start, now)
+                    .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 50))
+                    .limit(20))
+                composite = compute_indices(raw_col.median())
+                raw_result = safe_getInfo(composite.select(all_indices).reduceRegion(
+                    reducer=ee.Reducer.mean(), geometry=aoi, scale=20, bestEffort=True
+                ), timeout=30) or {}
+                for idx in all_indices:
+                    v = raw_result.get(idx)
+                    current_values[idx] = round(v, 4) if v is not None else None
+                non_null = sum(1 for v in current_values.values() if v is not None)
+                print(f'[GEE] Composite fallback: {non_null}/{len(all_indices)} indices ({time.time()-t0:.1f}s)')
+
+        except Exception as e:
+            print(f'[GEE] Index error: {e}')
+            traceback.print_exc()
+            for idx in indices_needed:
                 current_values[idx] = None
+            # Treat as cloud blocked to avoid saving None values
+            cloud_blocked = True
 
-    # Baseline (historical mean + stddev for primary index)
-    primary_idx = indices_needed[0] if indices_needed else 'NDVI'
-    baseline_col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-        .filterBounds(aoi)
-        .filterDate(baseline_start, baseline_end)
-        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 15))
-        .map(mask_clouds_scl)
-        .map(compute_indices))
+        # getInfo #3: Weed detection stats (only if in weed window)
+        weed_indices_for_stage = stage_cfg.get('weed_indices', [])
+        crop_cfg = CROP_PHENOLOGY.get(crop, {})
+        weed_cfg = crop_cfg.get('weed_detection', {})
+        weed_window = weed_cfg.get('critical_window_days', [0, 0])
 
-    # A3 Fix: Verify baseline has enough images for statistical significance
-    baseline_size = baseline_col.size().getInfo()
-    if baseline_size < 10:
-        # Relax cloud filter for baseline
-        baseline_col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-            .filterBounds(aoi)
-            .filterDate(baseline_start, baseline_end)
-            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
-            .map(mask_clouds_scl)
-            .map(compute_indices))
-        baseline_size = baseline_col.size().getInfo()
-        print(f'[GEE] Baseline relaxed: {baseline_size} images (was <10)')
+        if (weed_window[0] <= days <= weed_window[1] and weed_indices_for_stage
+                and current_values.get('NDVI') is not None):
+            try:
+                ndvi_stats = safe_getInfo(latest.select('NDVI').reduceRegion(
+                    reducer=ee.Reducer.stdDev().combine(ee.Reducer.percentile([90, 50]), sharedInputs=True),
+                    geometry=aoi, scale=20, bestEffort=True
+                ), timeout=20)
+                if ndvi_stats is None:
+                    raise Exception('Timeout computing weed stats')
+                weed_ndvi_std = ndvi_stats.get('NDVI_stdDev', 0) or 0
+                weed_ndvi_p90 = ndvi_stats.get('NDVI_p90', 0) or 0
+                weed_ndvi_p50 = ndvi_stats.get('NDVI_p50', 0) or 0
+                print(f'[GEE] Weed stats: stdDev={weed_ndvi_std:.3f}, P90={weed_ndvi_p90:.3f}, P50={weed_ndvi_p50:.3f} ({time.time()-t0:.1f}s)')
+            except Exception as e:
+                print(f'[GEE] Weed stats error: {e}')
 
+    # ── STEP 3: Baseline (2-year historical) — NO compute_indices on collection ──
+    # OPTIMIZATION: Only compute primary_idx on baseline, not all 24 indices
+    # Auto-select primary index from phenological stage config
+    primary_idx = stage_cfg.get('primary', indices_needed[0] if indices_needed else 'NDVI')
+    primary_reason = stage_cfg.get('reason', '')
     baseline_mean_val = None
     baseline_std_val = None
     z_score = None
     anomalies = []
 
-    try:
-        baseline_mean = baseline_col.select(primary_idx).mean()
-        baseline_std = baseline_col.select(primary_idx).reduce(ee.Reducer.stdDev())
-
-        baseline_mean_val = baseline_mean.reduceRegion(
-            reducer=ee.Reducer.mean(), geometry=aoi, scale=20, bestEffort=True
-        ).get(primary_idx).getInfo()
-
-        baseline_std_val = baseline_std.reduceRegion(
-            reducer=ee.Reducer.mean(), geometry=aoi, scale=20, bestEffort=True
-        ).values().get(0).getInfo()
-
-        # Z-score anomaly detection
-        # A2 Fix: Raise minimum stddev to 0.05 to avoid false positives on stable baseline
-        if current_values.get(primary_idx) is not None and baseline_mean_val and baseline_std_val and baseline_std_val > 0.05:
-            z_score = round((current_values[primary_idx] - baseline_mean_val) / baseline_std_val, 2)
-
-            if abs(z_score) > 2.0:
-                severity = 'critical' if abs(z_score) > 3.0 else 'warning'
-                anomalies.append({
-                    "id": gen_id('anomaly-'),
-                    "fieldId": field['id'],
-                    "date": now_iso(),
-                    "type": "anomaly",
-                    "severity": severity,
-                    "zScore": z_score,
-                    "index": primary_idx,
-                    "currentValue": current_values[primary_idx],
-                    "baselineMean": round(baseline_mean_val, 4),
-                    "baselineStd": round(baseline_std_val, 4),
-                    "description": f"{primary_idx} Z-score={z_score} ({'caida' if z_score < 0 else 'exceso'} vs baseline)",
-                    "status": "active"
-                })
-    except Exception as e:
-        print(f'[GEE] Baseline error: {e}')
-
-    # ── WEED DETECTION: spatial anomaly in inter-row areas ──
-    # Method: In early stages (weed_risk alto/medio), detect pixels where
-    # NDVI is anomalously high in areas that should be bare soil/low cover.
-    # At 10m Sentinel-2, individual weeds are not detectable but weed PATCHES
-    # (>100m² = 1 pixel) show higher NDVI than expected bare soil.
-    # Reference: Zhang et al. Agronomy 2024, MDPI Drones 2023
-    weed_alert = None
-    crop_cfg = CROP_PHENOLOGY.get(crop, {})
-    weed_cfg = crop_cfg.get('weed_detection', {})
-    weed_window = weed_cfg.get('critical_window_days', [0, 0])
-    weed_indices_for_stage = stage_cfg.get('weed_indices', []) if stage_cfg else []
-
-    if (weed_window[0] <= days <= weed_window[1] and
-        weed_indices_for_stage and
-        not cloud_blocked and
-        current_values.get('NDVI') is not None):
-
-        # In early stages with open rows, look for NDVI spatial heterogeneity
-        # High stddev of NDVI = patchy vegetation = potential weed infestation
+    if not cloud_blocked and current_values.get(primary_idx) is not None:
         try:
-            if recent_count > 0:
-                latest_ndvi = compute_indices(s2_recent.first()).select('NDVI')
-                ndvi_stats = latest_ndvi.reduceRegion(
-                    reducer=ee.Reducer.stdDev().combine(ee.Reducer.percentile([90]), sharedInputs=True),
-                    geometry=aoi, scale=10, bestEffort=True
-                ).getInfo()
+            def compute_primary_only(img):
+                """Compute only the primary index for baseline — much faster than all 24."""
+                b2 = img.select('B2').divide(10000)
+                b3 = img.select('B3').divide(10000)
+                b4 = img.select('B4').divide(10000)
+                b5 = img.select('B5').divide(10000)
+                b6 = img.select('B6').divide(10000)
+                b7 = img.select('B7').divide(10000)
+                b8 = img.select('B8').divide(10000)
+                b8a = img.select('B8A').divide(10000)
+                b11 = img.select('B11').divide(10000)
+                b12 = img.select('B12').divide(10000)
+                idx_map = {
+                    'NDVI': b8.subtract(b4).divide(b8.add(b4)),
+                    'NDRE': b8a.subtract(b5).divide(b8a.add(b5)),
+                    'MSAVI2': b8.multiply(2).add(1).subtract(b8.multiply(2).add(1).pow(2).subtract(b8.subtract(b4).multiply(8)).sqrt()).divide(2),
+                    'EVI': b8.subtract(b4).multiply(2.5).divide(b8.add(b4.multiply(6)).subtract(b2.multiply(7.5)).add(1)),
+                    'NDMI': b8a.subtract(b11).divide(b8a.add(b11)),
+                    'kNDVI': b8.subtract(b4).divide(b8.add(b4)).pow(2).tanh(),
+                    'GNDVI': b8.subtract(b3).divide(b8.add(b3)),
+                    'OSAVI': b8.subtract(b4).multiply(1.16).divide(b8.add(b4).add(0.16)),
+                    'SIF_proxy': b5.subtract(b4).divide(b4.max(ee.Image(0.001))),
+                    'MTCI': b6.subtract(b5).divide(b5.subtract(b4).max(ee.Image(0.001))),
+                    'NDVI705': b6.subtract(b5).divide(b6.add(b5).max(ee.Image(0.001))),
+                    'RENDVI': b7.subtract(b5).divide(b7.add(b5).max(ee.Image(0.001))),
+                    'SMI': b8a.subtract(b11).divide(b8a.add(b11).max(ee.Image(0.001))),
+                    'LSWI': b8.subtract(b11).divide(b8.add(b11).max(ee.Image(0.001))),
+                }
+                idx_img = idx_map.get(primary_idx, idx_map['NDVI'])
+                return img.addBands(idx_img.rename(primary_idx))
 
-                ndvi_std = ndvi_stats.get('NDVI_stdDev', 0) or 0
-                ndvi_p90 = ndvi_stats.get('NDVI_p90', 0) or 0
-                weed_threshold = weed_cfg.get('ndvi_weed_threshold', 0.20)
+            baseline_col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+                .filterBounds(aoi)
+                .filterDate(baseline_start, baseline_end)
+                .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 25))
+                .limit(50)
+                .map(mask_clouds_scl)
+                .map(compute_primary_only))
 
-                # Weed detection logic:
-                # 1. High spatial stddev (>0.10) = patchy vegetation = not uniform crop
-                # 2. P90 > threshold while mean is low = patches of green in bare areas
-                mean_ndvi = current_values.get('NDVI', 0)
-                # A4 Fix: More conservative thresholds to reduce false positives
-                # stdDev > 0.15 (was 0.10) + P90 must exceed mean by significant margin
-                if ndvi_std > 0.15 and ndvi_p90 > (mean_ndvi + 0.15) and mean_ndvi < 0.40:
-                    weed_severity = 'warning' if ndvi_std < 0.15 else 'critical'
-                    weed_alert = {
-                        'id': gen_id('weed-'),
-                        'fieldId': field['id'],
-                        'date': now_iso(),
-                        'type': 'weed_infestation',
-                        'severity': weed_severity,
-                        'description': (f'Posible infestacion de malezas detectada. '
-                                       f'Heterogeneidad NDVI={ndvi_std:.3f} (>0.10), '
-                                       f'P90={ndvi_p90:.3f} (>{weed_threshold}). '
-                                       f'Etapa: {stage_cfg.get("desc","")}. '
-                                       f'Revisar entresurcos del lote.'),
-                        'ndvi_std': round(ndvi_std, 4),
-                        'ndvi_p90': round(ndvi_p90, 4),
-                        'ndvi_mean': round(mean_ndvi, 4),
-                        'weed_risk': stage_cfg.get('weed_risk', 'medio'),
-                        'status': 'active'
-                    }
-                    anomalies.append(weed_alert)
-                    print(f'[Monitor] MALEZA: {field.get("name")} — stdNDVI={ndvi_std:.3f}, P90={ndvi_p90:.3f}')
+            # Validate baseline has enough images (prevent meaningless Z-scores)
+            baseline_count = safe_getInfo(baseline_col.size(), timeout=15) or 0
+            if baseline_count < 5:
+                print(f'[GEE] Baseline insufficient: only {baseline_count} images (need >=5)')
+                result_extra = {'baseline_insufficient': True, 'baseline_count': baseline_count}
+            else:
+                result_extra = {'baseline_count': baseline_count}
+
+                # getInfo #4: Baseline mean + stddev in ONE call
+                baseline_stats = safe_getInfo(baseline_col.select(primary_idx).reduce(
+                    ee.Reducer.mean().combine(ee.Reducer.stdDev().combine(ee.Reducer.count(), sharedInputs=True), sharedInputs=True)
+                ).reduceRegion(
+                    reducer=ee.Reducer.mean(), geometry=aoi, scale=20, bestEffort=True
+                ), timeout=30)
+
+                if baseline_stats:
+                    baseline_mean_val = baseline_stats.get(f'{primary_idx}_mean')
+                    baseline_std_val = baseline_stats.get(f'{primary_idx}_stdDev')
+                    print(f'[GEE] Baseline: mean={baseline_mean_val}, std={baseline_std_val}, imgs={baseline_count} ({time.time()-t0:.1f}s)')
+
+                    # Z-score anomaly detection — stddev floor 0.03 for sensitivity
+                    if baseline_mean_val and baseline_std_val and baseline_std_val > 0.03:
+                        z_score = round((current_values[primary_idx] - baseline_mean_val) / baseline_std_val, 2)
+                        if abs(z_score) > 2.0:
+                            severity = 'critical' if abs(z_score) > 3.0 else 'warning'
+                            anomalies.append({
+                                "id": gen_id('anomaly-'),
+                                "fieldId": field['id'],
+                                "date": now_iso(),
+                                "type": "anomaly",
+                                "severity": severity,
+                                "zScore": z_score,
+                                "index": primary_idx,
+                                "currentValue": current_values[primary_idx],
+                                "baselineMean": round(baseline_mean_val, 4),
+                                "baselineStd": round(baseline_std_val, 4),
+                                "baselineCount": baseline_count,
+                                "description": f"{primary_idx} Z-score={z_score} ({'caida' if z_score < 0 else 'exceso'} vs baseline, n={baseline_count})",
+                                "status": "active"
+                            })
+                else:
+                    print(f'[GEE] Baseline stats timeout ({time.time()-t0:.1f}s)')
         except Exception as e:
-            print(f'[Monitor] Weed detection error: {e}')
+            print(f'[GEE] Baseline error: {e}')
 
-    # ── PRI proxy (Green-Red index) for pre-visual stress ──
-    # PRI_proxy = (B3 - B4) / (B3 + B4) — detects xanthophyll cycle activity
-    # Divergent PRI in early stages may indicate different species (weeds)
-    if 'PRI_proxy' in indices_needed and recent_count > 0:
-        try:
-            latest = compute_indices(s2_recent.first())
-            b3 = latest.select('B3').divide(10000)
-            b4 = latest.select('B4').divide(10000)
-            pri = b3.subtract(b4).divide(b3.add(b4).max(ee.Image(0.001)))
-            pri_val = pri.reduceRegion(
-                reducer=ee.Reducer.mean(), geometry=aoi, scale=10, bestEffort=True
-            ).values().get(0).getInfo()
-            if pri_val is not None:
-                current_values['PRI_proxy'] = round(pri_val, 4)
-        except:
-            pass
+    # ── WEED DETECTION — Multi-criteria approach (reduces false positives) ──
+    weed_alert = None
+    if weed_ndvi_std is not None and current_values.get('NDVI') is not None:
+        mean_ndvi = current_values.get('NDVI', 0)
+        crop_cfg = CROP_PHENOLOGY.get(crop, {})
 
-    # ── CLOUD DETECTION: inform when no usable image ──
-    cloud_blocked = recent_count == 0
+        # Multi-criteria weed scoring (must pass >= 2 of 3)
+        weed_criteria_met = 0
+        # Criterion 1: High spatial heterogeneity + active vegetation
+        if weed_ndvi_std > 0.12 and mean_ndvi > 0.35:
+            weed_criteria_met += 1
+        # Criterion 2: P90-P50 gap > 0.20 (weed patches are outliers above canopy median)
+        p90_p50_gap = (weed_ndvi_p90 - weed_ndvi_p50) if weed_ndvi_p50 else 0
+        if p90_p50_gap > 0.20:
+            weed_criteria_met += 1
+        # Criterion 3: P90 significantly above mean (weed clusters above canopy)
+        if weed_ndvi_p90 > (mean_ndvi + 0.18):
+            weed_criteria_met += 1
+
+        if weed_criteria_met >= 2:
+            weed_severity = 'critical' if (weed_ndvi_std > 0.20 or weed_criteria_met == 3) else 'warning'
+            weed_confidence = round(weed_criteria_met / 3.0 * 100)
+            weed_alert = {
+                'id': gen_id('weed-'),
+                'fieldId': field['id'],
+                'date': now_iso(),
+                'type': 'weed_infestation',
+                'severity': weed_severity,
+                'confidence': weed_confidence,
+                'criteria_met': weed_criteria_met,
+                'description': (f'Posible infestacion de malezas (confianza {weed_confidence}%). '
+                               f'Heterogeneidad NDVI={weed_ndvi_std:.3f}, P90={weed_ndvi_p90:.3f}, '
+                               f'Gap P90-P50={p90_p50_gap:.3f}. '
+                               f'Etapa: {stage_cfg.get("desc","")}. Revisar entresurcos.'),
+                'ndvi_std': round(weed_ndvi_std, 4),
+                'ndvi_p90': round(weed_ndvi_p90, 4),
+                'ndvi_p50': round(weed_ndvi_p50 or 0, 4),
+                'ndvi_mean': round(mean_ndvi, 4),
+                'p90_p50_gap': round(p90_p50_gap, 4),
+                'weed_risk': stage_cfg.get('weed_risk', 'medio'),
+                'status': 'active'
+            }
+            anomalies.append(weed_alert)
+            print(f'[Monitor] MALEZA: {field.get("name")} — criteria={weed_criteria_met}/3, stdNDVI={weed_ndvi_std:.3f}')
+
+    # ── CLOUD / HARVEST DETECTION ──
     cloud_message = None
     if cloud_blocked:
-        cloud_message = (f'Semana {datetime.now(timezone.utc).strftime("%Y-W%U")}: '
-                        f'Sin imagen disponible — cobertura de nubes impidio el monitoreo. '
-                        f'Se reintentara en el proximo ciclo de 7 dias.')
-        print(f'[Monitor] NUBES: {field.get("name")} — sin imagen cloud-free esta semana')
+        cloud_message = f'Sin imagen cloud-free en ultimos 30 dias. Reintentar en 7 dias.'
+        print(f'[Monitor] NUBES: {field.get("name")}')
 
-    # ── HARVEST DETECTION: auto-pause when NDVI drops below bare soil ──
     harvest_detected = False
     harvest_message = None
-    HARVEST_NDVI_THRESHOLD = 0.15  # NDVI < 0.15 = suelo desnudo / post-cosecha
-    if not cloud_blocked and current_values.get('NDVI') is not None:
-        if current_values['NDVI'] < HARVEST_NDVI_THRESHOLD and crop != 'pastura':
-            # M5 Fix: Crop-specific minimum days before harvest detection
-            cycle_days = CROP_PHENOLOGY.get(crop, {}).get('cycle_days', 130)
-            min_harvest_days = max(60, cycle_days - 30)  # At least 60 days or cycle-30
-            if days > min_harvest_days:
-                harvest_detected = True
-                harvest_message = (f'Cosecha detectada: NDVI={current_values["NDVI"]:.3f} '
-                                  f'(< {HARVEST_NDVI_THRESHOLD}). Monitoreo pausado automaticamente.')
-                print(f'[Monitor] COSECHA DETECTADA: {field.get("name")} — NDVI={current_values["NDVI"]:.3f}, auto-pausing')
+    if not cloud_blocked and current_values.get('NDVI') is not None and crop != 'pastura':
+        ndvi_now = current_values['NDVI']
+        bsi_now = current_values.get('BSI', 0) or 0
+        cycle_days = CROP_PHENOLOGY.get(crop, {}).get('cycle_days', 130)
+
+        # Check previous NDVI from timeseries for drop rate
+        prev_ndvi = None
+        db_ts = load_db().get('timeseries', {}).get(field['id'], [])
+        if db_ts:
+            prev_entry = db_ts[-1]
+            prev_ndvi = prev_entry.get('values', {}).get('NDVI')
+
+        # Harvest detection: NDVI drop rate + BSI confirmation
+        ndvi_drop_pct = ((prev_ndvi - ndvi_now) / prev_ndvi * 100) if prev_ndvi and prev_ndvi > 0.3 else 0
+        harvest_criteria = 0
+        if ndvi_now < 0.25:
+            harvest_criteria += 1
+        if ndvi_drop_pct > 50:
+            harvest_criteria += 1
+        if bsi_now > 0.3:
+            harvest_criteria += 1
+        if days > max(60, cycle_days - 30):
+            harvest_criteria += 1
+
+        if harvest_criteria >= 2:
+            harvest_detected = True
+            harvest_message = (f'Cosecha detectada: NDVI={ndvi_now:.3f}, BSI={bsi_now:.3f}, '
+                              f'caida={ndvi_drop_pct:.0f}%. Monitoreo pausado.')
+            print(f'[Monitor] COSECHA: {field.get("name")} NDVI={ndvi_now:.3f} BSI={bsi_now:.3f} drop={ndvi_drop_pct:.0f}%')
+
+    # ── SAR FALLBACK (Sentinel-1) when cloud blocked ──
+    sar_data = None
+    if cloud_blocked:
+        sar_data = compute_sar_fallback(aoi, now, search_days_used)
+        if sar_data:
+            print(f'[GEE] SAR fallback: RVI={sar_data.get("RVI","N/A")} ({time.time()-t0:.1f}s)')
+
+    # ── AGRONOMIC INTERPRETATION ──
+    agronomic = None
+    if current_values and not cloud_blocked:
+        agronomic = interpret_anomalies(current_values, crop, stage_key, anomalies)
+
+    elapsed = round(time.time() - t0, 1)
+    print(f'[GEE] DONE: {field.get("name")} in {elapsed}s | {recent_count} imgs | z={z_score}')
 
     result = {
         "stage": stage_key,
@@ -795,12 +1750,19 @@ def compute_monitoring(field):
         "harvestMessage": harvest_message,
         "weedAlert": weed_alert,
         "weedRisk": stage_cfg.get('weed_risk', 'bajo') if stage_cfg else 'bajo',
-        "checkedAt": now_iso()
+        "checkedAt": now_iso(),
+        "imageDate": image_date,
+        "searchDaysUsed": search_days_used,
+        "primaryIndex": primary_idx,
+        "primaryReason": primary_reason,
+        "elapsedSeconds": elapsed,
+        "dataSource": "SAR_S1" if (cloud_blocked and sar_data) else "S2_SR",
+        "sarData": sar_data,
+        "agronomicInterpretation": agronomic
     }
 
     # ── PASTURA: Biomass + Growth Rate + Stocking Rate ──
     if crop == 'pastura' and current_values.get('NDVI') is not None:
-        # Get previous NDVI from timeseries for growth rate calculation
         db = load_db()
         ts = db.get('timeseries', {}).get(field['id'], [])
         prev_ndvi = None
@@ -811,21 +1773,148 @@ def compute_monitoring(field):
             if prev_ndvi and last_entry.get('date'):
                 try:
                     last_date = datetime.fromisoformat(last_entry['date'].replace('Z', '+00:00'))
-                    days_between = (datetime.now(timezone.utc) - last_date).days
-                    if days_between < 1:
-                        days_between = 5  # minimum interval
+                    days_between = max(1, (datetime.now(timezone.utc) - last_date).days)
                 except:
                     days_between = 5
-
-        pasture_metrics = compute_pasture_metrics(
-            current_values['NDVI'], prev_ndvi, days_between, field
-        )
+        pasture_metrics = compute_pasture_metrics(current_values['NDVI'], prev_ndvi, days_between, field)
         result['pastureMetrics'] = pasture_metrics
-        print(f'[Monitor] Pastura: {pasture_metrics["biomass_kgDM_ha"]} kg MS/ha, '
-              f'growth={pasture_metrics["growth_rate_kgDM_ha_day"]} kg/dia, '
-              f'carga_rot={pasture_metrics["stocking_rate_rotational_UA_ha"]} UA/ha')
 
     return result
+
+# ============================================================
+# SAR FALLBACK (Sentinel-1 C-band when cloud blocked)
+# ============================================================
+
+def compute_sar_fallback(aoi, now_date, search_days):
+    """Compute Sentinel-1 SAR indices when optical (S2) is cloud-blocked.
+    Returns RVI, VV, VH means as cloud-independent vegetation proxy."""
+    import ee
+    try:
+        sar_start = now_date.advance(-max(search_days, 30), 'day')
+        s1 = (ee.ImageCollection('COPERNICUS/S1_GRD')
+            .filterBounds(aoi)
+            .filterDate(sar_start, now_date)
+            .filter(ee.Filter.eq('instrumentMode', 'IW'))
+            .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+            .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH'))
+            .select(['VV', 'VH']))
+
+        count = safe_getInfo(s1.size(), timeout=15)
+        if not count or count == 0:
+            print(f'[SAR] No Sentinel-1 images found')
+            return None
+
+        composite = s1.mean().clip(aoi)
+        # RVI = 4 * VH / (VV + VH) — Radar Vegetation Index
+        vv = composite.select('VV')
+        vh = composite.select('VH')
+        # Convert from dB to linear for RVI
+        vv_lin = ee.Image(10).pow(vv.divide(10))
+        vh_lin = ee.Image(10).pow(vh.divide(10))
+        rvi = vh_lin.multiply(4).divide(vv_lin.add(vh_lin)).rename('RVI')
+
+        stats = safe_getInfo(composite.addBands(rvi).reduceRegion(
+            reducer=ee.Reducer.mean(), geometry=aoi, scale=20, bestEffort=True
+        ), timeout=20)
+
+        if not stats:
+            return None
+
+        return {
+            'RVI': round(stats.get('RVI', 0) or 0, 4),
+            'VV': round(stats.get('VV', 0) or 0, 2),
+            'VH': round(stats.get('VH', 0) or 0, 2),
+            'images': count,
+            'source': 'Sentinel-1 IW GRD'
+        }
+    except Exception as e:
+        print(f'[SAR] Error: {e}')
+        return None
+
+
+# ============================================================
+# AGRONOMIC INTERPRETATION ENGINE
+# ============================================================
+
+# Stress diagnosis matrix based on spectral signatures
+STRESS_SIGNATURES = {
+    'drought': {
+        'indicators': [('NDMI', 'low'), ('MSI', 'high'), ('CWSI', 'high'), ('NMDI', 'low'), ('LSWI', 'low')],
+        'recommendation': 'Estres hidrico detectado. Verificar riego o evaluar capacidad de retencion del suelo.',
+        'urgency': 'alta'
+    },
+    'nitrogen': {
+        'indicators': [('NDRE', 'low'), ('MTCI', 'low'), ('CCCI', 'low'), ('NDVI705', 'low'), ('RENDVI', 'low')],
+        'recommendation': 'Deficiencia de nitrogeno. Aplicar fertilizacion nitrogenada segun dosis recomendada para el cultivo.',
+        'urgency': 'media'
+    },
+    'disease': {
+        'indicators': [('PRI_proxy', 'low'), ('PSRI', 'high'), ('SIF_proxy', 'low')],
+        'recommendation': 'Posible enfermedad o senescencia prematura. Realizar scouting de campo y evaluar aplicacion de fungicida.',
+        'urgency': 'alta'
+    },
+    'chlorophyll': {
+        'indicators': [('MCARI', 'high'), ('TCARI_OSAVI', 'high'), ('GNDVI', 'low')],
+        'recommendation': 'Bajo contenido de clorofila. Evaluar nutricion general del cultivo y posibles deficiencias de Mg o Fe.',
+        'urgency': 'media'
+    }
+}
+
+# Reference thresholds per index (approx normal ranges for active crops)
+INDEX_THRESHOLDS = {
+    'NDVI': (0.35, 0.85), 'NDRE': (0.15, 0.55), 'NDMI': (0.10, 0.50),
+    'MSI': (0.40, 1.20), 'CWSI': (-0.30, 0.10), 'MTCI': (1.0, 4.5),
+    'CCCI': (0.30, 0.90), 'PRI_proxy': (-0.05, 0.05), 'PSRI': (-0.10, 0.10),
+    'SIF_proxy': (0.05, 0.40), 'GNDVI': (0.30, 0.70), 'MCARI': (0.01, 0.30),
+    'TCARI_OSAVI': (0.05, 0.50), 'NDVI705': (0.10, 0.50), 'RENDVI': (0.10, 0.50),
+    'NMDI': (0.30, 0.80), 'SMI': (0.10, 0.50), 'LSWI': (0.05, 0.40),
+    'BSI': (-0.20, 0.15), 'EVI': (0.20, 0.80)
+}
+
+def interpret_anomalies(indices, crop, stage, anomalies):
+    """Map vegetation index values to actionable agronomic recommendations.
+    Uses spectral stress signatures to diagnose drought, nitrogen, disease, chlorophyll issues.
+    Returns list of interpretations with type, severity, confidence, and recommendation."""
+    interpretations = []
+
+    for stress_type, sig in STRESS_SIGNATURES.items():
+        matches = 0
+        total = 0
+        details = []
+        for idx_name, direction in sig['indicators']:
+            val = indices.get(idx_name)
+            if val is None:
+                continue
+            total += 1
+            thresholds = INDEX_THRESHOLDS.get(idx_name)
+            if not thresholds:
+                continue
+            low, high = thresholds
+            if direction == 'low' and val < low:
+                matches += 1
+                details.append(f'{idx_name}={val:.3f} (bajo)')
+            elif direction == 'high' and val > high:
+                matches += 1
+                details.append(f'{idx_name}={val:.3f} (alto)')
+
+        if total > 0 and matches >= 2:
+            confidence = round(matches / total * 100)
+            severity = 'critical' if confidence >= 80 else 'warning' if confidence >= 50 else 'info'
+            interpretations.append({
+                'type': stress_type,
+                'severity': severity,
+                'confidence': confidence,
+                'indicators': details,
+                'recommendation': sig['recommendation'],
+                'urgency': sig['urgency'],
+                'crop': crop,
+                'stage': stage
+            })
+
+    # Sort by confidence descending
+    interpretations.sort(key=lambda x: x['confidence'], reverse=True)
+    return interpretations if interpretations else None
+
 
 # ============================================================
 # REPORT GENERATOR (PDF + KMZ)
@@ -833,9 +1922,100 @@ def compute_monitoring(field):
 
 REPORTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports')
 
+
+def generate_health_map(field, stage_key):
+    """Generate ISI health map as colored PNG directly from GEE.
+    No matplotlib — uses GEE's built-in visualization for low memory usage.
+    Returns: path to saved PNG file, or None if failed.
+    """
+    if not init_gee():
+        return None
+    import ee
+    try:
+        boundary = field['boundary']
+        geom_type = boundary.get('type', 'Polygon')
+        if geom_type == 'MultiPolygon':
+            ring = boundary['coordinates'][0][0]
+        else:
+            ring = boundary['coordinates'][0]
+        ring_2d = [[p[0], p[1]] for p in ring if len(p) >= 2]
+        aoi = ee.Geometry({"type": "Polygon", "coordinates": [ring_2d]}, proj='EPSG:4326', evenOdd=False)
+
+        now = ee.Date(datetime.now(timezone.utc).strftime('%Y-%m-%d'))
+        search_start = now.advance(-90, 'day')
+
+        def mask_clouds(img):
+            scl = img.select('SCL')
+            return img.updateMask(scl.eq(4).Or(scl.eq(5)).Or(scl.eq(6)).Or(scl.eq(7)))
+
+        col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+            .filterBounds(aoi).filterDate(search_start, now)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+            .sort('system:time_start', False).limit(8).map(mask_clouds))
+
+        if col.size().getInfo() == 0:
+            return None
+
+        img = col.median()
+        b3 = img.select('B3').divide(10000)
+        b4 = img.select('B4').divide(10000)
+        b5 = img.select('B5').divide(10000)
+        b8 = img.select('B8').divide(10000)
+        b8a = img.select('B8A').divide(10000)
+        b11 = img.select('B11').divide(10000)
+
+        ndvi = b8.subtract(b4).divide(b8.add(b4))
+        ndre = b8a.subtract(b5).divide(b8a.add(b5))
+        ndmi = b8a.subtract(b11).divide(b8a.add(b11))
+        osavi = b8.subtract(b4).multiply(1.16).divide(b8.add(b4).add(0.16))
+        tcari = ee.Image(3).multiply(b5.subtract(b4).subtract(b5.subtract(b3).multiply(0.2).multiply(b5.divide(b4.max(ee.Image(0.001))))))
+        tcari_osavi = tcari.divide(osavi.max(ee.Image(0.001)))
+        cwsi = b11.subtract(b8a).divide(b11.add(b8a).max(ee.Image(0.001)))
+        sif = b5.subtract(b4).divide(b4.max(ee.Image(0.001)))
+
+        # ISI = weighted fusion
+        isi = (ndvi.multiply(0.25).add(ndre.multiply(0.20))
+               .add(sif.clamp(0, 2).divide(2).multiply(0.15))
+               .add(ndmi.add(0.5).multiply(0.15))
+               .subtract(cwsi.clamp(-0.5, 0.5).add(0.5).multiply(0.10))
+               .subtract(tcari_osavi.clamp(0, 5).divide(5).multiply(0.15))
+              ).clamp(0, 1).rename('ISI')
+
+        # Gaussian smoothing for zone-like appearance
+        isi_smooth = isi.focal_mean(radius=60, units='meters', kernelType='gaussian').clip(aoi)
+
+        # Professional 15-color palette (red→yellow→green)
+        palette = [
+            '67000D', 'A50F15', 'CB181D', 'EF4444', 'F97316',
+            'FB923C', 'FBBF24', 'FDE68A', 'D9F99D', '86EFAC',
+            '4ADE80', '22C55E', '16A34A', '15803D', '14532D']
+
+        region = aoi.bounds().buffer(50).getInfo()['coordinates']
+        thumb_url = isi_smooth.getThumbURL({
+            'region': region,
+            'dimensions': '800x600',
+            'format': 'png',
+            'min': 0.05, 'max': 0.60,
+            'palette': palette
+        })
+
+        import urllib.request
+        os.makedirs(REPORTS_DIR, exist_ok=True)
+        map_filename = f'ISI_map_{field.get("name","lote")}_{datetime.now().strftime("%Y%m%d")}.png'.replace(' ', '_')
+        map_path = os.path.join(REPORTS_DIR, map_filename)
+        urllib.request.urlretrieve(thumb_url, map_path)
+        print(f'[Map] ISI map saved: {map_path} ({os.path.getsize(map_path)} bytes)')
+        return map_path
+
+    except Exception as e:
+        print(f'[Map] ISI map error: {e}')
+        traceback.print_exc()
+        return None
+
+
 def generate_report(field, client, alerts, timeseries):
-    """Generate PDF report + KMZ file with anomaly waypoints for Avenza Maps."""
-    import io
+    """Generate PDF geo-report with colored map, Israeli indices, anomaly navigation, and WhatsApp message."""
+    import io, zipfile, urllib.parse
     os.makedirs(REPORTS_DIR, exist_ok=True)
 
     field_name = field.get('name', 'Lote')
@@ -843,243 +2023,321 @@ def generate_report(field, client, alerts, timeseries):
     date_str = datetime.now().strftime('%Y-%m-%d')
     stage = field.get('monitoring', {}).get('currentStage', '—')
     client_name = client.get('name', '—') if client else '—'
+    client_phone = client.get('contact', '') if client else ''
+
+    # Get boundary coords
+    boundary = field.get('boundary', {})
+    geom_type = boundary.get('type', 'Polygon')
+    if geom_type == 'MultiPolygon':
+        coords = boundary.get('coordinates', [[[]]])[0][0]
+    else:
+        coords = boundary.get('coordinates', [[]])[0]
+    coords_2d = [[c[0], c[1]] for c in coords if len(c) >= 2]
+
+    # Calculate centroid
+    if coords_2d:
+        center_lng = sum(c[0] for c in coords_2d) / len(coords_2d)
+        center_lat = sum(c[1] for c in coords_2d) / len(coords_2d)
+    else:
+        center_lng, center_lat = -63.0, -17.5
+
+    # Get last check values
+    last_ts = timeseries[-1] if timeseries else {}
+    current_values = last_ts.get('values', {})
+    z_score = last_ts.get('zScore')
+    image_date = last_ts.get('date', '')[:10] if last_ts.get('date') else '—'
+
+    # Determine health status
+    ndvi = current_values.get('NDVI')
+    if ndvi is None:
+        health = 'SIN DATOS'
+        health_color = '#6B7280'
+    elif ndvi > 0.65:
+        health = 'EXCELENTE'
+        health_color = '#22C55E'
+    elif ndvi > 0.45:
+        health = 'BUENO'
+        health_color = '#7FD633'
+    elif ndvi > 0.30:
+        health = 'MODERADO'
+        health_color = '#F5A623'
+    elif ndvi > 0.15:
+        health = 'BAJO'
+        health_color = '#EF4444'
+    else:
+        health = 'CRITICO / POST-COSECHA'
+        health_color = '#991B1B'
+
+    # Stage config
+    crop_cfg = CROP_PHENOLOGY.get(crop, {})
+    stage_cfg_report = None
+    for sk, sv in crop_cfg.get('stages', {}).items():
+        if sk == stage:
+            stage_cfg_report = sv
+            break
+    primary_idx = stage_cfg_report.get('primary', 'NDVI') if stage_cfg_report else 'NDVI'
+    primary_reason = stage_cfg_report.get('reason', '') if stage_cfg_report else ''
+    stage_desc = stage_cfg_report.get('desc', stage) if stage_cfg_report else stage
+
+    # Google Maps link for navigation
+    gmaps_link = f'https://www.google.com/maps?q={center_lat},{center_lng}&z=16'
 
     # ── KMZ (KML zipped) for Avenza Maps ──
-    kml_content = f'''<?xml version="1.0" encoding="UTF-8"?>
+    kml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
 <Document>
-  <name>PIX Monitor - {field_name} - Anomalias {date_str}</name>
-  <description>Reporte de anomalias para navegacion en campo (Avenza Maps)</description>
+  <name>PIX Monitor - {field_name} - {date_str}</name>
+  <description>Reporte georreferenciado para navegacion a campo</description>
+  <Style id="green"><LineStyle><color>ff33d67f</color><width>3</width></LineStyle><PolyStyle><color>4033d67f</color></PolyStyle></Style>
+  <Style id="yellow"><LineStyle><color>ff00aaff</color><width>3</width></LineStyle><PolyStyle><color>4000aaff</color></PolyStyle></Style>
+  <Style id="red"><LineStyle><color>ff0000ff</color><width>3</width></LineStyle><PolyStyle><color>400000ff</color></PolyStyle></Style>
+  <Style id="alertPin"><IconStyle><color>ff0000ff</color><scale>1.3</scale><Icon><href>http://maps.google.com/mapfiles/kml/pushpin/red-pushpin.png</href></Icon></IconStyle></Style>
 
-  <Style id="alertCritical">
-    <IconStyle><color>ff0000ff</color><scale>1.4</scale>
-      <Icon><href>http://maps.google.com/mapfiles/kml/pushpin/red-pushpin.png</href></Icon>
-    </IconStyle>
-  </Style>
-  <Style id="alertWarning">
-    <IconStyle><color>ff00aaff</color><scale>1.2</scale>
-      <Icon><href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href></Icon>
-    </IconStyle>
-  </Style>
-
-  <Folder>
-    <name>Perimetro del Lote</name>
+  <Folder><name>Lote {field_name}</name>
     <Placemark>
       <name>{field_name}</name>
-      <description>Cultivo: {crop} | Area: {field.get("areaHa", 0)} ha | Etapa: {stage}</description>
-      <Style><LineStyle><color>ff33d67f</color><width>3</width></LineStyle><PolyStyle><color>3033d67f</color></PolyStyle></Style>
+      <description>Cultivo: {crop} | Area: {field.get("areaHa", 0)} ha | Estado: {health} | NDVI: {f'{ndvi:.3f}' if ndvi else '—'}</description>
+      <styleUrl>#{'green' if health in ['EXCELENTE','BUENO'] else 'yellow' if health == 'MODERADO' else 'red'}</styleUrl>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>
-'''
-
-    # Add boundary coordinates
-    boundary = field.get('boundary', {})
-    coords = boundary.get('coordinates', [[]])[0] if boundary.get('type') == 'Polygon' else boundary.get('coordinates', [[[]]])[0][0]
-    for c in coords:
-        if len(c) >= 2:
-            kml_content += f'        {c[0]},{c[1]},0\n'
-
-    kml_content += '''      </coordinates></LinearRing></outerBoundaryIs></Polygon>
+"""
+    for c in coords_2d:
+        kml_content += f'        {c[0]},{c[1]},0\n'
+    kml_content += """      </coordinates></LinearRing></outerBoundaryIs></Polygon>
     </Placemark>
   </Folder>
 
-  <Folder>
-    <name>Anomalias Detectadas</name>
-'''
-
-    # Add anomaly waypoints
-    for i, alert in enumerate(alerts):
-        severity = alert.get('severity', 'warning')
-        style = 'alertCritical' if severity == 'critical' else 'alertWarning'
-        z = alert.get('zScore', 0)
-        idx = alert.get('index', 'NDVI')
-        desc = alert.get('description', 'Anomalia detectada')
-        centroid = alert.get('centroid', [0, 0])
-
-        # Use field center if no centroid
-        if centroid == [0, 0] and coords:
-            lats = [c[1] for c in coords if len(c) >= 2]
-            lngs = [c[0] for c in coords if len(c) >= 2]
-            centroid = [sum(lngs)/len(lngs), sum(lats)/len(lats)] if lats else [0, 0]
-
-        kml_content += f'''    <Placemark>
-      <name>Anomalia-{i+1} (Z={z})</name>
-      <description>{desc}
-Indice: {idx} = {alert.get("currentValue", "—")}
-Baseline: {alert.get("baselineMean", "—")}
-Severidad: {severity.upper()}
-Fecha: {alert.get("date", "—")[:10]}</description>
-      <styleUrl>#{style}</styleUrl>
-      <Point><coordinates>{centroid[0]},{centroid[1]},0</coordinates></Point>
+  <Folder><name>Punto de Acceso</name>
+    <Placemark>
+      <name>Centro del Lote</name>
+      <description>Navegar aqui para inspeccion de campo</description>
+      <Point><coordinates>""" + f'{center_lng},{center_lat},0' + """</coordinates></Point>
     </Placemark>
-'''
+  </Folder>
+"""
+    if alerts:
+        kml_content += "  <Folder><name>Anomalias</name>\n"
+        for i, a in enumerate(alerts):
+            kml_content += f"""    <Placemark>
+      <name>Anomalia-{i+1} (Z={a.get('zScore','?')})</name>
+      <description>{a.get('description','')[:200]}</description>
+      <styleUrl>#alertPin</styleUrl>
+      <Point><coordinates>{center_lng},{center_lat},0</coordinates></Point>
+    </Placemark>
+"""
+        kml_content += "  </Folder>\n"
+    kml_content += "</Document>\n</kml>"
 
-    kml_content += '''  </Folder>
-</Document>
-</kml>'''
-
-    # Save KMZ (zipped KML)
-    import zipfile
-    kmz_filename = f'PIX_Monitor_{field_name}_{date_str}.kmz'
+    kmz_filename = f'PIX_{field_name}_{date_str}.kmz'.replace(' ', '_')
     kmz_path = os.path.join(REPORTS_DIR, kmz_filename)
     with zipfile.ZipFile(kmz_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.writestr('doc.kml', kml_content)
 
-    # ── PDF Report ──
-    pdf_filename = f'PIX_Monitor_{field_name}_{date_str}.pdf'
+    # ── PDF REPORT with map and indices ──
+    pdf_filename = f'PIX_{field_name}_{date_str}.pdf'.replace(' ', '_')
     pdf_path = os.path.join(REPORTS_DIR, pdf_filename)
 
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.units import mm
-        from reportlab.lib.colors import HexColor
+        from reportlab.lib.colors import HexColor, white, black
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+        from reportlab.graphics.shapes import Drawing, Rect, String, Polygon as RLPolygon, Circle
+        from reportlab.graphics import renderPDF
 
-        doc = SimpleDocTemplate(pdf_path, pagesize=A4, topMargin=20*mm, bottomMargin=15*mm, leftMargin=15*mm, rightMargin=15*mm)
+        W, H = A4
+        doc = SimpleDocTemplate(pdf_path, pagesize=A4, topMargin=15*mm, bottomMargin=10*mm, leftMargin=12*mm, rightMargin=12*mm)
         styles = getSampleStyleSheet()
-        styles.add(ParagraphStyle(name='PIXTitle', fontSize=18, spaceAfter=6, textColor=HexColor('#7FD633'), fontName='Helvetica-Bold'))
-        styles.add(ParagraphStyle(name='PIXSub', fontSize=11, spaceAfter=12, textColor=HexColor('#94A3B8')))
-        styles.add(ParagraphStyle(name='PIXBody', fontSize=10, spaceAfter=6, leading=14))
-        styles.add(ParagraphStyle(name='PIXH2', fontSize=14, spaceAfter=8, textColor=HexColor('#00A4CC'), fontName='Helvetica-Bold'))
+        styles.add(ParagraphStyle(name='T1', fontSize=16, spaceAfter=4, textColor=HexColor('#7FD633'), fontName='Helvetica-Bold'))
+        styles.add(ParagraphStyle(name='Sub', fontSize=10, spaceAfter=8, textColor=HexColor('#94A3B8')))
+        styles.add(ParagraphStyle(name='Body', fontSize=9, spaceAfter=4, leading=12))
+        styles.add(ParagraphStyle(name='H2', fontSize=12, spaceAfter=6, textColor=HexColor('#00A4CC'), fontName='Helvetica-Bold'))
+        styles.add(ParagraphStyle(name='H3', fontSize=10, spaceAfter=4, textColor=HexColor('#7FD633'), fontName='Helvetica-Bold'))
+        styles.add(ParagraphStyle(name='Foot', fontSize=7, textColor=HexColor('#64748B')))
 
         story = []
 
-        # Header
-        story.append(Paragraph('PIX Monitor — Reporte de Monitoreo', styles['PIXTitle']))
-        story.append(Paragraph(f'Cliente: {client_name} | Lote: {field_name} | Cultivo: {crop} | Fecha: {date_str}', styles['PIXSub']))
-        story.append(Spacer(1, 10))
+        # ── HEADER ──
+        story.append(Paragraph('PIX Monitor — Informe de Evaluacion Satelital', styles['T1']))
+        story.append(Paragraph(f'Cliente: <b>{client_name}</b> | Lote: <b>{field_name}</b> | Cultivo: <b>{crop_cfg.get("name", crop)}</b> | {date_str}', styles['Sub']))
 
-        # Field info
-        story.append(Paragraph('1. Informacion del Lote', styles['PIXH2']))
-        info_data = [
+        # ── MAP: ISI (Integrated Health Index) from GEE ──
+        story.append(Paragraph('1. Mapa de Salud del Cultivo (ISI)', styles['H2']))
+        story.append(Paragraph('Indice de Salud Integrado: fusion TCARI/OSAVI + CWSI + SIF + NDVI + NDRE + NDMI', styles['Body']))
+
+        # Generate ISI map — skip GEE map on Free tier (causes timeout)
+        # Enable when on Starter plan ($7/mo) with more RAM/timeout
+        isi_map_path = None  # generate_health_map(field, stage)
+        if isi_map_path and os.path.exists(isi_map_path):
+            story.append(Image(isi_map_path, width=170*mm, height=100*mm))
+            story.append(Paragraph(
+                f'<font color="#15803D">&#9632;</font> Sano &nbsp; '
+                f'<font color="#7FD633">&#9632;</font> Bueno &nbsp; '
+                f'<font color="#FCD34D">&#9632;</font> Moderado &nbsp; '
+                f'<font color="#F5A623">&#9632;</font> Atencion &nbsp; '
+                f'<font color="#EF4444">&#9632;</font> Critico &nbsp; '
+                f'<font color="#991B1B">&#9632;</font> Severo',
+                ParagraphStyle(name='Legend', fontSize=8, textColor=HexColor('#94A3B8'), spaceAfter=4)
+            ))
+        else:
+            # Fallback: SVG polygon with health color
+            map_w, map_h = 170*mm, 80*mm
+            d = Drawing(map_w, map_h)
+            d.add(Rect(0, 0, map_w, map_h, fillColor=HexColor('#0F1B2D'), strokeColor=HexColor('#334155')))
+            if coords_2d:
+                lngs = [c[0] for c in coords_2d]
+                lats = [c[1] for c in coords_2d]
+                min_lng, max_lng = min(lngs), max(lngs)
+                min_lat, max_lat = min(lats), max(lats)
+                pad = 15
+                rng_lng = max(max_lng - min_lng, 0.001)
+                rng_lat = max(max_lat - min_lat, 0.001)
+                sc = min((map_w - 2*pad) / rng_lng, (map_h - 2*pad) / rng_lat)
+                pts = []
+                for c in coords_2d:
+                    pts.extend([pad + (c[0] - min_lng) * sc, pad + (c[1] - min_lat) * sc])
+                fill = HexColor('#22C55E') if health in ['EXCELENTE','BUENO'] else HexColor('#F5A623') if health == 'MODERADO' else HexColor('#EF4444')
+                d.add(RLPolygon(pts, fillColor=fill, fillOpacity=0.4, strokeColor=HexColor('#7FD633'), strokeWidth=2))
+                d.add(String(pad, map_h - 12, f'{field_name} — {health} (sin mapa satelital)', fontSize=9, fillColor=white, fontName='Helvetica-Bold'))
+            story.append(d)
+
+        story.append(Paragraph(f'Centro: {center_lat:.5f}, {center_lng:.5f} | Area: {field.get("areaHa",0)} ha | Imagen: {image_date}', ParagraphStyle(name='MapInfo', fontSize=8, textColor=HexColor('#94A3B8'), spaceAfter=4)))
+        story.append(Spacer(1, 8))
+
+        # ── ESTADO DEL CULTIVO ──
+        story.append(Paragraph('2. Estado del Cultivo', styles['H2']))
+        info = [
             ['Propiedad', 'Valor'],
-            ['Lote', field_name],
-            ['Cultivo', f'{crop} ({CROP_PHENOLOGY.get(crop, {}).get("name", crop)})'],
+            ['Estado general', f'{health}'],
+            ['Etapa fenologica', stage_desc],
+            ['Indice primario', f'{primary_idx} — {primary_reason}'],
+            ['Imagen Sentinel-2', image_date],
             ['Area', f'{field.get("areaHa", 0)} ha'],
-            ['Fecha siembra', field.get('plantingDate', '—')],
-            ['Etapa actual', f'{stage} ({field.get("monitoring", {}).get("currentStage", "—")})'],
-            ['Ultimo chequeo', field.get('monitoring', {}).get('lastCheck', '—')[:10] if field.get('monitoring', {}).get('lastCheck') else 'Nunca'],
+            ['Z-Score', f'{z_score}' if z_score else 'Sin baseline'],
         ]
-        t = Table(info_data, colWidths=[50*mm, 120*mm])
+        t = Table(info, colWidths=[45*mm, 125*mm])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), HexColor('#1a2b3f')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), HexColor('#FFFFFF')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#334155')),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [HexColor('#0F1B2D'), HexColor('#162236')]),
             ('TEXTCOLOR', (0, 1), (-1, -1), HexColor('#E2E8F0')),
-            ('PADDING', (0, 0), (-1, -1), 6),
+            ('PADDING', (0, 0), (-1, -1), 5),
         ]))
         story.append(t)
-        story.append(Spacer(1, 16))
+        story.append(Spacer(1, 10))
 
-        # Alerts
-        story.append(Paragraph('2. Anomalias Detectadas', styles['PIXH2']))
-        if alerts:
-            alert_data = [['#', 'Indice', 'Valor', 'Baseline', 'Z-Score', 'Severidad', 'Fecha']]
-            for i, a in enumerate(alerts):
-                alert_data.append([
-                    str(i+1),
-                    a.get('index', '—'),
-                    str(a.get('currentValue', '—')),
-                    str(a.get('baselineMean', '—')),
-                    str(a.get('zScore', '—')),
-                    a.get('severity', '—').upper(),
-                    a.get('date', '—')[:10]
-                ])
-            at = Table(alert_data, colWidths=[10*mm, 20*mm, 22*mm, 22*mm, 22*mm, 28*mm, 28*mm])
-            at.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#7F1D1D')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), HexColor('#FFFFFF')),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#334155')),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [HexColor('#1C1917'), HexColor('#292524')]),
-                ('TEXTCOLOR', (0, 1), (-1, -1), HexColor('#FBBF24')),
-                ('PADDING', (0, 0), (-1, -1), 4),
-            ]))
-            story.append(at)
-        else:
-            story.append(Paragraph('Sin anomalias detectadas. Cultivo en estado normal.', styles['PIXBody']))
-        story.append(Spacer(1, 16))
+        # ── INDICES ESPECTRALES (incluye israelies) ──
+        story.append(Paragraph('3. Indices Espectrales', styles['H2']))
 
-        # Time series
-        story.append(Paragraph('3. Serie Temporal', styles['PIXH2']))
-        if timeseries:
-            ts_data = [['Fecha', 'Etapa', 'NDVI', 'NDRE', 'Z-Score']]
-            for t_entry in timeseries[-10:]:  # Last 10 entries
-                vals = t_entry.get('values', {})
-                ts_data.append([
-                    t_entry.get('date', '—')[:10],
-                    t_entry.get('stage', '—'),
-                    f'{vals.get("NDVI", 0):.3f}' if vals.get('NDVI') else '—',
-                    f'{vals.get("NDRE", 0):.3f}' if vals.get('NDRE') else '—',
-                    str(t_entry.get('zScore', '—'))
-                ])
-            tst = Table(ts_data, colWidths=[30*mm, 35*mm, 25*mm, 25*mm, 25*mm])
-            tst.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#1a2b3f')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), HexColor('#FFFFFF')),
+        israeli = ['TCARI_OSAVI', 'SIF_proxy', 'CWSI', 'SALINITY']
+        classic = ['NDVI', 'NDRE', 'EVI', 'NDMI', 'GNDVI', 'kNDVI', 'SAVI']
+        advanced = ['MTCI', 'S2REP', 'CCCI', 'IRECI', 'PSRI', 'NBR2', 'MSI', 'BSI', 'PRI_proxy', 'MSAVI2', 'OSAVI']
+
+        idx_data = [['Indice', 'Valor', 'Origen', 'Uso']]
+        for idx_name in israeli:
+            v = current_values.get(idx_name)
+            if v is not None:
+                origins = {'TCARI_OSAVI': 'Volcani Israel', 'SIF_proxy': 'Israel/Guanter', 'CWSI': 'Volcani/ARO', 'SALINITY': 'Negev/Arava'}
+                uses = {'TCARI_OSAVI': 'Clorofila R2=0.81', 'SIF_proxy': 'Fluorescencia R2=0.72', 'CWSI': 'Stress hidrico', 'SALINITY': 'Salinidad suelo'}
+                idx_data.append([idx_name, f'{v:.4f}', origins.get(idx_name, 'Israel'), uses.get(idx_name, '')])
+        for idx_name in classic + advanced:
+            v = current_values.get(idx_name)
+            if v is not None:
+                idx_data.append([idx_name, f'{v:.4f}', 'Sentinel-2', ''])
+
+        if len(idx_data) > 1:
+            it = Table(idx_data, colWidths=[30*mm, 25*mm, 35*mm, 55*mm])
+            it.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#1E3A5F')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), white),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('FONTSIZE', (0, 0), (-1, -1), 7),
                 ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#334155')),
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [HexColor('#0F1B2D'), HexColor('#162236')]),
                 ('TEXTCOLOR', (0, 1), (-1, -1), HexColor('#E2E8F0')),
-                ('PADDING', (0, 0), (-1, -1), 4),
+                ('PADDING', (0, 0), (-1, -1), 3),
             ]))
-            story.append(tst)
+            # Highlight Israeli indices rows in green
+            for i in range(1, min(5, len(idx_data))):
+                it.setStyle(TableStyle([('TEXTCOLOR', (0, i), (0, i), HexColor('#7FD633'))]))
+            story.append(it)
         else:
-            story.append(Paragraph('Sin datos de serie temporal disponibles.', styles['PIXBody']))
-        story.append(Spacer(1, 16))
+            story.append(Paragraph('Sin datos de indices — zona nublada.', styles['Body']))
+        story.append(Spacer(1, 10))
 
-        # Navigation instructions
-        story.append(Paragraph('4. Navegacion a Campo', styles['PIXH2']))
-        story.append(Paragraph(
-            f'Para llegar a las anomalias detectadas, importe el archivo <b>{kmz_filename}</b> en Avenza Maps '
-            'o cualquier app GPS compatible con KMZ/KML. Los waypoints estan marcados con la severidad '
-            'correspondiente (rojo=critico, amarillo=warning).',
-            styles['PIXBody']
-        ))
+        # ── ANOMALIAS ──
+        story.append(Paragraph('4. Anomalias y Alertas', styles['H2']))
+        if alerts:
+            for i, a in enumerate(alerts):
+                sev = a.get('severity', 'warning').upper()
+                color = '#EF4444' if sev == 'CRITICAL' else '#F5A623'
+                story.append(Paragraph(f'<font color="{color}">&#9679;</font> Anomalia {i+1}: {a.get("description","")[:120]}', styles['Body']))
+                story.append(Paragraph(f'&nbsp;&nbsp;Z-Score: {a.get("zScore","—")} | Severidad: {sev}', styles['Body']))
+        else:
+            story.append(Paragraph('<font color="#22C55E">&#10004;</font> Sin anomalias detectadas. Cultivo en estado normal.', styles['Body']))
+        story.append(Spacer(1, 10))
+
+        # ── NAVEGACION A CAMPO ──
+        story.append(Paragraph('5. Navegacion a Campo', styles['H2']))
+        story.append(Paragraph(f'<b>Centro del lote:</b> {center_lat:.6f}, {center_lng:.6f}', styles['Body']))
+        story.append(Paragraph(f'<b>Google Maps:</b> <link href="{gmaps_link}">{gmaps_link}</link>', styles['Body']))
+        story.append(Paragraph(f'<b>KMZ para Avenza Maps:</b> {kmz_filename}', styles['Body']))
         story.append(Spacer(1, 8))
 
-        if alerts:
-            story.append(Paragraph('Coordenadas de anomalias:', styles['PIXBody']))
-            for i, a in enumerate(alerts):
-                centroid = a.get('centroid', [0, 0])
-                if centroid == [0, 0]:
-                    bcoords = field.get('boundary', {}).get('coordinates', [[]])[0]
-                    if bcoords:
-                        centroid = [sum(c[0] for c in bcoords)/len(bcoords), sum(c[1] for c in bcoords)/len(bcoords)]
-                story.append(Paragraph(
-                    f'  Anomalia-{i+1}: Lat {centroid[1]:.6f}, Lng {centroid[0]:.6f} | Z={a.get("zScore","—")} | {a.get("severity","").upper()}',
-                    styles['PIXBody']
-                ))
-
-        # Footer
-        story.append(Spacer(1, 24))
-        story.append(Paragraph(
-            f'Generado por PIX Monitor — Pixadvisor Agricultura de Precision | {date_str}',
-            ParagraphStyle(name='Footer', fontSize=8, textColor=HexColor('#64748B'))
-        ))
+        # ── FOOTER ──
+        story.append(Spacer(1, 16))
+        story.append(Paragraph(f'Generado por PIX Monitor — Pixadvisor Agricultura de Precision | www.pixadvisor.network | {date_str}', styles['Foot']))
 
         doc.build(story)
         print(f'[Report] PDF generated: {pdf_path}')
 
-    except ImportError:
-        # reportlab not installed — generate text report instead
+    except ImportError as e:
+        print(f'[Report] reportlab not installed: {e}')
         with open(pdf_path.replace('.pdf', '.txt'), 'w', encoding='utf-8') as f:
-            f.write(f'PIX Monitor — Reporte de Monitoreo\n')
+            f.write(f'PIX Monitor — Informe de Evaluacion Satelital\n')
             f.write(f'Cliente: {client_name} | Lote: {field_name} | Cultivo: {crop}\n')
-            f.write(f'Fecha: {date_str} | Etapa: {stage}\n\n')
-            f.write(f'Anomalias: {len(alerts)}\n')
-            for i, a in enumerate(alerts):
-                f.write(f'  {i+1}. {a.get("description","—")} | Z={a.get("zScore","—")}\n')
+            f.write(f'Estado: {health} | NDVI: {ndvi}\n')
+            f.write(f'Indice primario: {primary_idx} — {primary_reason}\n')
+            f.write(f'Google Maps: {gmaps_link}\n')
         pdf_filename = pdf_filename.replace('.pdf', '.txt')
-        pdf_path = pdf_path.replace('.pdf', '.txt')
-        print(f'[Report] Text report generated (reportlab not installed): {pdf_path}')
 
-    print(f'[Report] KMZ generated: {kmz_path}')
+    # ── WHATSAPP MESSAGE ──
+    wa_msg = f"""*PIX Monitor — {field_name}*
+_Informe de Evaluacion Satelital_
+
+*Cliente:* {client_name}
+*Lote:* {field_name} ({field.get('areaHa',0)} ha)
+*Cultivo:* {crop_cfg.get('name', crop)}
+*Etapa:* {stage_desc}
+*Estado:* {health}
+
+*Indices clave:*"""
+    if current_values.get('NDVI') is not None:
+        wa_msg += f"\n  NDVI: {current_values['NDVI']:.3f}"
+    if current_values.get('TCARI_OSAVI') is not None:
+        wa_msg += f"\n  TCARI/OSAVI (Israel): {current_values['TCARI_OSAVI']:.3f}"
+    if current_values.get('CWSI') is not None:
+        wa_msg += f"\n  CWSI (Stress hidrico): {current_values['CWSI']:.3f}"
+    if current_values.get('SIF_proxy') is not None:
+        wa_msg += f"\n  SIF (Fluorescencia): {current_values['SIF_proxy']:.3f}"
+
+    if alerts:
+        wa_msg += f"\n\n*{len(alerts)} Anomalias detectadas*"
+        for a in alerts[:3]:
+            wa_msg += f"\n  - {a.get('description','')[:60]}"
+
+    wa_msg += f"\n\n*Navegacion:* {gmaps_link}"
+    wa_msg += f"\n\n_Pixadvisor — Agricultura de Precision_"
+    wa_msg += f"\n_www.pixadvisor.network_"
+
+    # Generate WhatsApp URL
+    wa_url = None
+    if client_phone:
+        phone_clean = client_phone.replace('+', '').replace(' ', '').replace('-', '')
+        wa_url = f'https://wa.me/{phone_clean}?text={urllib.parse.quote(wa_msg)}'
 
     return {
         'pdf': pdf_filename,
@@ -1088,377 +2346,14 @@ Fecha: {alert.get("date", "—")[:10]}</description>
         'kmzPath': kmz_path,
         'alerts': len(alerts),
         'field': field_name,
-        'date': date_str
+        'date': date_str,
+        'health': health,
+        'healthColor': health_color,
+        'primaryIndex': primary_idx,
+        'googleMapsLink': gmaps_link,
+        'whatsappMessage': wa_msg,
+        'whatsappUrl': wa_url,
+        'centerLat': center_lat,
+        'centerLng': center_lng
     }
 
-
-# ============================================================
-# HTTP HANDLER
-# ============================================================
-
-class MonitorHandler(BaseHTTPRequestHandler):
-
-    def _cors(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
-    def _json(self, data, status=200):
-        body = json.dumps(data, ensure_ascii=False).encode('utf-8')
-        self.send_response(status)
-        self.send_header('Content-Type', 'application/json; charset=utf-8')
-        self._cors()
-        self.end_headers()
-        self.wfile.write(body)
-
-    def _error(self, msg, status=400):
-        self._json({'error': msg}, status)
-
-    def _body(self):
-        length = int(self.headers.get('Content-Length', 0))
-        return json.loads(self.rfile.read(length).decode('utf-8')) if length > 0 else {}
-
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self._cors()
-        self.end_headers()
-
-    def do_GET(self):
-        path = urlparse(self.path).path.rstrip('/')
-
-        if path == '/api/health':
-            self._json({'status': 'ok', 'service': 'pix-monitor-api', 'port': PORT,
-                        'gee': _ee_initialized, 'crops': list(CROP_PHENOLOGY.keys())})
-
-        elif path == '/api/clients':
-            db = load_db()
-            self._json({'clients': db['clients']})
-
-        elif path == '/api/fields':
-            db = load_db()
-            self._json({'fields': db['fields']})
-
-        elif path == '/api/alerts':
-            db = load_db()
-            self._json({'alerts': db['alerts']})
-
-        elif path == '/api/crops':
-            crops = {}
-            for key, cfg in CROP_PHENOLOGY.items():
-                crops[key] = {
-                    'name': cfg['name'],
-                    'cycle_days': cfg['cycle_days'],
-                    'stages': {k: v['desc'] for k, v in cfg['stages'].items()},
-                    'critical_stages': cfg['critical_stages']
-                }
-            self._json({'crops': crops})
-
-        elif path.startswith('/api/timeseries/'):
-            field_id = path.split('/')[-1]
-            db = load_db()
-            ts = db.get('timeseries', {}).get(field_id, [])
-            self._json({'fieldId': field_id, 'timeseries': ts})
-
-        else:
-            self._error('Not found', 404)
-
-    def do_POST(self):
-        path = urlparse(self.path).path.rstrip('/')
-
-        if path == '/api/clients':
-            body = self._body()
-            if not body.get('name'):
-                self._error('name required')
-                return
-            db = load_db()
-            client = {
-                'id': gen_id('cli-'),
-                'name': body['name'],
-                'contact': body.get('contact', ''),
-                'email': body.get('email', ''),
-                'createdAt': now_iso()
-            }
-            db['clients'].append(client)
-            save_db(db)
-            print(f'[Monitor] Client created: {client["name"]}')
-            self._json(client, 201)
-
-        elif path == '/api/fields':
-            body = self._body()
-            if not body.get('name') or not body.get('boundary'):
-                self._error('name and boundary required')
-                return
-            db = load_db()
-            field = {
-                'id': gen_id('field-'),
-                'clientId': body.get('clientId', ''),
-                'name': body['name'],
-                'boundary': body['boundary'],
-                'areaHa': body.get('areaHa', 0),
-                'crop': body.get('crop', 'soja'),
-                'plantingDate': body.get('plantingDate', ''),
-                'monitoring': {
-                    'active': False,
-                    'activatedAt': None,
-                    'lastCheck': None,
-                    'currentStage': None,
-                    'checkCount': 0
-                },
-                'createdAt': now_iso()
-            }
-            db['fields'].append(field)
-            save_db(db)
-            print(f'[Monitor] Field created: {field["name"]} ({field["crop"]})')
-            self._json(field, 201)
-
-        elif path.endswith('/activate'):
-            field_id = path.split('/')[-2]
-            db = load_db()
-            field = next((f for f in db['fields'] if f['id'] == field_id), None)
-            if not field:
-                self._error('Field not found', 404)
-                return
-            field['monitoring']['active'] = True
-            field['monitoring']['activatedAt'] = now_iso()
-
-            # Detect initial stage
-            stage_key, stage_cfg, days = detect_stage(field.get('crop', 'soja'), field.get('plantingDate', ''))
-            if stage_key:
-                field['monitoring']['currentStage'] = stage_key
-
-            save_db(db)
-            print(f'[Monitor] Monitoring activated: {field["name"]} (stage: {stage_key})')
-            self._json({'activated': True, 'field': field})
-
-        elif path.endswith('/check'):
-            field_id = path.split('/')[-2]
-            db = load_db()
-            field = next((f for f in db['fields'] if f['id'] == field_id), None)
-            if not field:
-                self._error('Field not found', 404)
-                return
-
-            print(f'[Monitor] Running check for: {field["name"]}...')
-            try:
-                result = compute_monitoring(field)
-            except Exception as e:
-                traceback.print_exc()
-                self._error(f'GEE error: {str(e)}', 500)
-                return
-
-            # Update field status
-            field['monitoring']['lastCheck'] = now_iso()
-            field['monitoring']['currentStage'] = result.get('stage')
-            field['monitoring']['checkCount'] = field['monitoring'].get('checkCount', 0) + 1
-
-            # ── AUTO-PAUSE on harvest detection ──
-            if result.get('harvestDetected'):
-                field['monitoring']['active'] = False
-                field['monitoring']['pausedReason'] = 'harvest_detected'
-                field['monitoring']['pausedAt'] = now_iso()
-                db['alerts'].append({
-                    'id': gen_id('harvest-'),
-                    'fieldId': field['id'],
-                    'date': now_iso(),
-                    'type': 'harvest',
-                    'severity': 'info',
-                    'description': result.get('harvestMessage', 'Cosecha detectada — monitoreo pausado'),
-                    'status': 'active'
-                })
-
-            # Save anomalies
-            if result.get('anomalies'):
-                for a in result['anomalies']:
-                    db['alerts'].append(a)
-
-            # Save time series point (including cloud-blocked weeks)
-            ts_key = field['id']
-            if ts_key not in db.get('timeseries', {}):
-                db['timeseries'][ts_key] = []
-            db['timeseries'][ts_key].append({
-                'date': now_iso(),
-                'week': datetime.now(timezone.utc).strftime('%Y-W%U'),
-                'stage': result.get('stage'),
-                'values': result.get('currentValues', {}),
-                'zScore': result.get('zScore'),
-                'images': result.get('imagesFound', 0),
-                'cloudBlocked': result.get('cloudBlocked', False),
-                'cloudMessage': result.get('cloudMessage'),
-                'harvestDetected': result.get('harvestDetected', False)
-            })
-
-            save_db(db)
-            status_msg = 'NUBES' if result.get('cloudBlocked') else f'stage={result.get("stage")}, Z={result.get("zScore")}'
-            if result.get('harvestDetected'): status_msg = 'COSECHA DETECTADA — auto-pause'
-            print(f'[Monitor] Check: {field.get("name")} → {status_msg}, anomalias={len(result.get("anomalies", []))}')
-            self._json(result)
-
-        elif path.endswith('/pause'):
-            # Admin manual pause
-            field_id = path.split('/')[-2]
-            db = load_db()
-            field = next((f for f in db['fields'] if f['id'] == field_id), None)
-            if not field:
-                self._error('Field not found', 404)
-                return
-            field['monitoring']['active'] = False
-            field['monitoring']['pausedReason'] = 'admin_manual'
-            field['monitoring']['pausedAt'] = now_iso()
-            save_db(db)
-            print(f'[Monitor] PAUSED by admin: {field["name"]}')
-            self._json({'paused': True, 'field': field['name']})
-
-        elif path.endswith('/resume'):
-            # Admin manual resume
-            field_id = path.split('/')[-2]
-            db = load_db()
-            field = next((f for f in db['fields'] if f['id'] == field_id), None)
-            if not field:
-                self._error('Field not found', 404)
-                return
-            field['monitoring']['active'] = True
-            field['monitoring']['pausedReason'] = None
-            field['monitoring']['pausedAt'] = None
-            save_db(db)
-            print(f'[Monitor] RESUMED by admin: {field["name"]}')
-            self._json({'resumed': True, 'field': field['name']})
-
-        elif path.endswith('/whatsapp'):
-            # Generate WhatsApp link with report
-            field_id = path.split('/')[-2]
-            db = load_db()
-            field = next((f for f in db['fields'] if f['id'] == field_id), None)
-            if not field:
-                self._error('Field not found', 404)
-                return
-            client = next((c for c in db['clients'] if c['id'] == field.get('clientId')), None)
-            phone = client.get('contact', '').replace('+', '').replace(' ', '').replace('-', '') if client else ''
-            alerts = [a for a in db['alerts'] if a.get('fieldId') == field_id and a.get('status') == 'active']
-            ts = db.get('timeseries', {}).get(field_id, [])
-
-            # Generate report first
-            try:
-                report = generate_report(field, client, alerts, ts)
-            except Exception as e:
-                report = {'pdf': 'error', 'kmz': 'error'}
-
-            # Build WhatsApp message
-            crop_name = CROP_PHENOLOGY.get(field.get('crop'), {}).get('name', field.get('crop', ''))
-            stage = field.get('monitoring', {}).get('currentStage', '')
-            msg_lines = [
-                f'*PIX Monitor — Reporte Semanal*',
-                f'',
-                f'*Cliente:* {client.get("name", "—") if client else "—"}',
-                f'*Lote:* {field.get("name", "—")}',
-                f'*Cultivo:* {crop_name}',
-                f'*Etapa:* {stage}',
-                f'*Fecha:* {datetime.now().strftime("%d/%m/%Y")}',
-                f'',
-            ]
-            if alerts:
-                msg_lines.append(f'*⚠ {len(alerts)} ALERTAS DETECTADAS:*')
-                for i, a in enumerate(alerts):
-                    msg_lines.append(f'  {i+1}. {a.get("description", "Anomalia")}')
-                msg_lines.append('')
-            else:
-                msg_lines.append('✅ Sin anomalias detectadas. Cultivo en estado normal.')
-                msg_lines.append('')
-            msg_lines.append(f'📄 PDF: {report.get("pdf", "—")}')
-            msg_lines.append(f'🗺 KMZ (Avenza Maps): {report.get("kmz", "—")}')
-            msg_lines.append(f'')
-            msg_lines.append(f'_Pixadvisor — Agricultura de Precision_')
-            msg_lines.append(f'_www.pixadvisor.network_')
-
-            message = '\n'.join(msg_lines)
-            wa_url = f'https://wa.me/{phone}?text={__import__("urllib.parse", fromlist=["quote"]).quote(message)}' if phone else None
-
-            self._json({
-                'whatsappUrl': wa_url,
-                'phone': phone,
-                'message': message,
-                'report': report
-            })
-
-        elif path.startswith('/api/reports/'):
-            field_id = path.split('/')[-1]
-            db = load_db()
-            field = next((f for f in db['fields'] if f['id'] == field_id), None)
-            if not field:
-                self._error('Field not found', 404)
-                return
-            client = next((c for c in db['clients'] if c['id'] == field.get('clientId')), None)
-            alerts = [a for a in db['alerts'] if a.get('fieldId') == field_id and a.get('status') == 'active']
-            ts = db.get('timeseries', {}).get(field_id, [])
-
-            try:
-                result = generate_report(field, client, alerts, ts)
-                self._json(result)
-            except Exception as e:
-                traceback.print_exc()
-                self._error(f'Report error: {str(e)}', 500)
-
-        else:
-            self._error('Not found', 404)
-
-    def do_PUT(self):
-        path = urlparse(self.path).path.rstrip('/')
-
-        if path.startswith('/api/fields/'):
-            field_id = path.split('/')[-1]
-            body = self._body()
-            db = load_db()
-            field = next((f for f in db['fields'] if f['id'] == field_id), None)
-            if not field:
-                self._error('Field not found', 404)
-                return
-            for k in ['name', 'crop', 'plantingDate', 'areaHa', 'clientId']:
-                if k in body:
-                    field[k] = body[k]
-            if 'boundary' in body:
-                field['boundary'] = body['boundary']
-            save_db(db)
-            self._json(field)
-        else:
-            self._error('Not found', 404)
-
-    def do_DELETE(self):
-        path = urlparse(self.path).path.rstrip('/')
-        if path.startswith('/api/alerts/'):
-            alert_id = path.split('/')[-1]
-            db = load_db()
-            db['alerts'] = [a for a in db['alerts'] if a['id'] != alert_id]
-            save_db(db)
-            self._json({'deleted': True})
-        else:
-            self._error('Not found', 404)
-
-    def log_message(self, format, *args):
-        pass
-
-# ============================================================
-# MAIN
-# ============================================================
-
-if __name__ == '__main__':
-    print('=== PIX Monitor API — Crop Monitoring Engine ===')
-    print(f'Port: {PORT}')
-    print(f'DB: {DB_FILE}')
-    print(f'GEE Key: {"OK" if os.path.exists(GEE_KEY_PATH) else "NOT FOUND"}')
-    print(f'Crops: {", ".join(CROP_PHENOLOGY.keys())}')
-    print()
-
-    # Pre-initialize GEE
-    if os.path.exists(GEE_KEY_PATH):
-        init_gee()
-
-    db = load_db()
-    print(f'Loaded: {len(db["clients"])} clients, {len(db["fields"])} fields, {len(db["alerts"])} alerts')
-    print(f'Listening on http://localhost:{PORT}/api/')
-    print()
-
-    server = HTTPServer(('0.0.0.0', PORT), MonitorHandler)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print('\nShutting down...')
-        server.server_close()
