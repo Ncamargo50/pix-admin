@@ -1,0 +1,2290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co; img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com;">
+<title>PIX Muestreo — Panel de Supervision</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="lib/leaflet.css">
+<style>
+  :root {
+    --bg: #0F1B2D; --bg2: #162236; --bg3: #1E2D44;
+    --text: #E2E8F0; --muted: #64748B; --green: #7FD633;
+    --teal: #0D9488; --red: #EF4444; --yellow: #F59E0B;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Inter, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .header { background: var(--bg2); border-bottom: 1px solid rgba(127,214,51,0.15); padding: 14px 20px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 100; }
+  .header img { width: 36px; height: 36px; border-radius: 10px; }
+  .header h1 { font-size: 18px; font-weight: 700; flex: 1; }
+  .header .status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .header .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-off { background: var(--red); }
+
+  /* Tab navigation */
+  .nav-tabs { display: flex; gap: 0; background: var(--bg2); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 0 20px; position: sticky; top: 65px; z-index: 99; }
+  .nav-tab { padding: 12px 20px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+  .setup-panel { max-width: 480px; margin: 60px auto; padding: 32px; background: var(--bg2); border-radius: 16px; border: 1px solid rgba(127,214,51,0.12); }
+  .setup-panel h2 { font-size: 20px; margin-bottom: 8px; }
+  .setup-panel p { color: var(--muted); font-size: 13px; margin-bottom: 20px; line-height: 1.6; }
+  .setup-panel label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; margin-top: 14px; }
+  .setup-panel input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg3); color: var(--text); font-size: 14px; outline: none; }
+  .setup-panel input:focus { border-color: var(--green); }
+  .setup-panel button { width: 100%; padding: 14px; border: none; border-radius: 12px; background: linear-gradient(135deg, var(--green), var(--teal)); color: var(--bg); font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 20px; }
+  .setup-panel button:hover { opacity: 0.9; }
+  .setup-panel .error { color: var(--red); font-size: 12px; margin-top: 8px; display: none; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--bg2); border-radius: 12px; padding: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
+  .stat-value { font-size: 28px; font-weight: 800; background: linear-gradient(135deg, var(--green), var(--teal)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--bg2); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); overflow: hidden; }
+  .panel-title { font-size: 14px; font-weight: 700; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 8px; }
+  .panel-body { padding: 16px; }
+
+  #dashMap { height: 520px; border-radius: 0 0 12px 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  tr:hover td { background: rgba(127,214,51,0.03); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(127,214,51,0.15); color: var(--green); }
+  .badge-green-solid { background: var(--green); color: var(--bg); }
+  .badge-yellow { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-teal { background: rgba(13,148,136,0.15); color: var(--teal); }
+  .badge-muted { background: rgba(100,116,139,0.15); color: var(--muted); }
+
+  .progress-bar { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+  .activity-item { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.03); display: flex; gap: 10px; align-items: flex-start; }
+  .activity-time { font-size: 11px; color: var(--muted); min-width: 50px; }
+  .activity-text { font-size: 13px; flex: 1; }
+  .activity-text strong { color: var(--green); }
+
+  .refresh-bar { text-align: center; padding: 8px; font-size: 11px; color: var(--muted); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Forms */
+  .form-panel { background: var(--bg3); border-radius: 12px; padding: 20px; margin-bottom: 16px; display: none; }
+  .form-panel.show { display: block; animation: slideDown 0.25s ease-out; }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .form-group input, .form-group select, .form-group textarea {
+    padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+    background: var(--bg); color: var(--text); font-size: 13px; outline: none;
+    font-family: inherit;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--green); }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .form-actions { display: flex; gap: 10px; margin-top: 16px; }
+  @media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } }
+
+  /* Buttons */
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; font-family: inherit; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: linear-gradient(135deg, var(--green), var(--teal)); color: var(--bg); }
+  .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid rgba(255,255,255,0.1); }
+  .btn-outline { background: transparent; color: var(--green); border: 1px solid var(--green); }
+  .btn-outline:hover { background: rgba(16,185,129,0.1); }
+  .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; border-radius: 6px; }
+
+  /* Section header bar */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+  .section-header h2 { font-size: 16px; font-weight: 700; }
+
+  /* File upload zone */
+  .file-zone { border: 2px dashed rgba(127,214,51,0.3); border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+  .file-zone:hover { border-color: var(--green); }
+  .file-zone.has-file { border-color: var(--green); background: rgba(127,214,51,0.05); }
+  .file-preview { font-size: 12px; color: var(--green); margin-top: 8px; }
+  .file-zone input[type="file"] { display: none; }
+
+  /* Status dropdown */
+  .status-select { padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: var(--bg); color: var(--text); font-size: 11px; cursor: pointer; outline: none; }
+  .status-select:focus { border-color: var(--green); }
+
+  /* Order detail row */
+  .order-detail { display: none; background: var(--bg3); }
+  .order-detail.show { display: table-row; }
+  .order-detail td { padding: 16px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px; }
+  .detail-grid .label { color: var(--muted); font-weight: 500; }
+
+  /* Online/offline dot */
+  .online-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .online-dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .online-dot.off { background: var(--red); }
+
+  /* Technician GPS pulse on map */
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.5); } 70% { box-shadow: 0 0 0 12px rgba(59,130,246,0); } 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); } }
+  .tech-online-badge { display: inline-flex; align-items: center; gap: 5px; }
+  .tech-online-badge .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+
+  /* Toast notification */
+  .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast-ok { background: rgba(127,214,51,0.9); color: var(--bg); }
+  .toast-err { background: rgba(239,68,68,0.9); color: #fff; }
+  .toast-warn { background: rgba(245,158,11,0.9); color: #fff; }
+
+  /* Responsive table wrapper */
+  .table-wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+
+
+<!-- HEADER -->
+<div class="header">
+  <img src="icons/icon-192.png" alt="PIX">
+  <h1>Panel de Supervision</h1>
+  <button id="exportBtn" onclick="exportReports()" style="padding:8px 16px;border:1px solid rgba(127,214,51,0.3);background:rgba(127,214,51,0.1);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;display:none" title="Exportar reportes a carpeta local">📁 Exportar Reportes</button>
+  <div class="status" id="connStatus">
+    <span class="dot dot-off" id="connDot"></span>
+    <span id="connText">Desconectado</span>
+  </div>
+  <button onclick="dashLogout()" style="padding:6px 12px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.1);color:var(--red);border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;" title="Cerrar sesion">Salir</button>
+</div>
+
+<!-- TAB NAVIGATION -->
+<div class="nav-tabs" id="navTabs" style="display:none">
+  <button class="nav-tab active" data-tab="tabPanel" onclick="showTab('tabPanel')">📊 Panel</button>
+  <button class="nav-tab" data-tab="tabOrdenes" onclick="showTab('tabOrdenes')">📋 Ordenes</button>
+  <button class="nav-tab" data-tab="tabTecnicos" onclick="showTab('tabTecnicos')">👥 Tecnicos</button>
+  <button class="nav-tab" data-tab="tabDispositivos" onclick="showTab('tabDispositivos')">📱 Dispositivos</button>
+</div>
+
+<!-- SETUP PANEL (shown if no credentials) -->
+<div class="setup-panel" id="setupPanel" style="display:none">
+  <h2>Conectar a Supabase</h2>
+  <p>Ingresa las credenciales de tu proyecto Supabase para ver los datos de campo en tiempo real.</p>
+  <label>Project URL</label>
+  <input type="text" id="setupUrl" placeholder="https://xxxxx.supabase.co">
+  <label>Public (anon) Key</label>
+  <input type="text" id="setupKey" placeholder="eyJhbGciOi...">
+  <div class="error" id="setupError"></div>
+  <button onclick="connectSupabase()">Conectar</button>
+  <p style="margin-top:16px;font-size:11px;text-align:center">Estas credenciales se guardan solo en tu navegador (localStorage)</p>
+</div>
+
+<!-- DASHBOARD (shown when connected) -->
+<div id="dashboard" style="display:none">
+
+  <!-- ═══ TAB: PANEL (existing dashboard) ═══ -->
+  <div id="tabPanel" class="tab-content active">
+    <div class="container">
+
+      <!-- STATS -->
+      <div class="stats" id="statsGrid">
+        <div class="stat-card"><div class="stat-value" id="statTechs">0</div><div class="stat-label">Tecnicos</div></div>
+        <div class="stat-card"><div class="stat-value" id="statFields">0</div><div class="stat-label">Campos</div></div>
+        <div class="stat-card"><div class="stat-value" id="statSamples">0</div><div class="stat-label">Muestras</div></div>
+        <div class="stat-card"><div class="stat-value" id="statProgress">0%</div><div class="stat-label">Avance</div></div>
+      </div>
+
+      <!-- MAP (full width) -->
+      <div class="panel" style="margin-bottom:20px">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
+          Mapa de Campos
+        </div>
+        <div id="dashMap"></div>
+      </div>
+
+      <!-- PERIMETROS INDEPENDIENTES -->
+      <div class="panel" style="margin-bottom:20px">
+        <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
+            Perimetros de Lotes
+          </span>
+          <button class="btn btn-outline" onclick="downloadAllBoundaries()" style="padding:4px 12px;font-size:11px">⬇ Descargar Todos</button>
+        </div>
+        <div class="panel-body" style="max-height:300px;overflow-y:auto">
+          <table>
+            <thead><tr><th>Lote</th><th>Proyecto</th><th>Area (ha)</th><th>Tecnico</th><th>Fecha</th><th>Descargar</th></tr></thead>
+            <tbody id="boundariesTable">
+              <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Cargando perimetros...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TECHNICIANS + FIELDS -->
+      <div class="grid" style="grid-template-columns: 1fr 2fr">
+        <div class="panel">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            Tecnicos
+          </div>
+          <div class="panel-body">
+            <table>
+              <thead><tr><th>Nombre</th><th>Muestras</th><th>Campos</th><th>Ultima sync</th></tr></thead>
+              <tbody id="techTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            Campos
+          </div>
+          <div class="panel-body" style="max-height:400px;overflow-y:auto">
+            <table>
+              <thead><tr><th>Campo</th><th>Cliente</th><th>Area</th><th>Avance</th><th>Tecnico</th><th>Accion</th></tr></thead>
+              <tbody id="fieldsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTIVITY (full width) -->
+      <div class="panel" style="margin-bottom:20px">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Actividad Reciente
+        </div>
+        <div class="panel-body" style="max-height:300px;overflow-y:auto" id="activityList">
+          <div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Cargando...</div>
+        </div>
+      </div>
+
+      <div class="refresh-bar" id="refreshBar">Auto-refresh cada 30s</div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: ORDENES (Service Orders) ═══ -->
+  <div id="tabOrdenes" class="tab-content">
+    <div class="container">
+
+      <div class="section-header">
+        <h2>Ordenes de Servicio</h2>
+        <button class="btn btn-primary" onclick="toggleOrderForm()">+ Nueva Orden</button>
+      </div>
+
+      <!-- New Order Form -->
+      <div class="form-panel" id="orderFormPanel">
+        <h3 style="font-size:14px;margin-bottom:14px" id="orderFormTitle">Nueva Orden de Servicio</h3>
+        <input type="hidden" id="orderEditId" value="">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Titulo *</label>
+            <input type="text" id="orderTitle" placeholder="Ej: Muestreo Finca La Esperanza">
+          </div>
+          <div class="form-group">
+            <label>Proyecto</label>
+            <input type="text" id="orderProject" placeholder="Nombre del proyecto">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Cliente</label>
+            <input type="text" id="orderClient" placeholder="Nombre del cliente">
+          </div>
+          <div class="form-group">
+            <label>Asignar a Tecnico</label>
+            <select id="orderTechnician">
+              <option value="">-- Seleccionar --</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Prioridad</label>
+            <select id="orderPriority">
+              <option value="normal">Normal</option>
+              <option value="baja">Baja</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Fecha limite</label>
+            <input type="date" id="orderDeadline">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Descripcion</label>
+            <textarea id="orderDesc" rows="2" placeholder="Descripcion detallada de la orden..."></textarea>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Archivo GeoJSON / KML (opcional)</label>
+            <div class="file-zone" id="orderFileZone" onclick="document.getElementById('orderFile').click()">
+              <input type="file" id="orderFile" accept=".geojson,.json,.kml" onchange="handleGeoFile(event)">
+              <div style="color:var(--muted);font-size:13px">Arrastra o haz clic para subir un archivo .geojson, .json o .kml</div>
+              <div class="file-preview" id="orderFilePreview"></div>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Notas</label>
+            <textarea id="orderNotes" rows="2" placeholder="Notas adicionales..."></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="orderSubmitBtn" onclick="submitOrder()">Crear Orden</button>
+          <button class="btn btn-secondary" onclick="toggleOrderForm()">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Orders Table -->
+      <div class="panel">
+        <div class="panel-body table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Titulo</th>
+                <th>Proyecto</th>
+                <th>Cliente</th>
+                <th>Tecnico</th>
+                <th>Estado</th>
+                <th>Prioridad</th>
+                <th>Fecha Limite</th>
+                <th>Creada</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Cargando ordenes...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ TAB: TECNICOS (Technician Management) ═══ -->
+  <div id="tabTecnicos" class="tab-content">
+    <div class="container">
+
+      <div class="section-header">
+        <h2>Gestion de Tecnicos</h2>
+        <button class="btn btn-primary" onclick="toggleTechForm()">+ Nuevo Tecnico</button>
+      </div>
+
+      <!-- New Technician Form -->
+      <div class="form-panel" id="techFormPanel">
+        <h3 style="font-size:14px;margin-bottom:14px" id="techFormTitle">Nuevo Tecnico</h3>
+        <input type="hidden" id="techEditId" value="">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre Completo *</label>
+            <input type="text" id="techFullName" placeholder="Nombre y apellido">
+          </div>
+          <div class="form-group">
+            <label>Username *</label>
+            <input type="text" id="techUsername" placeholder="usuario123">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label id="techPasswordLabel">Password *</label>
+            <input type="password" id="techPassword" placeholder="Contrasena segura">
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <select id="techRole">
+              <option value="tecnico">Tecnico</option>
+              <option value="supervisor">Supervisor</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Telefono</label>
+            <input type="text" id="techPhone" placeholder="+591 ...">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="techEmail" placeholder="tecnico@email.com">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" id="techSubmitBtn" onclick="submitTechnician()">Crear Tecnico</button>
+          <button class="btn btn-secondary" onclick="toggleTechForm()">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Technicians Table -->
+      <div class="panel">
+        <div class="panel-body table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Username</th>
+                <th>Rol</th>
+                <th>Telefono</th>
+                <th>Email</th>
+                <th>Activo</th>
+                <th>Sesion</th>
+                <th>Dispositivo</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="techsTableBody">
+              <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Cargando tecnicos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ TAB: DISPOSITIVOS (Device Management) ═══ -->
+  <div id="tabDispositivos" class="tab-content">
+    <div class="container">
+
+      <div class="section-header">
+        <h2>Dispositivos Registrados</h2>
+        <span style="font-size:12px;color:var(--muted)" id="devicesRefreshInfo">Auto-refresh cada 30s</span>
+      </div>
+
+      <!-- Devices Table -->
+      <div class="panel">
+        <div class="panel-body table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Device ID</th>
+                <th>Tecnico</th>
+                <th>Modelo</th>
+                <th>App Version</th>
+                <th>SW Cache</th>
+                <th>Estado</th>
+                <th>Ultima Ubicacion</th>
+                <th>Ultima Conexion</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="devicesTableBody">
+              <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Cargando dispositivos...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Dashboard Auth Overlay -->
+<div id="dashAuthOverlay" style="display:none;position:fixed;inset:0;background:#0F1B2D;z-index:99999;align-items:center;justify-content:center;font-family:Inter,sans-serif;">
+  <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(127,214,51,0.15);border-radius:24px;padding:48px 36px;max-width:360px;width:90%;text-align:center;backdrop-filter:blur(20px);">
+    <img src="icons/icon-192.png" alt="PIX" style="width:72px;height:72px;border-radius:16px;filter:drop-shadow(0 0 20px rgba(127,214,51,0.3));margin-bottom:16px;">
+    <h2 style="color:white;font-size:1.5rem;font-weight:700;margin:0 0 4px;">Panel de Supervision</h2>
+    <p style="color:#94a3b8;font-size:0.85rem;margin:0 0 28px;">Ingresa la clave de administrador</p>
+    <input type="password" id="dashAuthPass" placeholder="Clave de acceso"
+      onkeydown="if(event.key==='Enter')dashAuthLogin()"
+      style="width:100%;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:white;font-size:15px;outline:none;box-sizing:border-box;margin-bottom:12px;font-family:Inter,sans-serif;">
+    <div id="dashAuthError" style="display:none;color:#ef4444;font-size:13px;margin-bottom:12px;">Clave incorrecta</div>
+    <button onclick="dashAuthLogin()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#7FD633,#0d9488);color:#0F1B2D;font-size:15px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;">
+      Ingresar
+    </button>
+    <p style="color:#475569;font-size:0.7rem;margin-top:16px;">Pixadvisor — Dashboard Admin</p>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99998;align-items:center;justify-content:center;font-family:Inter,sans-serif;">
+  <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px;max-width:380px;width:90%;text-align:center;">
+    <p id="confirmModalMsg" style="color:var(--text);font-size:15px;margin-bottom:20px;"></p>
+    <div style="display:flex;gap:10px;">
+      <button id="confirmModalCancel" style="flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;">Cancelar</button>
+      <button id="confirmModalOk" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--red);color:white;font-size:14px;font-weight:600;cursor:pointer;">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Input Modal -->
+<div id="inputModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99998;align-items:center;justify-content:center;font-family:Inter,sans-serif;">
+  <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px;max-width:380px;width:90%;text-align:center;">
+    <p id="inputModalMsg" style="color:var(--text);font-size:15px;margin-bottom:14px;"></p>
+    <input type="password" id="inputModalField" style="width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:white;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:14px;font-family:Inter,sans-serif;">
+    <div style="display:flex;gap:10px;">
+      <button id="inputModalCancel" style="flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--muted);font-size:14px;cursor:pointer;">Cancelar</button>
+      <button id="inputModalOk" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--green);color:#0F1B2D;font-size:14px;font-weight:600;cursor:pointer;">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast"></div>
+
+<!-- SCRIPTS -->
+<script src="lib/leaflet.js"></script>
+<script>
+// ═══════════════════════════════════════════════════
+// PIX Muestreo Dashboard — Supabase Direct REST
+// Full Admin Panel with Tabs
+// ═══════════════════════════════════════════════════
+
+// ── DASHBOARD AUTH ──
+// SHA-256 hash of the dashboard access password
+const DASH_AUTH_HASH = 'ff10a74d3ebf2a182657249e55b350c0a5688350155ff67b3d65056246f0f9c0'; // pixadvisor2026!
+
+async function _sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+let _authAttempts = 0;
+let _authLockUntil = 0;
+
+async function dashAuthLogin() {
+  // Rate limiting: 5 attempts then 60s lockout (doubles each time)
+  if (Date.now() < _authLockUntil) {
+    const secs = Math.ceil((_authLockUntil - Date.now()) / 1000);
+    document.getElementById('dashAuthError').textContent = `Demasiados intentos. Espere ${secs}s`;
+    document.getElementById('dashAuthError').style.display = 'block';
+    return;
+  }
+  const pass = document.getElementById('dashAuthPass').value;
+  if (!pass || pass.length < 4) {
+    document.getElementById('dashAuthError').textContent = 'Clave muy corta';
+    document.getElementById('dashAuthError').style.display = 'block';
+    return;
+  }
+  const hash = await _sha256(pass);
+  if (hash === DASH_AUTH_HASH) {
+    _authAttempts = 0;
+    sessionStorage.setItem('pix_dash_auth', 'true');
+    document.getElementById('dashAuthOverlay').style.display = 'none';
+    initDashboard();
+  } else {
+    _authAttempts++;
+    document.getElementById('dashAuthPass').value = '';
+    if (_authAttempts >= 5) {
+      const lockSecs = 60 * Math.pow(2, Math.floor(_authAttempts / 5) - 1);
+      _authLockUntil = Date.now() + lockSecs * 1000;
+      document.getElementById('dashAuthError').textContent = `Bloqueado por ${lockSecs}s (demasiados intentos)`;
+    } else {
+      document.getElementById('dashAuthError').textContent = `Clave incorrecta (${5 - _authAttempts} intentos restantes)`;
+    }
+    document.getElementById('dashAuthError').style.display = 'block';
+  }
+}
+
+function dashLogout() {
+  sessionStorage.removeItem('pix_dash_auth');
+  location.reload();
+}
+
+// Custom confirm modal (replaces window.confirm)
+function pixConfirm(msg) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('confirmModalMsg').textContent = msg;
+    modal.style.display = 'flex';
+    document.getElementById('confirmModalOk').onclick = () => { modal.style.display = 'none'; resolve(true); };
+    document.getElementById('confirmModalCancel').onclick = () => { modal.style.display = 'none'; resolve(false); };
+  });
+}
+
+// Custom input modal (replaces window.prompt)
+function pixPrompt(msg, type) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('inputModal');
+    const field = document.getElementById('inputModalField');
+    document.getElementById('inputModalMsg').textContent = msg;
+    field.type = type || 'text';
+    field.value = '';
+    modal.style.display = 'flex';
+    field.focus();
+    document.getElementById('inputModalOk').onclick = () => { modal.style.display = 'none'; resolve(field.value); };
+    document.getElementById('inputModalCancel').onclick = () => { modal.style.display = 'none'; resolve(null); };
+  });
+}
+
+// ── Auth gate on load ──
+(function() {
+  if (sessionStorage.getItem('pix_dash_auth') === 'true') {
+    document.addEventListener('DOMContentLoaded', initDashboard);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('dashAuthOverlay').style.display = 'flex';
+      document.getElementById('dashAuthPass').focus();
+    });
+  }
+})();
+
+// ── SUPABASE CONFIG ──
+// IMPORTANT: These credentials must match _CLOUD_DEFAULT_URL and _CLOUD_DEFAULT_KEY in js/cloud.js
+const _DEFAULT_URL = 'https://fnoocboaupjmxpkhdnij.supabase.co';
+const _DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZub29jYm9hdXBqbXhwa2hkbmlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NzA3MTYsImV4cCI6MjA5MTM0NjcxNn0.WCoLdveWAwpcwzWpvLFSgQeXeot6X263DTffdEWoCfg';
+
+
+
+let SUPA_URL = localStorage.getItem('pix_dash_url') || _DEFAULT_URL;
+let SUPA_KEY = localStorage.getItem('pix_dash_key') || _DEFAULT_KEY;
+let dashMap = null;
+let fieldLayers = [];
+let techMarkers = [];  // GPS markers for online technicians
+let _devicesCache = []; // Cached devices for cross-reference
+let refreshTimer = null;
+let activeTab = localStorage.getItem('pix_dash_tab') || 'tabPanel';
+let orderGeoData = null; // Holds parsed GeoJSON for new order
+
+// ═══════════════════════════════════════════════════
+// TAB MANAGEMENT
+// ═══════════════════════════════════════════════════
+
+function showTab(tabId) {
+  activeTab = tabId;
+  localStorage.setItem('pix_dash_tab', tabId);
+
+  // Update tab buttons
+  document.querySelectorAll('.nav-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabId);
+  });
+
+  // Update tab content
+  document.querySelectorAll('.tab-content').forEach(el => {
+    el.classList.toggle('active', el.id === tabId);
+  });
+
+  // Load data for the active tab
+  if (tabId === 'tabPanel') {
+    loadData();
+    if (dashMap) setTimeout(() => dashMap.invalidateSize(), 100);
+  } else if (tabId === 'tabOrdenes') {
+    loadOrders();
+  } else if (tabId === 'tabTecnicos') {
+    loadTechnicians();
+  } else if (tabId === 'tabDispositivos') {
+    loadDevices();
+  }
+}
+
+// ── INIT (called after auth) ──
+function initDashboard() {
+  if (SUPA_URL && SUPA_KEY) {
+    showDashboard();
+  } else {
+    document.getElementById('setupPanel').style.display = 'block';
+  }
+}
+
+// ── SETUP / CONNECT ──
+async function connectSupabase() {
+  const url = document.getElementById('setupUrl').value.trim().replace(/\/+$/, '');
+  const key = document.getElementById('setupKey').value.trim();
+  const errEl = document.getElementById('setupError');
+
+  if (!url || !key) {
+    errEl.textContent = 'Completa ambos campos';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    // Test connection
+    const resp = await fetch(url + '/rest/v1/field_syncs?select=count', {
+      headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    localStorage.setItem('pix_dash_url', url);
+    localStorage.setItem('pix_dash_key', key);
+    SUPA_URL = url;
+    SUPA_KEY = key;
+
+    document.getElementById('setupPanel').style.display = 'none';
+    showDashboard();
+  } catch (e) {
+    errEl.textContent = 'Error de conexion: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+// ── SHOW DASHBOARD ──
+function showDashboard() {
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('setupPanel').style.display = 'none';
+  document.getElementById('navTabs').style.display = 'flex';
+
+  // Init map
+  if (!dashMap) {
+    dashMap = L.map('dashMap', { zoomControl: true }).setView([-23.3, -51.1], 8);
+    L.tileLayer('https://mt{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+      subdomains: '0123', maxZoom: 20, attribution: 'Google'
+    }).addTo(dashMap);
+  }
+
+  // Restore active tab from localStorage
+  showTab(activeTab);
+
+  // Auto-refresh every 30s (all tabs)
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    if (activeTab === 'tabPanel') loadData();
+    else if (activeTab === 'tabOrdenes') loadOrders();
+    else if (activeTab === 'tabDispositivos') loadDevices();
+    else if (activeTab === 'tabTecnicos') loadTechnicians();
+  }, 30000);
+
+  setConnected(true);
+}
+
+// ═══════════════════════════════════════════════════
+// FETCH HELPERS
+// ═══════════════════════════════════════════════════
+
+async function supaFetch(path) {
+  const resp = await fetch(SUPA_URL + '/rest/v1' + path, {
+    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+  });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  return resp.json();
+}
+
+async function supaDelete(path) {
+  const resp = await fetch(SUPA_URL + '/rest/v1' + path, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+  });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+}
+
+async function supaPost(path, body, method = 'POST') {
+  const resp = await fetch(SUPA_URL + '/rest/v1' + path, {
+    method,
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status + ': ' + await resp.text());
+  return resp.json();
+}
+
+// ═══════════════════════════════════════════════════
+// PANEL TAB — Existing Dashboard Functions
+// ═══════════════════════════════════════════════════
+
+async function loadData() {
+  try {
+    const [fields, activities, devices] = await Promise.all([
+      supaFetch('/field_syncs?select=*&client=neq._ELIMINADO_&order=synced_at.desc'),
+      supaFetch('/activity_log?select=*&order=created_at.desc&limit=30'),
+      supaFetch('/devices?select=*&order=last_seen.desc')
+    ]);
+
+    _devicesCache = devices || [];
+    renderStats(fields);
+    renderTechs(fields);
+    renderFields(fields);
+    renderMap(fields);
+    renderTechGPS(devices);
+    renderActivity(activities);
+    loadBoundaries();
+    setConnected(true);
+
+    document.getElementById('refreshBar').textContent =
+      'Actualizado: ' + new Date().toLocaleTimeString('es') + ' — auto-refresh cada 30s';
+  } catch (e) {
+    console.error('[Dashboard] Load error:', e);
+    setConnected(false);
+    document.getElementById('refreshBar').textContent = 'Error: ' + e.message;
+  }
+}
+
+// ── RENDER STATS ──
+function renderStats(fields) {
+  const techs = [...new Set(fields.map(f => f.technician))];
+  const totalSamples = fields.reduce((s, f) => s + (f.samples?.length || 0), 0);
+  const totalPts = fields.reduce((s, f) => s + (f.total_points || 0), 0);
+  const collPts = fields.reduce((s, f) => s + (f.collected_points || 0), 0);
+  const pct = totalPts > 0 ? Math.round(collPts / totalPts * 100) : 0;
+
+  document.getElementById('statTechs').textContent = techs.length;
+  document.getElementById('statFields').textContent = fields.length;
+  document.getElementById('statSamples').textContent = totalSamples;
+  document.getElementById('statProgress').textContent = pct + '%';
+}
+
+// ── RENDER TECHNICIANS TABLE (Panel tab) ──
+function renderTechs(fields) {
+  const techMap = {};
+  for (const f of fields) {
+    const t = f.technician || 'Sin nombre';
+    if (!techMap[t]) techMap[t] = { samples: 0, fields: 0, lastSync: null };
+    techMap[t].samples += f.samples?.length || 0;
+    techMap[t].fields++;
+    const syncTime = f.synced_at ? new Date(f.synced_at) : null;
+    if (syncTime && (!techMap[t].lastSync || syncTime > techMap[t].lastSync)) {
+      techMap[t].lastSync = syncTime;
+    }
+  }
+
+  const tbody = document.getElementById('techTable');
+  tbody.innerHTML = Object.entries(techMap).map(([name, data]) => {
+    const ago = data.lastSync ? timeAgo(data.lastSync) : 'Nunca';
+    const recent = data.lastSync && (Date.now() - data.lastSync.getTime()) < 3600000;
+    return `<tr>
+      <td><strong>${esc(name)}</strong></td>
+      <td>${data.samples}</td>
+      <td>${data.fields}</td>
+      <td><span class="badge ${recent ? 'badge-green' : 'badge-yellow'}">${ago}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── RENDER FIELDS TABLE ──
+function renderFields(fields) {
+  const tbody = document.getElementById('fieldsTable');
+  tbody.innerHTML = fields.map(f => {
+    const pct = f.progress_pct || 0;
+    const color = pct >= 100 ? 'var(--green)' : pct > 50 ? 'var(--yellow)' : 'var(--red)';
+    return `<tr>
+      <td><strong>${esc(f.field_name)}</strong><br><small style="color:var(--muted)">${esc(f.project)}</small></td>
+      <td>${esc(f.client || '—')}</td>
+      <td>${f.area_ha ? f.area_ha + ' ha' : '—'}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
+          <span style="font-size:12px;min-width:32px">${pct}%</span>
+        </div>
+        <small style="color:var(--muted)">${f.collected_points || 0}/${f.total_points || '?'} pts</small>
+      </td>
+      <td><small>${esc(f.technician)}</small></td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteField('${f.id}', '${escJS(f.field_name)}')">Eliminar</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteField(id, name) {
+  if (!await pixConfirm('Eliminar campo "' + name + '" del dashboard?')) return;
+  try {
+    await supaPost('/field_syncs?id=eq.' + id, { client: '_ELIMINADO_' }, 'PATCH');
+    toast('Campo "' + name + '" eliminado');
+    loadData();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+// ── RENDER MAP ──
+function renderMap(fields) {
+  // Clear old layers
+  fieldLayers.forEach(l => dashMap.removeLayer(l));
+  fieldLayers = [];
+
+  const bounds = [];
+
+  for (const f of fields) {
+    // Try to add boundary polygon
+    if (f.boundary && f.boundary.features) {
+      try {
+        const pct = f.progress_pct || 0;
+        const color = pct >= 100 ? '#7FD633' : pct > 50 ? '#F59E0B' : '#EF4444';
+        const layer = L.geoJSON(f.boundary, {
+          style: { color, weight: 2, fillColor: color, fillOpacity: 0.12 }
+        }).bindPopup(`<b>${esc(f.field_name)}</b><br>${f.collected_points || 0} muestras<br>${pct}% completo<br><small>${esc(f.technician)}</small>`);
+        layer.addTo(dashMap);
+        fieldLayers.push(layer);
+        bounds.push(layer.getBounds());
+      } catch (e) { /* invalid geojson */ }
+    }
+
+    // Add sample points as small markers
+    if (f.samples && f.samples.length > 0) {
+      for (const s of f.samples) {
+        if (s.lat && s.lng) {
+          const marker = L.circleMarker([s.lat, s.lng], {
+            radius: 4, color: '#7FD633', fillColor: '#7FD633', fillOpacity: 0.7, weight: 1
+          }).bindPopup(`<b>${esc(s.pointName || '?')}</b><br>Zona ${s.zona || '?'}<br>${s.depth || '0-20'} cm<br><small>${esc(s.collector || '')}</small>`);
+          marker.addTo(dashMap);
+          fieldLayers.push(marker);
+          bounds.push(L.latLng(s.lat, s.lng));
+        }
+      }
+    }
+  }
+
+  // Fit bounds
+  if (bounds.length > 0) {
+    try {
+      const group = L.featureGroup(fieldLayers.filter(l => l.getBounds));
+      if (group.getLayers().length > 0) dashMap.fitBounds(group.getBounds().pad(0.1));
+      else if (bounds[0].lat) dashMap.setView(bounds[0], 14);
+    } catch (e) {
+      // fallback: center on first sample
+      const firstSample = fields.flatMap(f => f.samples || []).find(s => s.lat);
+      if (firstSample) dashMap.setView([firstSample.lat, firstSample.lng], 14);
+    }
+  }
+}
+
+// ── RENDER TECH GPS MARKERS ON MAP ──
+function renderTechGPS(devices) {
+  // Clear old tech markers
+  techMarkers.forEach(m => dashMap.removeLayer(m));
+  techMarkers = [];
+  if (!devices || !dashMap) return;
+
+  const ONE_HOUR = 3600000;
+  const onlineBounds = [];
+
+  for (const d of devices) {
+    let lat = null, lng = null;
+    if (d.last_location && typeof d.last_location === 'object' && d.last_location.lat) {
+      lat = d.last_location.lat; lng = d.last_location.lng;
+    } else if (d.last_lat && d.last_lng) {
+      lat = d.last_lat; lng = d.last_lng;
+    }
+    if (!lat || !lng) continue;
+
+    const lastSeen = d.last_seen ? new Date(d.last_seen) : null;
+    const isOnline = lastSeen && (Date.now() - lastSeen.getTime()) < ONE_HOUR;
+    const color = isOnline ? '#3B82F6' : '#64748B';
+    const name = d.technician_name || d.technician || 'Sin nombre';
+    const ago = lastSeen ? timeAgo(lastSeen) : 'Desconocido';
+
+    const marker = L.circleMarker([lat, lng], {
+      radius: isOnline ? 9 : 6,
+      color: '#fff', weight: 2,
+      fillColor: color, fillOpacity: isOnline ? 0.9 : 0.5
+    }).bindPopup(
+      `<b>${esc(name)}</b><br>` +
+      `<span style="color:${isOnline ? '#22C55E' : '#EF4444'}">${isOnline ? '🟢 Online' : '🔴 Offline'}</span><br>` +
+      `📱 ${esc(d.phone_model || '—')}<br>` +
+      `📡 v${esc(d.app_version || '?')}<br>` +
+      `🕐 ${ago}<br>` +
+      `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`
+    ).bindTooltip(name, { permanent: isOnline, direction: 'top', offset: [0, -10], className: 'tech-tooltip' });
+
+    marker.addTo(dashMap);
+    techMarkers.push(marker);
+    if (isOnline) onlineBounds.push(L.latLng(lat, lng));
+  }
+
+  // Extend map view to include online technicians
+  if (onlineBounds.length > 0) {
+    try {
+      // Combine with existing field layers
+      const allBounds = L.latLngBounds(onlineBounds);
+      fieldLayers.forEach(l => {
+        try { if (l.getBounds) allBounds.extend(l.getBounds()); } catch(_){}
+      });
+      dashMap.fitBounds(allBounds.pad(0.1));
+    } catch (e) {
+      // Fallback: center on first online tech
+      dashMap.setView(onlineBounds[0], 15);
+    }
+  }
+}
+
+// ── RENDER ACTIVITY ──
+function renderActivity(activities) {
+  const el = document.getElementById('activityList');
+  if (!activities || activities.length === 0) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Sin actividad registrada</div>';
+    return;
+  }
+  el.innerHTML = activities.map(a => {
+    const t = new Date(a.created_at);
+    const d = a.details || {};
+    let text = '';
+    if (a.action === 'sync') {
+      text = `<strong>${esc(a.technician)}</strong> sincronizo <strong>${esc(d.field || '?')}</strong> (${d.samples || 0} muestras)`;
+    } else {
+      text = `<strong>${esc(a.technician)}</strong>: ${esc(a.action)}`;
+    }
+    return `<div class="activity-item">
+      <span class="activity-time">${t.toLocaleTimeString('es', {hour:'2-digit',minute:'2-digit'})}</span>
+      <span class="activity-text">${text}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// PERIMETROS — Independent Boundary Management
+// ═══════════════════════════════════════════════════
+
+let _boundariesCache = [];
+
+async function loadBoundaries() {
+  try {
+    const data = await supaFetch('/field_syncs?select=project,field_name,area_ha,boundary,technician,synced_at&boundary=not.is.null&order=synced_at.desc');
+    _boundariesCache = data || [];
+    renderBoundaries(_boundariesCache);
+  } catch (e) {
+    console.warn('[Dashboard] Load boundaries:', e.message);
+  }
+}
+
+function renderBoundaries(boundaries) {
+  const tbody = document.getElementById('boundariesTable');
+  if (!tbody) return;
+  if (!boundaries || boundaries.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Sin perimetros registrados</td></tr>';
+    return;
+  }
+  tbody.innerHTML = boundaries.map((b, i) => {
+    const date = b.synced_at ? new Date(b.synced_at).toLocaleDateString('es') : '—';
+    const area = b.area_ha ? Number(b.area_ha).toFixed(2) : '—';
+    return `<tr>
+      <td><strong>${esc(b.field_name)}</strong></td>
+      <td>${esc(b.project)}</td>
+      <td>${area}</td>
+      <td>${esc(b.technician || '—')}</td>
+      <td><small>${date}</small></td>
+      <td>
+        <button class="btn btn-outline" onclick="downloadBoundary(${i})" style="padding:2px 8px;font-size:11px">📐 GeoJSON</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function downloadBoundary(index) {
+  const b = _boundariesCache[index];
+  if (!b || !b.boundary) return;
+  const geojson = typeof b.boundary === 'string' ? b.boundary : JSON.stringify(b.boundary, null, 2);
+  const name = `perimetro_${b.project}_${b.field_name}.geojson`.replace(/\s+/g, '_');
+  const blob = new Blob([geojson], { type: 'application/geo+json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+  toast('Descargado: ' + name, 'success');
+}
+
+function downloadAllBoundaries() {
+  if (!_boundariesCache || _boundariesCache.length === 0) {
+    toast('No hay perimetros para descargar', 'warning');
+    return;
+  }
+  // Merge all boundaries into a single FeatureCollection
+  const allFeatures = [];
+  for (const b of _boundariesCache) {
+    if (!b.boundary) continue;
+    const geo = typeof b.boundary === 'string' ? JSON.parse(b.boundary) : b.boundary;
+    if (geo.type === 'FeatureCollection' && geo.features) {
+      for (const f of geo.features) {
+        f.properties = {
+          ...(f.properties || {}),
+          project: b.project,
+          field: b.field_name,
+          area_ha: b.area_ha,
+          technician: b.technician,
+          synced_at: b.synced_at
+        };
+        allFeatures.push(f);
+      }
+    } else if (geo.type === 'Feature') {
+      geo.properties = { ...(geo.properties || {}), project: b.project, field: b.field_name, area_ha: b.area_ha };
+      allFeatures.push(geo);
+    }
+  }
+  const merged = { type: 'FeatureCollection', features: allFeatures };
+  const content = JSON.stringify(merged, null, 2);
+  const today = new Date().toISOString().slice(0, 10);
+  const name = `perimetros_todos_${today}.geojson`;
+  const blob = new Blob([content], { type: 'application/geo+json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+  toast(`${allFeatures.length} perimetros descargados: ${name}`, 'success');
+}
+
+// ═══════════════════════════════════════════════════
+// ORDENES TAB — Service Orders
+// ═══════════════════════════════════════════════════
+
+function toggleOrderForm(reset) {
+  const panel = document.getElementById('orderFormPanel');
+  const isOpen = panel.classList.contains('show');
+  if (isOpen || reset === false) {
+    panel.classList.remove('show');
+    clearOrderForm();
+  } else {
+    panel.classList.add('show');
+    populateOrderTechDropdown();
+  }
+}
+
+function clearOrderForm() {
+  document.getElementById('orderEditId').value = '';
+  document.getElementById('orderTitle').value = '';
+  document.getElementById('orderProject').value = '';
+  document.getElementById('orderClient').value = '';
+  document.getElementById('orderDesc').value = '';
+  document.getElementById('orderTechnician').value = '';
+  document.getElementById('orderPriority').value = 'normal';
+  document.getElementById('orderDeadline').value = '';
+  document.getElementById('orderNotes').value = '';
+  document.getElementById('orderFile').value = '';
+  document.getElementById('orderFilePreview').textContent = '';
+  document.getElementById('orderFileZone').classList.remove('has-file');
+  document.getElementById('orderFormTitle').textContent = 'Nueva Orden de Servicio';
+  document.getElementById('orderSubmitBtn').textContent = 'Crear Orden';
+  orderGeoData = null;
+}
+
+async function populateOrderTechDropdown() {
+  try {
+    const techs = await supaFetch('/technicians?select=id,full_name&active=eq.true&order=full_name.asc');
+    const sel = document.getElementById('orderTechnician');
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">-- Seleccionar --</option>' +
+      techs.map(t => `<option value="${esc(t.id)}">${esc(t.full_name)}</option>`).join('');
+    if (currentVal) sel.value = currentVal;
+  } catch (e) {
+    console.warn('[Orders] Could not load technicians for dropdown:', e.message);
+  }
+}
+
+function handleGeoFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let data;
+      const text = e.target.result;
+
+      if (file.name.endsWith('.kml')) {
+        // Basic KML parsing: extract coordinates
+        const parser = new DOMParser();
+        const kml = parser.parseFromString(text, 'text/xml');
+        const placemarks = kml.querySelectorAll('Placemark');
+        const features = [];
+        placemarks.forEach(pm => {
+          const name = pm.querySelector('name')?.textContent || '';
+          const coords = pm.querySelector('coordinates');
+          if (coords) {
+            const pts = coords.textContent.trim().split(/\s+/).map(c => {
+              const [lng, lat, alt] = c.split(',').map(Number);
+              return [lng, lat];
+            }).filter(c => !isNaN(c[0]) && !isNaN(c[1]));
+            if (pts.length === 1) {
+              features.push({ type: 'Feature', properties: { name }, geometry: { type: 'Point', coordinates: pts[0] } });
+            } else if (pts.length > 2) {
+              // Close polygon ring if not already closed (RFC 7946)
+              const first = pts[0], last = pts[pts.length - 1];
+              if (first[0] !== last[0] || first[1] !== last[1]) pts.push([first[0], first[1]]);
+              features.push({ type: 'Feature', properties: { name }, geometry: { type: 'Polygon', coordinates: [pts] } });
+            }
+          }
+        });
+        data = { type: 'FeatureCollection', features };
+      } else {
+        data = JSON.parse(text);
+      }
+
+      // Validate GeoJSON structure
+      if (!data || !data.features) {
+        if (data.type === 'Feature') {
+          data = { type: 'FeatureCollection', features: [data] };
+        } else {
+          throw new Error('No es un GeoJSON valido');
+        }
+      }
+
+      orderGeoData = data;
+
+      // Compute stats
+      let points = 0, polygons = 0, totalArea = 0;
+      for (const feat of data.features) {
+        const gType = feat.geometry?.type;
+        if (gType === 'Point' || gType === 'MultiPoint') points++;
+        else if (gType === 'Polygon' || gType === 'MultiPolygon') {
+          polygons++;
+          if (feat.properties?.area_ha) totalArea += parseFloat(feat.properties.area_ha);
+        }
+      }
+
+      const zone = document.getElementById('orderFileZone');
+      zone.classList.add('has-file');
+      const preview = document.getElementById('orderFilePreview');
+      let info = `${file.name} — ${data.features.length} features`;
+      if (polygons > 0) info += `, ${polygons} poligonos`;
+      if (points > 0) info += `, ${points} puntos`;
+      if (totalArea > 0) info += `, ${totalArea.toFixed(1)} ha`;
+      preview.textContent = info;
+
+    } catch (err) {
+      orderGeoData = null;
+      document.getElementById('orderFileZone').classList.remove('has-file');
+      document.getElementById('orderFilePreview').textContent = 'Error: ' + err.message;
+      document.getElementById('orderFilePreview').style.color = 'var(--red)';
+      setTimeout(() => {
+        document.getElementById('orderFilePreview').style.color = '';
+        document.getElementById('orderFilePreview').textContent = '';
+      }, 3000);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Transform raw GeoJSON FeatureCollection into APK-compatible field_data
+// APK expects: { fields: [{ name, boundary, points, zones, area_ha }] }
+function transformGeoToFieldData(geoFC) {
+  if (!geoFC || !geoFC.features || geoFC.features.length === 0) return null;
+
+  const polygons = geoFC.features.filter(f => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'));
+  const pointFeats = geoFC.features.filter(f => f.geometry && f.geometry.type === 'Point');
+
+  // Helper: check if point is roughly inside polygon bbox (simplified containment)
+  function pointInBBox(pt, poly) {
+    const coords = poly.geometry.type === 'Polygon' ? poly.geometry.coordinates[0] : poly.geometry.coordinates[0][0];
+    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    for (const c of coords) { minLng = Math.min(minLng, c[0]); maxLng = Math.max(maxLng, c[0]); minLat = Math.min(minLat, c[1]); maxLat = Math.max(maxLat, c[1]); }
+    return pt[0] >= minLng && pt[0] <= maxLng && pt[1] >= minLat && pt[1] <= maxLat;
+  }
+
+  // Helper: approx area in ha from polygon coordinates using Shoelace formula
+  function approxAreaHa(coords) {
+    const ring = coords[0] || [];
+    if (ring.length < 3) return 0;
+    let area = 0;
+    for (let i = 0; i < ring.length; i++) {
+      const j = (i + 1) % ring.length;
+      area += ring[i][0] * ring[j][1];
+      area -= ring[j][0] * ring[i][1];
+    }
+    area = Math.abs(area) / 2;
+    // Convert degree² to m² (rough at equator: 1 deg ≈ 111320 m)
+    const midLat = ring.reduce((s, c) => s + c[1], 0) / ring.length;
+    const mPerDegLng = 111320 * Math.cos(midLat * Math.PI / 180);
+    const mPerDegLat = 110540;
+    const areaM2 = area * mPerDegLng * mPerDegLat;
+    return Math.round(areaM2 / 10000 * 100) / 100; // ha with 2 decimals
+  }
+
+  const fields = [];
+
+  if (polygons.length > 0) {
+    // Each polygon is a field; assign points by zona property first, then bbox fallback
+    const usedPoints = new Set();
+    // Check if polygons have zona properties (management zones GeoJSON)
+    const hasZonaProp = polygons.some(p => p.properties?.zona != null || p.properties?.zone != null);
+
+    polygons.forEach((poly, idx) => {
+      const name = poly.properties?.name || poly.properties?.Name || `Campo ${idx + 1}`;
+      const polyZona = poly.properties?.zona ?? poly.properties?.zone ?? null;
+      const areaHa = poly.properties?.area_ha || approxAreaHa(
+        poly.geometry.type === 'Polygon' ? poly.geometry.coordinates : poly.geometry.coordinates[0]
+      );
+      const fieldPoints = [];
+      pointFeats.forEach((pf, pi) => {
+        if (usedPoints.has(pi)) return;
+        const ptZona = pf.properties?.zona ?? pf.properties?.zone ?? null;
+        // Priority: match by zona property when both polygon and point have it
+        if (hasZonaProp && polyZona != null && ptZona != null) {
+          if (String(ptZona) === String(polyZona)) {
+            fieldPoints.push(pf);
+            usedPoints.add(pi);
+          }
+        } else if (pointInBBox(pf.geometry.coordinates, poly)) {
+          // Fallback: bbox containment when no zona properties
+          fieldPoints.push(pf);
+          usedPoints.add(pi);
+        }
+      });
+      const zonesSet = new Set(fieldPoints.map(p => p.properties?.zona || p.properties?.zone || 1));
+      fields.push({
+        name,
+        boundary: poly.geometry,
+        area_ha: areaHa,
+        zones: zonesSet.size || 1,
+        zona: polyZona,
+        clase: poly.properties?.clase || poly.properties?.class || '',
+        color: poly.properties?.color || poly.properties?.fill || null,
+        points: { type: 'FeatureCollection', features: fieldPoints }
+      });
+    });
+    // Remaining unassigned points go to last field
+    const remainingPts = pointFeats.filter((_, i) => !usedPoints.has(i));
+    if (remainingPts.length > 0 && fields.length > 0) {
+      fields[fields.length - 1].points.features.push(...remainingPts);
+    }
+  } else if (pointFeats.length > 0) {
+    // No polygons — all points become one field
+    const zonesSet = new Set(pointFeats.map(p => p.properties?.zona || p.properties?.zone || 1));
+    fields.push({
+      name: 'Campo 1',
+      boundary: null,
+      area_ha: 0,
+      zones: zonesSet.size || 1,
+      points: { type: 'FeatureCollection', features: pointFeats }
+    });
+  }
+
+  if (fields.length === 0) return null;
+  return { fields };
+}
+
+async function submitOrder() {
+  const title = document.getElementById('orderTitle').value.trim();
+  if (!title) { toast('El titulo es obligatorio', 'err'); return; }
+
+  const editId = document.getElementById('orderEditId').value;
+
+  // Resolve technician name from dropdown (BUG FIX: APK needs assigned_to_name)
+  const techSelect = document.getElementById('orderTechnician');
+  const techId = techSelect.value || null;
+  const techName = techId && techSelect.selectedIndex > 0
+    ? techSelect.options[techSelect.selectedIndex].text : null;
+
+  // Transform GeoJSON to APK-compatible { fields: [...] } format
+  // If editing, data may already be in { fields: [...] } format — don't re-transform
+  const fieldData = orderGeoData
+    ? (orderGeoData.fields ? orderGeoData : transformGeoToFieldData(orderGeoData))
+    : null;
+
+  const body = {
+    title: title,
+    project: document.getElementById('orderProject').value.trim() || null,
+    client: document.getElementById('orderClient').value.trim() || null,
+    description: document.getElementById('orderDesc').value.trim() || null,
+    assigned_to: techId,
+    assigned_to_name: techName,
+    priority: document.getElementById('orderPriority').value,
+    deadline: document.getElementById('orderDeadline').value || null,
+    notes: document.getElementById('orderNotes').value.trim() || null,
+    field_data: fieldData,
+    total_fields: fieldData ? fieldData.fields.length : 0,
+    total_points: fieldData ? fieldData.fields.reduce((s, f) => s + (f.points?.features?.length || 0), 0) : 0
+  };
+
+  const btn = document.getElementById('orderSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  try {
+    if (editId) {
+      body.updated_at = new Date().toISOString();
+      await supaPost('/service_orders?id=eq.' + editId, body, 'PATCH');
+      toast('Orden actualizada');
+    } else {
+      // If a technician is assigned at creation, mark as 'asignada' (not 'pendiente')
+      body.status = techId ? 'asignada' : 'pendiente';
+      body.created_at = new Date().toISOString();
+      await supaPost('/service_orders', body);
+      toast(techId ? 'Orden creada y asignada' : 'Orden creada');
+    }
+    toggleOrderForm(false);
+    loadOrders();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editId ? 'Actualizar Orden' : 'Crear Orden';
+  }
+}
+
+async function loadOrders() {
+  try {
+    const orders = await supaFetch('/service_orders?select=*&status=neq.cancelada&order=created_at.desc');
+    renderOrders(orders);
+  } catch (e) {
+    console.error('[Orders] Load error:', e);
+    document.getElementById('ordersTableBody').innerHTML =
+      `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">Error: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+async function updateOrderStatus(id, status) {
+  try {
+    const body = { status, updated_at: new Date().toISOString() };
+    // Match APK: set timestamps for lifecycle transitions
+    if (status === 'en_progreso') body.started_at = new Date().toISOString();
+    if (status === 'completada') body.completed_at = new Date().toISOString();
+    await supaPost('/service_orders?id=eq.' + id, body, 'PATCH');
+    toast('Estado actualizado: ' + status);
+    loadOrders();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+async function deleteOrder(id, title) {
+  if (!await pixConfirm('Eliminar la orden "' + title + '"?')) return;
+  try {
+    // Try real DELETE first (requires RLS DELETE policy)
+    await supaDelete('/service_orders?id=eq.' + id);
+    // Verify it was actually deleted (RLS may silently skip)
+    const check = await supaFetch('/service_orders?id=eq.' + id + '&select=id');
+    if (check.length > 0) {
+      // DELETE policy not applied — fallback to status change
+      await supaPost('/service_orders?id=eq.' + id, { status: 'cancelada', updated_at: new Date().toISOString() }, 'PATCH');
+    }
+    toast('Orden eliminada: ' + title);
+    loadOrders();
+  } catch (e) {
+    toast('Error al eliminar: ' + e.message, 'err');
+  }
+}
+
+function editOrder(order) {
+  document.getElementById('orderEditId').value = order.id;
+  document.getElementById('orderTitle').value = order.title || '';
+  document.getElementById('orderProject').value = order.project || '';
+  document.getElementById('orderClient').value = order.client || '';
+  document.getElementById('orderDesc').value = order.description || '';
+  document.getElementById('orderPriority').value = order.priority || 'normal';
+  document.getElementById('orderDeadline').value = order.deadline || '';
+  document.getElementById('orderNotes').value = order.notes || '';
+  document.getElementById('orderFormTitle').textContent = 'Editar Orden';
+  document.getElementById('orderSubmitBtn').textContent = 'Actualizar Orden';
+  if (order.field_data) {
+    orderGeoData = order.field_data;
+    document.getElementById('orderFileZone').classList.add('has-file');
+    const fc = order.field_data.fields?.length || order.field_data.features?.length || 0;
+    const tp = order.field_data.fields ? order.field_data.fields.reduce((s, f) => s + (f.points?.features?.length || 0), 0) : 0;
+    document.getElementById('orderFilePreview').textContent = `Datos cargados: ${fc} campos, ${tp} puntos`;
+  }
+  const panel = document.getElementById('orderFormPanel');
+  panel.classList.add('show');
+  populateOrderTechDropdown().then(() => {
+    document.getElementById('orderTechnician').value = order.assigned_to || '';
+  });
+  panel.scrollIntoView({ behavior: 'smooth' });
+}
+
+function toggleOrderDetail(id) {
+  const row = document.getElementById('detail-' + id);
+  if (row) row.classList.toggle('show');
+}
+
+// Store orders for editing
+let _ordersCache = [];
+
+function renderOrders(orders) {
+  _ordersCache = orders;
+  const tbody = document.getElementById('ordersTableBody');
+
+  if (!orders || orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">No hay ordenes de servicio</td></tr>';
+    return;
+  }
+
+  const statusMap = {
+    pendiente: 'badge-yellow',
+    asignada: 'badge-teal',
+    en_progreso: 'badge-green',
+    completada: 'badge-green-solid',
+    cancelada: 'badge-red'
+  };
+  const priorityMap = {
+    baja: 'badge-muted',
+    normal: 'badge-teal',
+    alta: 'badge-yellow',
+    urgente: 'badge-red'
+  };
+  const statusOptions = ['pendiente', 'asignada', 'en_progreso', 'completada', 'cancelada'];
+
+  tbody.innerHTML = orders.map((o, idx) => {
+    const sBadge = statusMap[o.status] || 'badge-muted';
+    const pBadge = priorityMap[o.priority] || 'badge-teal';
+    const created = o.created_at ? new Date(o.created_at).toLocaleDateString('es') : '—';
+    const deadline = o.deadline ? new Date(o.deadline).toLocaleDateString('es') : '—';
+    const hasGeo = o.field_data && (o.field_data.fields || o.field_data.features) ? ' 🗺️' : '';
+
+    const statusSelect = `<select class="status-select" onchange="updateOrderStatus('${o.id}', this.value)">`
+      + statusOptions.map(s => `<option value="${s}"${s === o.status ? ' selected' : ''}>${s}</option>`).join('')
+      + '</select>';
+
+    // Detail row
+    const desc = esc(o.description || 'Sin descripcion');
+    const notes = esc(o.notes || '—');
+    const geoFields = o.field_data?.fields || o.field_data?.features || [];
+    const geoInfo = geoFields.length ? `${geoFields.length} campos cargados` : 'Sin datos GeoJSON';
+
+    return `<tr style="cursor:pointer" onclick="toggleOrderDetail('${o.id}')">
+      <td><strong>${esc(o.title)}</strong>${hasGeo}</td>
+      <td>${esc(o.project || '—')}</td>
+      <td>${esc(o.client || '—')}</td>
+      <td>${esc(o.assigned_to_name || o.assigned_to || '—')}</td>
+      <td><span class="badge ${sBadge}">${o.status}</span></td>
+      <td><span class="badge ${pBadge}">${o.priority || 'normal'}</span></td>
+      <td>${deadline}</td>
+      <td>${created}</td>
+      <td onclick="event.stopPropagation()">
+        ${statusSelect}
+        <button class="btn btn-sm btn-secondary" style="margin-left:4px" onclick="editOrder(_ordersCache[${idx}])">Editar</button>
+        <button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="deleteOrder('${o.id}', '${escJS(o.title)}')">Eliminar</button>
+      </td>
+    </tr>
+    <tr class="order-detail" id="detail-${o.id}">
+      <td colspan="9">
+        <div class="detail-grid">
+          <div><span class="label">Descripcion:</span><br>${desc}</div>
+          <div><span class="label">Notas:</span><br>${notes}</div>
+          <div><span class="label">GeoJSON:</span><br>${geoInfo}</div>
+          <div><span class="label">Actualizada:</span><br>${o.updated_at ? new Date(o.updated_at).toLocaleString('es') : '—'}</div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// TECNICOS TAB — Technician Management
+// ═══════════════════════════════════════════════════
+
+function toggleTechForm(reset) {
+  const panel = document.getElementById('techFormPanel');
+  const isOpen = panel.classList.contains('show');
+  if (isOpen || reset === false) {
+    panel.classList.remove('show');
+    clearTechForm();
+  } else {
+    panel.classList.add('show');
+  }
+}
+
+function clearTechForm() {
+  document.getElementById('techEditId').value = '';
+  document.getElementById('techFullName').value = '';
+  document.getElementById('techUsername').value = '';
+  document.getElementById('techPassword').value = '';
+  document.getElementById('techPhone').value = '';
+  document.getElementById('techEmail').value = '';
+  document.getElementById('techRole').value = 'tecnico';
+  document.getElementById('techFormTitle').textContent = 'Nuevo Tecnico';
+  document.getElementById('techSubmitBtn').textContent = 'Crear Tecnico';
+  document.getElementById('techPasswordLabel').textContent = 'Password *';
+  document.getElementById('techPassword').required = true;
+}
+
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function submitTechnician() {
+  const fullName = document.getElementById('techFullName').value.trim();
+  const username = document.getElementById('techUsername').value.trim();
+  const password = document.getElementById('techPassword').value;
+  const editId = document.getElementById('techEditId').value;
+
+  if (!fullName || !username) {
+    toast('Nombre y username son obligatorios', 'err');
+    return;
+  }
+  if (!editId && !password) {
+    toast('El password es obligatorio para nuevos tecnicos', 'err');
+    return;
+  }
+
+  const body = {
+    full_name: fullName,
+    username: username,
+    phone: document.getElementById('techPhone').value.trim() || null,
+    email: document.getElementById('techEmail').value.trim() || null,
+    role: document.getElementById('techRole').value
+  };
+
+  if (password) {
+    body.password_hash = await sha256(password);
+  }
+
+  const btn = document.getElementById('techSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  try {
+    if (editId) {
+      body.updated_at = new Date().toISOString();
+      await supaPost('/technicians?id=eq.' + editId, body, 'PATCH');
+      toast('Tecnico actualizado');
+    } else {
+      // Check if username already exists (active or inactive)
+      const existingInactive = await supaFetch('/technicians?username=eq.' + encodeURIComponent(username) + '&active=eq.false&select=id');
+      if (existingInactive && existingInactive.length > 0) {
+        // Delete old inactive record, then create fresh
+        await supaDelete('/technicians?id=eq.' + existingInactive[0].id);
+      } else {
+        // Check if username is in use by an active technician
+        const existingActive = await supaFetch('/technicians?username=eq.' + encodeURIComponent(username) + '&active=eq.true&select=id,full_name');
+        if (existingActive && existingActive.length > 0) {
+          toast('El username "' + username + '" ya esta en uso por ' + (existingActive[0].full_name || 'otro tecnico'), 'err');
+          btn.disabled = false;
+          btn.textContent = 'Crear Tecnico';
+          return;
+        }
+      }
+      body.active = true;
+      body.created_at = new Date().toISOString();
+      await supaPost('/technicians', body);
+      toast('Tecnico creado');
+    }
+    toggleTechForm(false);
+    loadTechnicians();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editId ? 'Actualizar Tecnico' : 'Crear Tecnico';
+  }
+}
+
+async function loadTechnicians() {
+  try {
+    const [techs, devices] = await Promise.all([
+      supaFetch('/technicians?select=*&active=eq.true&order=created_at.desc'),
+      supaFetch('/devices?select=*&order=last_seen.desc')
+    ]);
+    _devicesCache = devices || [];
+    renderTechnicians(techs, devices);
+  } catch (e) {
+    console.error('[Technicians] Load error:', e);
+    document.getElementById('techsTableBody').innerHTML =
+      `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">Error: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+async function toggleTechnicianActive(id, currentActive) {
+  try {
+    await supaPost('/technicians?id=eq.' + id, { active: !currentActive, updated_at: new Date().toISOString() }, 'PATCH');
+    toast(currentActive ? 'Tecnico desactivado' : 'Tecnico activado');
+    loadTechnicians();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+function editTechnician(tech) {
+  document.getElementById('techEditId').value = tech.id;
+  document.getElementById('techFullName').value = tech.full_name || '';
+  document.getElementById('techUsername').value = tech.username || '';
+  document.getElementById('techPassword').value = '';
+  document.getElementById('techPhone').value = tech.phone || '';
+  document.getElementById('techEmail').value = tech.email || '';
+  document.getElementById('techRole').value = tech.role || 'tecnico';
+  document.getElementById('techFormTitle').textContent = 'Editar Tecnico';
+  document.getElementById('techSubmitBtn').textContent = 'Actualizar Tecnico';
+  document.getElementById('techPasswordLabel').textContent = 'Password (dejar vacio para no cambiar)';
+  document.getElementById('techPassword').required = false;
+  const panel = document.getElementById('techFormPanel');
+  panel.classList.add('show');
+  panel.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function resetTechPassword(id, name) {
+  const newPw = await pixPrompt('Nueva contrasena para ' + name + ':', 'password');
+  if (!newPw || !newPw.trim()) return;
+
+  try {
+    const hash = await sha256(newPw.trim());
+    await supaPost('/technicians?id=eq.' + id, { password_hash: hash, updated_at: new Date().toISOString() }, 'PATCH');
+    toast('Contrasena actualizada para ' + name);
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+async function deleteTechnician(id, name) {
+  if (!await pixConfirm('Eliminar tecnico "' + name + '" permanentemente?\n\nEsta accion NO se puede deshacer.')) return;
+  try {
+    await supaDelete('/technicians?id=eq.' + id);
+    toast('Tecnico "' + name + '" eliminado permanentemente');
+    loadTechnicians();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+// Store technicians for editing
+let _techsCache = [];
+
+function renderTechnicians(techs, devices) {
+  _techsCache = techs;
+  const tbody = document.getElementById('techsTableBody');
+
+  if (!techs || techs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">No hay tecnicos registrados</td></tr>';
+    return;
+  }
+
+  // Build device lookup by technician_name for session info
+  const ONE_HOUR = 3600000;
+  const devByName = {};
+  if (devices) {
+    for (const d of devices) {
+      const key = (d.technician_name || d.technician || '').toLowerCase().trim();
+      if (key && (!devByName[key] || new Date(d.last_seen) > new Date(devByName[key].last_seen))) {
+        devByName[key] = d;
+      }
+    }
+  }
+
+  const roleMap = { admin: 'badge-red', supervisor: 'badge-yellow', tecnico: 'badge-teal' };
+
+  tbody.innerHTML = techs.map((t, idx) => {
+    const rBadge = roleMap[t.role] || 'badge-teal';
+    const activeClass = t.active ? 'badge-green' : 'badge-red';
+    const activeText = t.active ? 'Activo' : 'Inactivo';
+
+    // Cross-reference with devices for session/online status
+    const nameKey = (t.full_name || '').toLowerCase().trim();
+    const dev = devByName[nameKey];
+    const lastSeen = dev && dev.last_seen ? new Date(dev.last_seen) : null;
+    const isOnline = lastSeen && (Date.now() - lastSeen.getTime()) < ONE_HOUR;
+    const sessionHTML = isOnline
+      ? `<span class="tech-online-badge"><span class="pulse-dot"></span><span class="badge badge-green">Online</span></span> <small style="color:var(--muted)">${timeAgo(lastSeen)}</small>`
+      : lastSeen
+        ? `<span class="badge badge-muted">Offline</span> <small style="color:var(--muted)">${timeAgo(lastSeen)}</small>`
+        : `<span class="badge badge-muted">Sin conexion</span>`;
+    const deviceInfo = dev ? `${esc(dev.phone_model || '?')} v${esc(dev.app_version || '?')}` : '—';
+
+    return `<tr>
+      <td><strong>${esc(t.full_name)}</strong></td>
+      <td>${esc(t.username)}</td>
+      <td><span class="badge ${rBadge}">${t.role || 'tecnico'}</span></td>
+      <td>${esc(t.phone || '—')}</td>
+      <td>${esc(t.email || '—')}</td>
+      <td>
+        <span class="badge ${activeClass}" style="cursor:pointer" onclick="toggleTechnicianActive('${t.id}', ${t.active})" title="Clic para cambiar">${activeText}</span>
+      </td>
+      <td>${sessionHTML}</td>
+      <td><small style="color:var(--muted)">${deviceInfo}</small></td>
+      <td>
+        <button class="btn btn-sm btn-secondary" onclick="editTechnician(_techsCache[${idx}])">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="resetTechPassword('${t.id}', '${escJS(t.full_name)}')">Reset PW</button>
+        <button class="btn btn-sm btn-danger" style="margin-left:4px" onclick="deleteTechnician('${t.id}', '${escJS(t.full_name)}')">Eliminar</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// DISPOSITIVOS TAB — Device Management
+// ═══════════════════════════════════════════════════
+
+async function loadDevices() {
+  try {
+    const devices = await supaFetch('/devices?select=*&active=eq.true&order=last_seen.desc');
+    renderDevices(devices);
+    document.getElementById('devicesRefreshInfo').textContent =
+      'Actualizado: ' + new Date().toLocaleTimeString('es') + ' — auto-refresh cada 30s';
+  } catch (e) {
+    console.error('[Devices] Load error:', e);
+    document.getElementById('devicesTableBody').innerHTML =
+      `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">Error: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+function renderDevices(devices) {
+  const tbody = document.getElementById('devicesTableBody');
+
+  if (!devices || devices.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">No hay dispositivos registrados</td></tr>';
+    return;
+  }
+
+  const ONE_HOUR = 3600000;
+
+  tbody.innerHTML = devices.map(d => {
+    const lastSeen = d.last_seen ? new Date(d.last_seen) : null;
+    const isOnline = lastSeen && (Date.now() - lastSeen.getTime()) < ONE_HOUR;
+    const dotClass = isOnline ? 'on' : 'off';
+    const statusText = isOnline ? 'Online' : 'Offline';
+    const statusBadge = isOnline ? 'badge-green' : 'badge-red';
+    const ago = lastSeen ? timeAgo(lastSeen) : 'Nunca';
+
+    // Truncate device_id for display
+    const devId = d.device_id || d.id || '—';
+    const shortId = devId.length > 12 ? devId.substring(0, 12) + '...' : devId;
+
+    // Format location
+    let loc = '—';
+    if (d.last_location) {
+      if (typeof d.last_location === 'object' && d.last_location.lat) {
+        loc = `${d.last_location.lat.toFixed(4)}, ${d.last_location.lng.toFixed(4)}`;
+      } else if (typeof d.last_location === 'string') {
+        loc = d.last_location;
+      }
+    } else if (d.last_lat && d.last_lng) {
+      loc = `${d.last_lat.toFixed(4)}, ${d.last_lng.toFixed(4)}`;
+    }
+
+    const techLabel = esc(d.technician_name || d.technician || '—');
+
+    return `<tr>
+      <td title="${esc(devId)}"><code style="font-size:11px">${esc(shortId)}</code></td>
+      <td>${techLabel}</td>
+      <td>${esc(d.phone_model || '—')}</td>
+      <td>${esc(d.app_version || '—')}</td>
+      <td>${esc(d.sw_cache_version || '—')}</td>
+      <td><span class="online-dot ${dotClass}"></span><span class="badge ${statusBadge}">${statusText}</span> <small style="color:var(--muted)">${ago}</small></td>
+      <td><small>${loc}</small></td>
+      <td>${lastSeen ? lastSeen.toLocaleString('es') : '—'}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteDevice('${d.id}', '${escJS(techLabel)}')">Eliminar</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteDevice(id, label) {
+  if (!await pixConfirm('Eliminar dispositivo "' + label + '"?')) return;
+  try {
+    await supaPost('/devices?id=eq.' + id, { active: false }, 'PATCH');
+    toast('Dispositivo eliminado');
+    loadDevices();
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+
+function esc(s) { return s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// JS-safe escaper for use inside onclick="fn('${escJS(val)}')" — prevents XSS via quote injection
+function escJS(s) { return s == null ? '' : String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/</g,'\\x3c').replace(/>/g,'\\x3e').replace(/\n/g,'\\n'); }
+
+function timeAgo(date) {
+  const ms = Date.now() - date.getTime();
+  if (ms < 60000) return 'Ahora';
+  if (ms < 3600000) return Math.floor(ms / 60000) + ' min';
+  if (ms < 86400000) return Math.floor(ms / 3600000) + ' hrs';
+  return Math.floor(ms / 86400000) + ' dias';
+}
+
+function setConnected(ok) {
+  document.getElementById('connDot').className = 'dot ' + (ok ? 'dot-on' : 'dot-off');
+  document.getElementById('connText').textContent = ok ? 'Conectado' : 'Sin conexion';
+  // Show export button when connected
+  const eb = document.getElementById('exportBtn');
+  if (eb) eb.style.display = ok ? '' : 'none';
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  const cls = type === 'err' || type === 'error' ? 'toast-err'
+            : type === 'warning' ? 'toast-warn'
+            : 'toast-ok';
+  el.className = 'toast ' + cls + ' show';
+  setTimeout(() => { el.classList.remove('show'); }, 3000);
+}
+
+// ═══════════════════════════════════════════════════
+// EXPORT REPORTS TO LOCAL FOLDER
+// File System Access API (Chrome 86+)
+// ═══════════════════════════════════════════════════
+
+// Cadastro IBRA Megalab — Pixadvisor Agricultura de Precision
+const IBRA_CADASTRO = {
+  solicitante: 'PIXADVISOR AGRICULTURA DE PRECISAO',
+  responsavel: 'NILTON LUIZ CAMARGO',
+  telefone: '43 999819554',
+  endereco: 'RUA ELIEZER MARTINS BANDEIRA 44',
+  cep: '86200536',
+  bairro: 'CINQUENTENARIO',
+  municipio: 'IBIPORA',
+  uf: 'PR',
+  cpfCnpj: '41.196.481/0001-30',
+  emailLaudos: 'nilton.camargo@pixadvisor.network, gis.agronomico@gmail.com'
+};
+
+function safeName(name) {
+  return (name || 'Sin-nombre').replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, ' ').trim().substring(0, 80);
+}
+
+async function writeFile(dir, filename, content) {
+  const fh = await dir.getFileHandle(filename, { create: true });
+  const w = await fh.createWritable();
+  await w.write(content);
+  await w.close();
+}
+
+async function exportReports() {
+  if (!window.showDirectoryPicker) {
+    alert('Tu navegador no soporta File System Access API. Usa Google Chrome actualizado.');
+    return;
+  }
+
+  const btn = document.getElementById('exportBtn');
+  const origText = btn.textContent;
+  btn.textContent = '⏳ Selecciona carpeta...';
+  btn.disabled = true;
+
+  try {
+    const rootDir = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'desktop' });
+    const fields = await supaFetch('/field_syncs?select=*&client=neq._ELIMINADO_&order=synced_at.desc');
+    const activities = await supaFetch('/activity_log?select=*&order=created_at.desc&limit=100');
+
+    if (!fields || fields.length === 0) {
+      alert('No hay datos de campo para exportar.');
+      btn.textContent = origText; btn.disabled = false;
+      return;
+    }
+
+    // Create base folder: PIX-Reportes
+    const baseDir = await rootDir.getDirectoryHandle('PIX-Reportes', { create: true });
+    const today = new Date().toISOString().slice(0, 10);
+    let exported = 0;
+
+    for (const field of fields) {
+      const projName = safeName((field.project || 'Sin-Proyecto') + ' - ' + (field.client || 'Sin-Cliente'));
+      const projDir = await baseDir.getDirectoryHandle(projName, { create: true });
+
+      const fName = safeName(field.field_name || 'Sin-Campo');
+      const fieldDir = await projDir.getDirectoryHandle(fName, { create: true });
+
+      // 1. Ficha IBRA (HTML print-ready)
+      await writeFile(fieldDir, `Ficha_IBRA_${fName}_${today}.html`, genIBRA(field));
+
+      // 2. GPS Points (GeoJSON)
+      await writeFile(fieldDir, `Puntos_GPS_${fName}.geojson`, genGeoJSON(field));
+
+      // 3. Resumen de Campo (HTML)
+      await writeFile(fieldDir, `Resumen_${fName}_${today}.html`, genSummary(field));
+
+      // 4. Datos crudos (JSON)
+      await writeFile(fieldDir, `Datos_${fName}.json`, JSON.stringify(field, null, 2));
+
+      // 5. Puntos CSV
+      await writeFile(fieldDir, `Puntos_${fName}.csv`, genCSV(field));
+
+      exported++;
+      btn.textContent = `⏳ ${exported}/${fields.length}...`;
+    }
+
+    // Global activity log
+    await writeFile(baseDir, `Actividad_${today}.json`, JSON.stringify(activities, null, 2));
+
+    // Export manifest
+    const manifest = {
+      exportDate: new Date().toISOString(),
+      exportedBy: 'PIX Muestreo Dashboard',
+      totalFields: fields.length,
+      totalSamples: fields.reduce((s, f) => s + (f.samples?.length || 0), 0),
+      fields: fields.map(f => ({
+        project: f.project, field: f.field_name, client: f.client,
+        samples: f.samples?.length || 0, progress: f.progress_pct + '%'
+      }))
+    };
+    await writeFile(baseDir, `_manifiesto_${today}.json`, JSON.stringify(manifest, null, 2));
+
+    btn.textContent = `✅ ${exported} campos exportados!`;
+    setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 4000);
+
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      console.error('[Export]', e);
+      alert('Error al exportar: ' + e.message);
+    }
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+}
+
+// ── IBRA REPORT (Ficha de Envio) ──
+function genIBRA(field) {
+  const d = field.synced_at ? new Date(field.synced_at).toISOString().slice(0,10) : new Date().toISOString().slice(0,10);
+  const samples = field.samples || [];
+
+  // Build zones
+  const zones = {};
+  for (const s of samples) {
+    const z = s.zona || 1;
+    if (!zones[z]) zones[z] = { zona: z, count: 0, barcode: '', clase: '', depth: s.depth || '0-20', points: [] };
+    zones[z].count++;
+    if (s.barcode) zones[z].barcode = s.barcode;
+    zones[z].points.push(s);
+  }
+  const zonesArr = Object.values(zones).sort((a, b) => a.zona - b.zona);
+  const totalPts = samples.length;
+  const totalZones = zonesArr.length;
+
+  let zonesTableRows = zonesArr.map(z =>
+    `<tr>
+      <td style="text-align:center">${z.zona}</td>
+      <td>${esc(z.barcode) || '—'}</td>
+      <td>${esc(z.clase) || '—'}</td>
+      <td style="text-align:center">${z.count}</td>
+      <td>${z.depth} cm</td>
+      <td>Quimico</td>
+    </tr>`
+  ).join('');
+
+  // Page 2: detail points per zone
+  let zoneDetails = zonesArr.map(z => {
+    let rows = z.points.map(p =>
+      `<tr>
+        <td>${esc(p.pointName || '?')}</td>
+        <td>${p.lat ? p.lat.toFixed(6) : '—'}</td>
+        <td>${p.lng ? p.lng.toFixed(6) : '—'}</td>
+        <td>${p.depth || '0-20'} cm</td>
+        <td>${p.collectedAt ? new Date(p.collectedAt).toLocaleTimeString('es', {hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+      </tr>`
+    ).join('');
+    return `
+      <h3 style="margin:16px 0 6px;color:#0D9488">ZONA ${z.zona} ${z.clase ? '(' + esc(z.clase) + ')' : ''} — QR: ${esc(z.barcode) || 'Sin codigo'}</h3>
+      <table>
+        <thead><tr><th>Punto</th><th>Latitud</th><th>Longitud</th><th>Prof.</th><th>Hora</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>Ficha IBRA — ${esc(field.field_name)}</title>
+<style>
+  @page { size: A4; margin: 15mm; }
+  @media print { .no-print { display: none !important; } .page-break { page-break-before: always; } }
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; max-width: 210mm; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 18px; text-align: center; margin: 0 0 4px; color: #0D9488; }
+  h2 { font-size: 14px; background: #f0f9f4; padding: 6px 10px; margin: 16px 0 8px; border-left: 3px solid #0D9488; }
+  h3 { font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+  th, td { border: 1px solid #ccc; padding: 5px 8px; font-size: 11px; }
+  th { background: #e8f5e9; font-weight: 600; text-align: left; }
+  .info-grid { display: grid; grid-template-columns: 140px 1fr; gap: 2px 8px; margin-bottom: 8px; }
+  .info-grid .label { font-weight: 600; color: #555; }
+  .btn-print { display: block; margin: 16px auto; padding: 10px 30px; background: #0D9488; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+</style>
+</head>
+<body>
+  <button class="btn-print no-print" onclick="window.print()">Imprimir / Guardar PDF</button>
+
+  <h1>IBRA megalab — FICHA PARA ENVIO DE AMOSTRAS</h1>
+  <p style="text-align:center;color:#666;font-size:11px;margin-bottom:16px">Generado por PIX Muestreo — ${d}</p>
+
+  <h2>1. SOLICITANTE</h2>
+  <div class="info-grid">
+    <span class="label">Solicitante:</span><span>${IBRA_CADASTRO.solicitante}</span>
+    <span class="label">Responsavel:</span><span>${IBRA_CADASTRO.responsavel}</span>
+    <span class="label">Telefone:</span><span>${IBRA_CADASTRO.telefone}</span>
+    <span class="label">Endereco:</span><span>${IBRA_CADASTRO.endereco}</span>
+    <span class="label">CEP:</span><span>${IBRA_CADASTRO.cep}</span>
+    <span class="label">Bairro:</span><span>${IBRA_CADASTRO.bairro}</span>
+    <span class="label">Municipio:</span><span>${IBRA_CADASTRO.municipio} / ${IBRA_CADASTRO.uf}</span>
+    <span class="label">CPF/CNPJ:</span><span>${IBRA_CADASTRO.cpfCnpj}</span>
+    <span class="label">E-mail laudos:</span><span>${IBRA_CADASTRO.emailLaudos}</span>
+  </div>
+
+  <h2>2. CLIENTE / PROPRIEDADE</h2>
+  <div class="info-grid">
+    <span class="label">Cliente:</span><span>${esc(field.client) || '—'}</span>
+    <span class="label">Hacienda/Proyecto:</span><span>${esc(field.project)}</span>
+    <span class="label">Lote/Campo:</span><span>${esc(field.field_name)}</span>
+    <span class="label">Area:</span><span>${field.area_ha ? field.area_ha + ' ha' : '—'}</span>
+    <span class="label">Fecha colecta:</span><span>${d}</span>
+    <span class="label">Tecnico:</span><span>${esc(field.technician)}</span>
+  </div>
+
+  <h2>3. AMOSTRAS POR ZONA</h2>
+  <table>
+    <thead><tr><th>Zona</th><th>QR / Codigo IBRA</th><th>Clase</th><th>Puntos</th><th>Profundidad</th><th>Analisis</th></tr></thead>
+    <tbody>${zonesTableRows}</tbody>
+  </table>
+  <p style="font-size:11px;color:#555"><strong>Total:</strong> ${totalZones} muestra(s) compuesta(s), ${totalPts} puntos GPS</p>
+
+  <div class="page-break"></div>
+  <h2>4. DETALLE DE PUNTOS POR ZONA</h2>
+  ${zoneDetails}
+
+  <div style="margin-top:30px;border-top:1px solid #ccc;padding-top:10px">
+    <div class="info-grid" style="grid-template-columns:1fr 1fr">
+      <div style="border-bottom:1px solid #999;padding-bottom:30px;text-align:center">
+        <br><small>Assinatura do Solicitante</small>
+      </div>
+      <div style="border-bottom:1px solid #999;padding-bottom:30px;text-align:center">
+        <br><small>Assinatura do Tecnico</small>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+// ── GEOJSON EXPORT ──
+function genGeoJSON(field) {
+  const features = [];
+
+  // Add boundary if exists
+  if (field.boundary && field.boundary.features) {
+    for (const feat of field.boundary.features) {
+      features.push({
+        ...feat,
+        properties: {
+          ...feat.properties,
+          name: field.field_name,
+          type: 'boundary',
+          area_ha: field.area_ha
+        }
+      });
+    }
+  }
+
+  // Add sample points
+  for (const s of (field.samples || [])) {
+    if (s.lat && s.lng) {
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [s.lng, s.lat] },
+        properties: {
+          name: s.pointName || '?',
+          zona: s.zona,
+          depth: s.depth || '0-20',
+          barcode: s.barcode || '',
+          collector: s.collector || '',
+          collectedAt: s.collectedAt || '',
+          accuracy: s.accuracy || null,
+          sampleType: s.sampleType || ''
+        }
+      });
+    }
+  }
+
+  return JSON.stringify({ type: 'FeatureCollection', features }, null, 2);
+}
+
+// ── FIELD SUMMARY REPORT ──
+function genSummary(field) {
+  const d = field.synced_at ? new Date(field.synced_at).toISOString().slice(0,10) : new Date().toISOString().slice(0,10);
+  const samples = field.samples || [];
+  const pct = field.progress_pct || 0;
+  const color = pct >= 100 ? '#4CAF50' : pct > 50 ? '#FF9800' : '#F44336';
+
+  // Zone summary
+  const zones = {};
+  for (const s of samples) {
+    const z = s.zona || 1;
+    if (!zones[z]) zones[z] = { zona: z, count: 0 };
+    zones[z].count++;
+  }
+
+  let sampleRows = samples.map((s, i) =>
+    `<tr>
+      <td>${i + 1}</td>
+      <td>${esc(s.pointName || '?')}</td>
+      <td>${s.zona || '?'}</td>
+      <td>${s.lat ? s.lat.toFixed(6) : '—'}</td>
+      <td>${s.lng ? s.lng.toFixed(6) : '—'}</td>
+      <td>${s.accuracy ? s.accuracy.toFixed(1) + 'm' : '—'}</td>
+      <td>${s.depth || '0-20'}</td>
+      <td>${esc(s.barcode || '')}</td>
+      <td>${s.collectedAt ? new Date(s.collectedAt).toLocaleString('es') : '—'}</td>
+    </tr>`
+  ).join('');
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Resumen — ${esc(field.field_name)}</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  @media print { .no-print { display: none !important; } }
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; max-width: 290mm; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 18px; color: #1B5E20; margin-bottom: 4px; }
+  .meta { color: #666; font-size: 11px; margin-bottom: 16px; }
+  .cards { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .card { background: #f5f5f5; border-radius: 8px; padding: 12px 16px; min-width: 120px; text-align: center; }
+  .card-val { font-size: 22px; font-weight: 800; color: #0D9488; }
+  .card-lbl { font-size: 10px; color: #777; text-transform: uppercase; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; }
+  th, td { border: 1px solid #ddd; padding: 4px 6px; }
+  th { background: #e8f5e9; font-weight: 600; }
+  .progress { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; width: 200px; display: inline-block; }
+  .progress-inner { height: 100%; border-radius: 4px; }
+  .btn-print { display: inline-block; margin: 10px 0; padding: 8px 24px; background: #0D9488; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+</style>
+</head>
+<body>
+  <button class="btn-print no-print" onclick="window.print()">Imprimir / PDF</button>
+  <h1>${esc(field.field_name)}</h1>
+  <div class="meta">${esc(field.project)} — ${esc(field.client || 'Sin cliente')} — Tecnico: ${esc(field.technician)} — ${d}</div>
+
+  <div class="cards">
+    <div class="card"><div class="card-val">${field.area_ha || '—'}</div><div class="card-lbl">Hectareas</div></div>
+    <div class="card"><div class="card-val">${field.total_points || '?'}</div><div class="card-lbl">Puntos totales</div></div>
+    <div class="card"><div class="card-val">${field.collected_points || 0}</div><div class="card-lbl">Colectados</div></div>
+    <div class="card"><div class="card-val" style="color:${color}">${pct}%</div><div class="card-lbl">Avance</div></div>
+    <div class="card"><div class="card-val">${Object.keys(zones).length}</div><div class="card-lbl">Zonas</div></div>
+  </div>
+
+  <div style="margin-bottom:16px">
+    <strong>Progreso:</strong>
+    <div class="progress"><div class="progress-inner" style="width:${pct}%;background:${color}"></div></div>
+    <span>${field.collected_points || 0} / ${field.total_points || '?'} puntos</span>
+  </div>
+
+  <h2 style="font-size:14px;color:#1B5E20">Detalle de Muestras</h2>
+  <table>
+    <thead><tr><th>#</th><th>Punto</th><th>Zona</th><th>Latitud</th><th>Longitud</th><th>Precision</th><th>Prof.</th><th>Codigo</th><th>Fecha/Hora</th></tr></thead>
+    <tbody>${sampleRows}</tbody>
+  </table>
+
+  <p style="font-size:10px;color:#999;margin-top:20px;text-align:center">PIX Muestreo — Reporte generado automaticamente el ${new Date().toLocaleString('es')}</p>
+</body>
+</html>`;
+}
+
+// ── CSV EXPORT ──
+function genCSV(field) {
+  const samples = field.samples || [];
+  const header = 'Punto,Zona,Latitud,Longitud,Precision_m,Profundidad,Codigo_Barras,Tipo,Colector,Fecha_Hora,Notas';
+  // RFC 4180: fields containing commas, quotes, or newlines must be quoted
+  const csvField = (v) => {
+    const s = String(v ?? '');
+    return (s.includes(',') || s.includes('"') || s.includes('\n'))
+      ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const rows = samples.map(s => {
+    return [
+      csvField(s.pointName),
+      csvField(s.zona),
+      s.lat || '',
+      s.lng || '',
+      s.accuracy || '',
+      csvField(s.depth || '0-20'),
+      csvField(s.barcode),
+      csvField(s.sampleType),
+      csvField(s.collector),
+      s.collectedAt || '',
+      csvField(s.notes)
+    ].join(',');
+  });
+  return header + '\n' + rows.join('\n');
+}
+</script>
+</body>
+</html>

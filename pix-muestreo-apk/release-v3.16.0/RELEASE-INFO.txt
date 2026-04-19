@@ -1,0 +1,129 @@
+==============================================================================
+  PIX MUESTREO — Release v3.16.0
+  Build date: 2026-04-17
+  Score target: 9.5/10 (7-item hardening sprint)
+==============================================================================
+
+ARTIFACTS  (rebuilt 2026-04-17 with protective ProGuard keep rules)
+---------
+  pix-muestreo-v3.16.0.apk         3,986,321 bytes (≈ 3.80 MB)
+    SHA-256: e5dbee2e85e502014572e15b8ce910a5eab45e9884f0a8abc8ab206dd745ed02
+  pix-muestreo-v3.16.0.apk.idsig   ~ 40 KB
+    SHA-256: 4ce9badc841c6c652a92205c53e4db835c3debb48a5502ed64aab12c90bb8a78
+  pix-muestreo-v3.16.0.aab         4,484,275 bytes (≈ 4.28 MB)
+    SHA-256: 7645182a18948fe57ea97a3108e0420e2bcc6681453f8a4d40436b8a8a86f5e8
+
+Why is this SMALLER than v3.14.0 (6.50 MB)?
+  v3.14.0 shipped 7,290 Java classes (classes.dex = 8.5 MB), including
+  ~2,200 Guava classes, ~360 Kotlin coroutine flow classes, ~260 AppCompat
+  widget classes — none of which a TWA actually invokes. R8 now strips that
+  dead code. After the fix pass, classes.dex is 1.5 MB with ALL the classes
+  that ARE called preserved by-name: Play Integrity (IntegrityManager,
+  IntegrityManagerFactory, IntegrityTokenRequest/Response, Builder inners),
+  androidx.biometric (BiometricFragment + BiometricPrompt lifecycle),
+  GMS Tasks (OnSuccessListener/OnFailureListener), androidbrowserhelper
+  (TWA/CustomTabs runtime), and our 4 bridges (OfflineActivity,
+  BiometricBridge, IntegrityBridge, GNSSBridge) with @JavascriptInterface
+  method names intact.
+
+BUILD METADATA
+--------------
+  applicationId:  network.pixadvisor.muestreo
+  versionCode:    26
+  versionName:    3.16.0
+  minSdkVersion:  24  (Android 7.0)
+  targetSdkVersion: 35 (Android 15)
+  compileSdkVersion: 36
+  SW cache name:  pix-muestreo-v58
+  JS APP_VERSION: pix-muestreo-v58
+
+SIGNING
+-------
+  Keystore:           pixadvisor.keystore  (alias: pixadvisor, RSA 2048-bit)
+  Certificate DN:     CN=Pixadvisor, OU=AP, O=Pixadvisor Agricultura de
+                      Precision, L=Asuncion, ST=Central, C=PY
+  Cert SHA-256:       9515e0975d6c89a1f143541ef5d2f0368bff48e9708647db3f3f863e26c32f1c
+  Cert SHA-1:         48d6a1b58b2a113df4f7b725aa3ec51153be838e
+
+  Signature schemes (apksigner verify):
+    v1 (JAR):    false   ← intentionally disabled (legacy, inflates APK)
+    v2:          true
+    v3:          true    ← NEW in v3.16.0 (required by Play Store from 2027)
+    v3.1:        false
+    v4:          true    ← NEW in v3.16.0 (incremental install, API 30+)
+
+CHANGES v3.15.0 → v3.16.0 (the 9.5/10 hardening pack)
+------------------------------------------------------
+  1. Sentry crash reporting
+       • app/src/main/assets/js/telemetry.js  (new)
+       • PII-scrubbed, opt-out via setting, lazy CDN load
+       • Fed by auth.js (clearUser on logout) + agent-field.js (global
+         error + unhandledrejection handlers)
+
+  2. AES-GCM 256 at-rest encryption for IndexedDB
+       • app/src/main/assets/js/crypto-vault.js  (new)
+       • PBKDF2-SHA256, 250k iterations, 32-byte random salt per install
+       • Envelope: { __enc:'pix-aesgcm-v1', v:1, iv:b64, ct:b64, t:'s'|'b' }
+       • Wired into db.js saveFile / getFileAsBlob — transparent for callers
+       • Vault unlocks automatically in app.js bootstrap with device secret;
+         legacy plaintext rows still read.
+
+  3. Biometric gate (Class 3 STRONG + device credential fallback)
+       • app/src/main/assets/js/biometric.js  (new JS wrapper)
+       • app/src/main/java/.../BiometricBridge.java  (new)
+       • Fires after master-key password verification in auth.js; user cancel
+         counts as a failed attempt to prevent "cancel-to-bypass".
+       • Gracefully no-ops on devices without a sensor (isAvailable → no-hardware).
+
+  4. APK Signature Scheme v3 + v4
+       • app/build.gradle: enableV3Signing=true, enableV4Signing=true
+       • v3 gives us key-rotation capability and satisfies Play Store's 2027
+         baseline. v4 enables incremental install on Android 11+.
+
+  5. Play Integrity API
+       • app/src/main/assets/js/integrity.js  (new JS wrapper)
+       • app/src/main/java/.../IntegrityBridge.java  (new)
+       • docs/INTEGRITY.md  (backend contract + 3-phase rollout plan)
+       • app/src/main/res/values/strings.xml: integrity_cloud_project="0"
+         (fail-open until the Edge Functions are live — see docs)
+
+  6. Privacy Policy + Play Data Safety answers
+       • docs/privacy-policy.html  (Spanish, 10 sections, complete)
+       • docs/PLAY-DATA-SAFETY.md  (Play Console form answers)
+
+  7. Maestro E2E smoke + CI pipeline
+       • .maestro/smoke.yaml  (launch → login → create project → logout)
+       • .github/workflows/android-ci.yml
+            js-lint → build-debug → maestro → build-release (tag-gated)
+            auto-publish to Play Console Internal track on vX.Y.Z tags
+
+  (+ supporting wiring)
+       • OfflineActivity extends FragmentActivity (BiometricPrompt contract)
+       • cloud.js adds APP_VERSION=pix-muestreo-v58 + _supabaseFunctionUrl() /
+         _authHeaders() helpers for the integrity flow
+       • sw.js CACHE_NAME=pix-muestreo-v58 + 4 new JS files pre-cached
+       • index.html loads the 4 new JS modules before auth.js
+       • build.gradle new deps:  androidx.biometric 1.1.0,
+                                 androidx.fragment 1.8.5,
+                                 com.google.android.play:integrity 1.4.0
+
+VERIFICATION
+------------
+  ✓ node --check: all 17 JS files + sw.js pass syntax check
+  ✓ gradle: :app:clean :app:assembleRelease :app:bundleRelease — BUILD SUCCESSFUL
+  ✓ apksigner verify: v2 + v3 + v4 all true
+  ✓ APK size: 3.62 MB  (within Play Store 150 MB APK limit)
+  ✓ AAB size: 4.04 MB  (within Play Store 200 MB AAB limit)
+
+POST-RELEASE CHECKLIST (human)
+-------------------------------
+  [ ] Upload pix-muestreo-v3.16.0.aab to Play Console → Internal testing.
+  [ ] Fill the Data Safety form using docs/PLAY-DATA-SAFETY.md.
+  [ ] Host docs/privacy-policy.html at https://pixadvisor.network/pix-muestreo/privacy-policy.html
+      and paste the URL into Play Console → App content → Privacy Policy.
+  [ ] Create the Sentry project (once), copy the DSN, publish to a field
+      device via `pixDB.saveSetting('sentry_dsn', '<DSN>')`.
+  [ ] Deploy Supabase Edge Functions `integrity-nonce` and `integrity-verify`
+      per docs/INTEGRITY.md; then set strings.xml integrity_cloud_project
+      to the real Cloud Project Number and rebuild.
+  [ ] Promote to Closed / Open testing → Production when staging is green.

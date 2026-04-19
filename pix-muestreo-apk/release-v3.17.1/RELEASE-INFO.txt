@@ -1,0 +1,56 @@
+==============================================================================
+  PIX MUESTREO — Release v3.17.1
+  Build date: 2026-04-18
+  Patch: revertido beep progresivo — alarma solo a <3m (como antes)
+==============================================================================
+
+ARTIFACTS
+---------
+  pix-muestreo-v3.17.1.apk         3,991,937 bytes (≈ 3.81 MB)
+    SHA-256: 31e53a2f3c0f90de24518a91e13d0cc8d8c3dfd76fca2b54867094ec8371a047
+  pix-muestreo-v3.17.1.apk.idsig   38,474 bytes
+    SHA-256: 9684b51df77f039436cb90fb009b84a6332db6044981676086b0e2d207001be6
+  pix-muestreo-v3.17.1.aab         4,489,882 bytes (≈ 4.28 MB)
+
+BUILD METADATA
+--------------
+  versionCode:      28
+  versionName:      3.17.1
+  SW cache:         pix-muestreo-v59
+
+CHANGE FROM v3.17.0 → v3.17.1
+-----------------------------
+  • REVERTIDO: señal sonora progresiva a 50m/20m/10m/5m (no la quería el
+    usuario). La APK ahora suena la alarma SOLO cuando llega al radio de
+    3m del punto, exactamente como era antes del experimento.
+  • Eliminado: _maybePlayProximityBeep(), _lastProxBeepAt, _proxAudioCtx
+  • Preservado: beep de llegada 880Hz→1320Hz→880Hz a <3m + vibración
+    fuerte (300-100-300-100-300ms) + toast "Llegaste al punto!"
+
+FIXES v3.17 QUE SE MANTIENEN (no cambiaron)
+-------------------------------------------
+  ✓ GPS wake-lock durante navegación
+  ✓ Detección de conflictos multi-técnico (updatedAt compare)
+  ✓ Exponential backoff retry en cloud.js + drive.js
+  ✓ Upload de tracks GPS a Supabase
+  ✓ Compresión de fotos (1600px, JPEG q=0.82)
+  ✓ Sync Status Card (online/offline + "hace X min" + N pendientes)
+  ✓ Stale data warning si >24h sin sync
+  ✓ Background sync robusto en SW
+  ✓ try/catch en openCollectForm + nextPoint
+  ✓ Link APK directo actualizado a v3.17.0 (ahora v3.17.1)
+  ✓ Enriquecimiento de samples con pointId + updatedAt
+
+SIGNING
+-------
+  v1: false / v2: true / v3: true / v4: true
+  Cert SHA-256: 9515e0975d6c89a1f143541ef5d2f0368bff48e9708647db3f3f863e26c32f1c
+
+VERIFICACION
+------------
+  ✓ Beep progresivo eliminado (0 referencias en app.js)
+  ✓ Alarma <3m preservada en line 693 de app.js
+  ✓ Wake-lock + conflicts + backoff + compresión todos presentes
+  ✓ apksigner: v2+v3+v4 todos true
+  ✓ node --check: 17 JS + sw.js sin errores
+  ✓ gradle: BUILD SUCCESSFUL en 50s

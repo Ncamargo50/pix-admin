@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Protocolo de Campo — PIX Muestreo v3.4.3</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 15mm 20mm 15mm;
+    @bottom-center { content: counter(page) " / " counter(pages); font-size: 9px; color: #666; }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #1a1a1a;
+    background: #fff;
+  }
+
+  /* --- COVER PAGE --- */
+  .cover {
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 90vh;
+    text-align: center;
+    padding: 40px;
+  }
+  .cover-logo {
+    width: 120px; height: 120px;
+    background: linear-gradient(135deg, #0F1B2D 0%, #1a3a5c 50%, #2d6a4f 100%);
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    color: #4ade80; font-size: 36px; font-weight: 900;
+    letter-spacing: 2px; margin-bottom: 30px;
+    box-shadow: 0 8px 32px rgba(15,27,45,0.3);
+  }
+  .cover h1 {
+    font-size: 28pt;
+    color: #0F1B2D;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .cover .subtitle {
+    font-size: 15pt;
+    color: #2d6a4f;
+    font-weight: 600;
+    margin-bottom: 30px;
+  }
+  .cover .version-box {
+    background: #f0fdf4;
+    border: 2px solid #2d6a4f;
+    border-radius: 12px;
+    padding: 16px 32px;
+    margin-bottom: 30px;
+  }
+  .cover .version-box span { font-size: 13pt; color: #0F1B2D; }
+  .cover .meta { color: #666; font-size: 10pt; line-height: 1.8; }
+  .cover .meta strong { color: #333; }
+
+  /* --- HEADERS --- */
+  h2 {
+    font-size: 16pt;
+    color: #0F1B2D;
+    border-bottom: 3px solid #2d6a4f;
+    padding-bottom: 6px;
+    margin: 28px 0 14px 0;
+    page-break-after: avoid;
+  }
+  h2 .num {
+    display: inline-block;
+    background: #2d6a4f;
+    color: #fff;
+    width: 30px; height: 30px;
+    text-align: center; line-height: 30px;
+    border-radius: 50%;
+    font-size: 14pt;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  h3 {
+    font-size: 12pt;
+    color: #1a3a5c;
+    margin: 16px 0 8px 0;
+    page-break-after: avoid;
+  }
+  h4 {
+    font-size: 11pt;
+    color: #2d6a4f;
+    margin: 10px 0 4px 0;
+  }
+
+  /* --- CONTENT --- */
+  p { margin-bottom: 8px; }
+  ul, ol { margin: 6px 0 10px 24px; }
+  li { margin-bottom: 4px; }
+
+  /* --- STEP BOXES --- */
+  .step-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 10px 0;
+  }
+  .step {
+    background: #f8fafc;
+    border-left: 4px solid #2d6a4f;
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    page-break-inside: avoid;
+  }
+  .step.warning {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+  }
+  .step.danger {
+    border-left-color: #ef4444;
+    background: #fef2f2;
+  }
+  .step.success {
+    border-left-color: #10b981;
+    background: #f0fdf4;
+  }
+  .step .step-num {
+    display: inline-block;
+    background: #2d6a4f;
+    color: #fff;
+    width: 24px; height: 24px;
+    text-align: center; line-height: 24px;
+    border-radius: 50%;
+    font-size: 10pt;
+    font-weight: 700;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .step.warning .step-num { background: #f59e0b; }
+  .step.danger .step-num { background: #ef4444; }
+  .step.success .step-num { background: #10b981; }
+  .step strong { color: #0F1B2D; }
+  .step .detail { font-size: 9.5pt; color: #555; margin-top: 3px; }
+
+  /* --- TABLES --- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 10pt;
+    page-break-inside: avoid;
+  }
+  th {
+    background: #0F1B2D;
+    color: #fff;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+  }
+  td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 9pt;
+    font-weight: 600;
+  }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-yellow { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+
+  /* --- CHECKLIST --- */
+  .checklist {
+    list-style: none;
+    margin: 8px 0;
+    padding: 0;
+  }
+  .checklist li {
+    padding: 6px 0 6px 32px;
+    position: relative;
+    border-bottom: 1px dashed #e2e8f0;
+  }
+  .checklist li::before {
+    content: '';
+    position: absolute;
+    left: 4px; top: 8px;
+    width: 18px; height: 18px;
+    border: 2px solid #94a3b8;
+    border-radius: 3px;
+  }
+
+  /* --- INFO BOXES --- */
+  .info-box {
+    background: #eff6ff;
+    border: 1px solid #93c5fd;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 10pt;
+    page-break-inside: avoid;
+  }
+  .info-box.tip { background: #f0fdf4; border-color: #86efac; }
+  .info-box.alert { background: #fef2f2; border-color: #fca5a5; }
+  .info-box.note { background: #fffbeb; border-color: #fcd34d; }
+  .info-box strong { display: block; margin-bottom: 4px; }
+
+  /* --- FLOW DIAGRAM --- */
+  .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 16px 0;
+    flex-wrap: wrap;
+    page-break-inside: avoid;
+  }
+  .flow-item {
+    background: #0F1B2D;
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 9.5pt;
+    font-weight: 600;
+    text-align: center;
+    min-width: 100px;
+  }
+  .flow-arrow {
+    font-size: 18pt;
+    color: #2d6a4f;
+    padding: 0 4px;
+    font-weight: 900;
+  }
+
+  /* --- QUICK REFERENCE CARD --- */
+  .quick-card {
+    border: 2px solid #0F1B2D;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px 0;
+    page-break-inside: avoid;
+  }
+  .quick-card h3 {
+    background: #0F1B2D;
+    color: #4ade80;
+    margin: -16px -16px 12px -16px;
+    padding: 10px 16px;
+    border-radius: 10px 10px 0 0;
+    font-size: 12pt;
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* --- PRINT --- */
+  @media print {
+    body { font-size: 10pt; }
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    h2 { margin-top: 10px; }
+    .cover { min-height: 95vh; }
+  }
+
+  /* --- SCREEN TOOLBAR --- */
+  .toolbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: #0F1B2D;
+    color: #fff;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .toolbar button {
+    background: #2d6a4f;
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 11pt;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .toolbar button:hover { background: #22c55e; }
+  @media print { .toolbar { display: none; } }
+  .content { padding-top: 60px; }
+  @media print { .content { padding-top: 0; } }
+
+  .icon { font-size: 16pt; vertical-align: middle; margin-right: 4px; }
+  .separator { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR (screen only) -->
+<div class="toolbar no-print">
+  <span><strong>PROTOCOLO DE CAMPO</strong> — PIX Muestreo v3.4.3</span>
+  <button onclick="window.print()">Imprimir / Guardar PDF</button>
+</div>
+
+<div class="content">
+
+<!-- ============================================ -->
+<!-- COVER PAGE -->
+<!-- ============================================ -->
+<div class="cover">
+  <div class="cover-logo">PIX</div>
+  <h1>Protocolo de Campo</h1>
+  <div class="subtitle">PIX Muestreo &mdash; Muestreo Georreferenciado de Suelos</div>
+  <div class="version-box">
+    <span>App v3.4.3 &bull; Build 11 &bull; Abril 2026</span>
+  </div>
+  <div class="meta">
+    <strong>PIXADVISOR AGRICULTURA DE PRECIS&Atilde;O</strong><br>
+    Responsable: Nilton Luiz Camargo<br>
+    Contacto: 43 999819554 &bull; nilton.camargo@pixadvisor.network<br><br>
+    <em>Guia operativa paso a paso para obtener &eacute;xito<br>
+    en la recoleccion de muestras de suelo a campo</em>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TABLE OF CONTENTS -->
+<!-- ============================================ -->
+<h2>Contenido</h2>
+<table>
+  <tr><td><strong>1.</strong></td><td>Flujo General del Trabajo</td><td>Diagrama de proceso completo</td></tr>
+  <tr><td><strong>2.</strong></td><td>Preparacion Pre-Campo (Oficina)</td><td>Todo lo que hacer ANTES de salir</td></tr>
+  <tr><td><strong>3.</strong></td><td>Llegada al Campo</td><td>Setup inicial en el lote</td></tr>
+  <tr><td><strong>4.</strong></td><td>Recoleccion de Muestras</td><td>Paso a paso en cada punto</td></tr>
+  <tr><td><strong>5.</strong></td><td>GPS &mdash; Guia Practica</td><td>Como obtener buena precision</td></tr>
+  <tr><td><strong>6.</strong></td><td>Cierre de Campo</td><td>Sync, backup y verificacion</td></tr>
+  <tr><td><strong>7.</strong></td><td>Problemas y Soluciones</td><td>Troubleshooting rapido</td></tr>
+  <tr><td><strong>8.</strong></td><td>Checklist Rapido</td><td>Resumen imprimible de una pagina</td></tr>
+</table>
+
+<!-- ============================================ -->
+<!-- SECTION 1: FLOW -->
+<!-- ============================================ -->
+<div class="page-break"></div>
+<h2><span class="num">1</span> Flujo General del Trabajo</h2>
+
+<div class="flow">
+  <div class="flow-item">Oficina<br><small>Preparar app</small></div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-item">Llegada<br><small>Setup GPS</small></div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-item">Zona 1<br><small>Principal + subs</small></div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-item">Zona 2..N<br><small>Repetir</small></div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-item">Cierre<br><small>Sync + backup</small></div>
+</div>
+
+<h3>Estructura de un muestreo tipico</h3>
+<table>
+  <tr>
+    <th>Concepto</th>
+    <th>Descripcion</th>
+    <th>Ejemplo</th>
+  </tr>
+  <tr>
+    <td><strong>Proyecto</strong></td>
+    <td>Cliente + hacienda, contiene todos los lotes</td>
+    <td>Fazenda Santa Rosa</td>
+  </tr>
+  <tr>
+    <td><strong>Campo / Lote</strong></td>
+    <td>Poligono con zonas de manejo definidas</td>
+    <td>Lote 14 &mdash; Soja 2026</td>
+  </tr>
+  <tr>
+    <td><strong>Zona de Manejo</strong></td>
+    <td>Area homogenea (Alta/Media/Baja productividad)</td>
+    <td>Zona 1 (Alta) &mdash; 12.5 ha</td>
+  </tr>
+  <tr>
+    <td><strong>Punto Principal</strong></td>
+    <td>Centro representativo de la zona, barrenado profundo</td>
+    <td>P1 (zona 1)</td>
+  </tr>
+  <tr>
+    <td><strong>Submuestra</strong></td>
+    <td>Puntos aleatorios alrededor del principal (componer muestra)</td>
+    <td>P1-S1, P1-S2 ... P1-S10</td>
+  </tr>
+  <tr>
+    <td><strong>Muestra Compuesta</strong></td>
+    <td>Bolsa IBRA = Principal + todas sus submuestras mezcladas</td>
+    <td>1 bolsa por zona</td>
+  </tr>
+</table>
+
+<div class="info-box tip">
+  <strong>Regla de oro:</strong>
+  1 zona = 1 punto principal + N submuestras = 1 bolsa IBRA = 1 codigo QR.
+  Cada punto GPS queda registrado con coordenadas, hora, profundidad y precision.
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION 2: PRE-CAMPO -->
+<!-- ============================================ -->
+<div class="page-break"></div>
+<h2><span class="num">2</span> Preparacion Pre-Campo (Oficina)</h2>
+
+<p>Estos pasos se hacen <strong>con WiFi</strong>, antes de salir al campo. Son obligatorios.</p>
+
+<div class="step-grid">
+  <div class="step">
+    <span class="step-num">1</span>
+    <strong>Preparar el GeoJSON del campo</strong>
+    <div class="detail">
+      En PIX Admin o GEE, exportar el GeoJSON con zonas de manejo delimitadas.
+      El archivo debe contener: poligonos de zonas + puntos de muestreo (principal + submuestras).
+      Verificar que las propiedades incluyan campo <code>zona</code>, <code>zone</code>, <code>mz</code> o <code>ambiente</code>.
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">2</span>
+    <strong>Abrir PIX Muestreo con WiFi</strong>
+    <div class="detail">
+      Abrir la app. Si es la primera vez, esperar que el Service Worker cache todos los archivos de la app.
+      Verificar en Settings que el nombre del colector este correcto.
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">3</span>
+    <strong>Autenticar Google Drive</strong>
+    <div class="detail">
+      Ir a Sync &rarr; Conectar Google Drive. Completar la autenticacion OAuth.
+      Esto permite sincronizar muestras al finalizar el campo.
+      <strong>Si no autentica ahora, no podra sincronizar en campo sin internet.</strong>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">4</span>
+    <strong>Importar GeoJSON</strong>
+    <div class="detail">
+      Ir a Proyectos &rarr; Importar GeoJSON &rarr; Seleccionar archivo.
+      Verificar: nombre del proyecto, cantidad de campos, cantidad de puntos por zona.
+      Si aparece advertencia &ldquo;Todos los puntos en Zona 1&rdquo;, revisar las propiedades del GeoJSON.
+    </div>
+  </div>
+
+  <div class="step success">
+    <span class="step-num">5</span>
+    <strong>Descargar tiles del mapa para offline</strong>
+    <div class="detail">
+      Ir al Mapa &rarr; Centrar en el campo importado &rarr; Menu &rarr; Descargar Tiles.
+      Esperar que complete (puede tomar 1-3 minutos dependiendo del area).
+      <strong>CRITICO: Sin este paso, el mapa estara en blanco en campo sin senal.</strong>
+    </div>
+  </div>
+
+  <div class="step warning">
+    <span class="step-num">6</span>
+    <strong>Verificacion offline</strong>
+    <div class="detail">
+      Activar Modo Avion en el celular. Abrir la app.
+      Verificar: mapa carga con tiles, proyecto visible, puntos en el mapa.
+      Desactivar Modo Avion despues de verificar.
+    </div>
+  </div>
+</div>
+
+<div class="info-box alert">
+  <strong>Si omite el paso 5 (descargar tiles):</strong>
+  Los puntos GPS se siguen guardando correctamente, pero el tecnico no podra ver el mapa de fondo.
+  Navegara &ldquo;a ciegas&rdquo; usando solo la flecha de direccion y la distancia numerica.
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION 3: LLEGADA AL CAMPO -->
+<!-- ============================================ -->
+<div class="page-break"></div>
+<h2><span class="num">3</span> Llegada al Campo</h2>
+
+<div class="step-grid">
+  <div class="step">
+    <span class="step-num">1</span>
+    <strong>Posicionarse en el lote con visibilidad al cielo</strong>
+    <div class="detail">
+      Buscar un punto abierto, lejos de arboles o edificios.
+      El GPS necesita ver al menos 4 satelites para buena precision.
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">2</span>
+    <strong>Abrir PIX Muestreo y esperar warm-up GPS</strong>
+    <div class="detail">
+      Al abrir la app, el GPS comienza la fase de calentamiento (warm-up).
+      El indicador GPS cambia de color segun la precision:
+    </div>
+  </div>
+</div>
+
+<table>
+  <tr>
+    <th>Color GPS</th>
+    <th>Precision</th>
+    <th>Significado</th>
+    <th>Accion</th>
+  </tr>
+  <tr>
+    <td><span class="badge badge-red">Rojo</span></td>
+    <td>&gt; 15m</td>
+    <td>Calentando / senal debil</td>
+    <td>Esperar. No recolectar.</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-yellow">Amarillo</span></td>
+    <td>5&ndash;15m</td>
+    <td>Degradado (warm-up forzado 90s)</td>
+    <td>Puede recolectar con precaucion</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-green">Verde</span></td>
+    <td>&lt; 5m</td>
+    <td>Optimo</td>
+    <td>Recolectar normalmente</td>
+  </tr>
+</table>
+
+<div class="info-box tip">
+  <strong>Tip GPS:</strong> Mantener el celular en posicion vertical, a la altura del pecho, con la pantalla hacia usted.
+  Evitar bolsillos, mochilas o cualquier obstaculo entre el celular y el cielo.
+  El warm-up tipico demora 30&ndash;60 segundos. En dias nublados puede tomar hasta 90s.
+</div>
+
+<div class="step-grid">
+  <div class="step">
+    <span class="step-num">3</span>
+    <strong>Seleccionar proyecto y campo</strong>
+    <div class="detail">
+      Ir a Proyectos &rarr; Seleccionar el proyecto importado &rarr; Seleccionar el campo/lote a muestrear.
+      Verificar que los puntos aparezcan en el mapa sobre las zonas correctas.
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">4</span>
+    <strong>Preparar materiales fisicos</strong>
+    <div class="detail">
+      Tener listos: barreno, bolsas IBRA con QR, balde limpio, etiquetas, planilla de respaldo.
+      Verificar que las bolsas IBRA correspondan al numero de zonas.
+    </div>
+  </div>
+
+  <div class="step success">
+    <span class="step-num">5</span>
+    <strong>Iniciar navegacion al primer punto</strong>
+    <div class="detail">
+      Tocar el primer punto en el mapa o usar &ldquo;Siguiente Punto&rdquo;.
+      La app navega automaticamente al punto principal de la Zona 1.
+      Seguir la flecha de direccion y el indicador de distancia.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION 4: RECOLECCION -->
+<!-- ============================================ -->
+<div class="page-break"></div>
+<h2><span class="num">4</span> Recoleccion de Muestras &mdash; Paso a Paso</h2>
+
+<h3>4.1 En cada Punto Principal</h3>
+
+<div class="step-grid">
+  <div class="step">
+    <span class="step-num">1</span>
+    <strong>Llegar al punto (distancia &lt; 3m)</strong>
+    <div class="detail">
+      Caminar hasta que el overlay muestre &lt; 3m de distancia.
+      La app vibra cuando esta lo suficientemente cerca.
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">2</span>
+    <strong>Tocar &ldquo;Recolectar&rdquo; y llenar el formulario</strong>
+    <div class="detail">
+      <strong>Tipo de analisis:</strong> Quimico, Fisico, Granulometrico, etc.<br>
+      <strong>Nombre del colector:</strong> Se auto-completa despues de la primera vez.<br>
+      <strong>Profundidad:</strong> 0&ndash;20 cm (tipico), 20&ndash;40 cm (si requiere sub-superficial).<br>
+      <strong>Escanear QR IBRA:</strong> Apuntar la camara al codigo de la bolsa IBRA asignada a esta zona.
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">3</span>
+    <strong>Tocar &ldquo;Guardar Muestra&rdquo;</strong>
+    <div class="detail">
+      La app promedia 10 lecturas GPS (15 segundos max), rechaza outliers,
+      y guarda la muestra atomicamente en la base de datos local.
+      Vibra al completar. El punto cambia a verde en el mapa.
+    </div>
+  </div>
+</div>
+
+<div class="info-box alert">
+  <strong>IMPORTANTE: No cerrar la app entre el formulario y Guardar.</strong>
+  Si la app se cierra o recibe una llamada ANTES de tocar &ldquo;Guardar&rdquo;, los datos del formulario
+  (QR, profundidad, notas) se pierden. El progreso de puntos ya guardados NO se pierde.
+</div>
+
+<h3>4.2 En cada Submuestra</h3>
+
+<div class="step-grid">
+  <div class="step">
+    <span class="step-num">1</span>
+    <strong>La app navega automaticamente al siguiente punto</strong>
+    <div class="detail">
+      Despues de guardar el punto principal, la app muestra la ruta a la submuestra S1.
+      El overlay muestra: &ldquo;&rarr; 47m NE P1-S1&rdquo;
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">2</span>
+    <strong>Caminar, barrenar, guardar</strong>
+    <div class="detail">
+      Mismo proceso que el principal, pero mas rapido: tipo de analisis y colector se heredan automaticamente.
+      Solo necesita confirmar y guardar.
+    </div>
+  </div>
+
+  <div class="step success">
+    <span class="step-num">3</span>
+    <strong>Repetir hasta completar la zona</strong>
+    <div class="detail">
+      Al completar todas las submuestras de la zona, la app muestra el modal de &ldquo;Zona Completa&rdquo;.
+      Confirmar el codigo QR de la bolsa IBRA para esta zona.
+      <strong>Mezclar todas las submuestras en la bolsa IBRA.</strong>
+    </div>
+  </div>
+</div>
+
+<h3>4.3 Continuar con la siguiente zona</h3>
+
+<p>La app automaticamente navega al punto principal de la siguiente zona. Repetir el proceso hasta completar todas las zonas del campo.</p>
+
+<div class="flow">
+  <div class="flow-item">Zona 1<br><small>P1 + 10 subs</small></div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-item">Bolsa IBRA 1<br><small>QR escaneado</small></div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-item">Zona 2<br><small>P2 + 10 subs</small></div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-item">Bolsa IBRA 2<br><small>QR escaneado</small></div>
+  <div class="flow-arrow">&rarr;</div>
+  <div class="flow-item">...<br><small>Zona N</small></div>
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION 5: GPS -->
+<!-- ============================================ -->
+<div class="page-break"></div>
+<h2><span class="num">5</span> GPS &mdash; Guia Practica</h2>
+
+<h3>5.1 Como funciona el GPS en PIX Muestreo</h3>
+
+<table>
+  <tr>
+    <th>Caracteristica</th>
+    <th>Valor</th>
+    <th>Que significa</th>
+  </tr>
+  <tr>
+    <td>Filtro Kalman adaptativo</td>
+    <td>Activo siempre</td>
+    <td>Suaviza las lecturas, elimina saltos bruscos</td>
+  </tr>
+  <tr>
+    <td>Promediado de posicion</td>
+    <td>10 lecturas / 15s max</td>
+    <td>Al guardar, promedia varias lecturas para mejor precision</td>
+  </tr>
+  <tr>
+    <td>Rechazo de outliers</td>
+    <td>&gt; 2 desviaciones estandar</td>
+    <td>Descarta lecturas anomalas automaticamente</td>
+  </tr>
+  <tr>
+    <td>Warm-up normal</td>
+    <td>3 lecturas &lt; 15m</td>
+    <td>Tipicamente 30&ndash;60 segundos</td>
+  </tr>
+  <tr>
+    <td>Warm-up forzado</td>
+    <td>90s + precision &lt; 50m</td>
+    <td>Permite trabajar con GPS degradado</td>
+  </tr>
+  <tr>
+    <td>Deteccion de movimiento</td>
+    <td>Umbral 0.5 m/s</td>
+    <td>Distingue caminar vs estar parado</td>
+  </tr>
+</table>
+
+<h3>5.2 Buenas practicas GPS en campo</h3>
+
+<div class="two-col">
+  <div>
+    <h4>HACER</h4>
+    <ul>
+      <li>Mantener celular vertical, pantalla al frente</li>
+      <li>Esperar warm-up verde antes de empezar</li>
+      <li>Quedarse quieto 5 segundos antes de Guardar</li>
+      <li>Trabajar con cielo despejado si es posible</li>
+      <li>Cargar bateria al 100% antes de salir</li>
+      <li>Usar celular con GPS de doble frecuencia (L1+L5) si esta disponible</li>
+    </ul>
+  </div>
+  <div>
+    <h4>NO HACER</h4>
+    <ul>
+      <li>No guardar mientras camina</li>
+      <li>No poner el celular en el bolsillo durante medicion</li>
+      <li>No trabajar bajo arboles o techos metalicos</li>
+      <li>No ignorar GPS rojo &mdash; esperar al menos amarillo</li>
+      <li>No reiniciar la app sin necesidad (pierde warm-up)</li>
+      <li>No usar modo ahorro de bateria (limita GPS)</li>
+    </ul>
+  </div>
+</div>
+
+<div class="info-box note">
+  <strong>Precision esperada por condicion:</strong><br>
+  Cielo abierto, dia despejado: <strong>2&ndash;4m</strong> &bull;
+  Cielo nublado: <strong>3&ndash;6m</strong> &bull;
+  Cerca de arboles: <strong>5&ndash;15m</strong> &bull;
+  Bajo techo/galpon: <strong>&gt;15m o sin senal</strong><br>
+  Para muestreo de suelos agricolas, precision de <strong>3&ndash;5m es suficiente</strong> dado que las zonas de manejo
+  tienen decenas de hectareas.
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION 6: CIERRE -->
+<!-- ============================================ -->
+<div class="page-break"></div>
+<h2><span class="num">6</span> Cierre de Campo</h2>
+
+<h3>6.1 Verificacion en campo (antes de irse)</h3>
+
+<div class="step-grid">
+  <div class="step">
+    <span class="step-num">1</span>
+    <strong>Verificar que todas las zonas esten completas</strong>
+    <div class="detail">
+      En la vista Mapa, todos los puntos deben estar en verde.
+      Si hay alguno pendiente (gris/azul), tocar para navegar y completar.
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">2</span>
+    <strong>Verificar conteo de muestras</strong>
+    <div class="detail">
+      Ir a Sync &rarr; Ver resumen. Debe coincidir:
+      N zonas completas = N bolsas IBRA fisicas = N codigos QR escaneados.
+    </div>
+  </div>
+
+  <div class="step warning">
+    <span class="step-num">3</span>
+    <strong>Exportar backup local ANTES de salir del campo</strong>
+    <div class="detail">
+      Ir a Sync &rarr; Exportar Backup Local.
+      Guarda un archivo JSON en el almacenamiento del celular.
+      <strong>Esto es un seguro contra cualquier problema posterior.</strong>
+    </div>
+  </div>
+</div>
+
+<h3>6.2 Sincronizacion (con internet)</h3>
+
+<div class="step-grid">
+  <div class="step">
+    <span class="step-num">4</span>
+    <strong>Conectar WiFi o datos moviles</strong>
+    <div class="detail">
+      La app detecta automaticamente la conexion y ofrece sincronizar.
+      Si ya estaba autenticado en Drive, la sync inicia automaticamente.
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">5</span>
+    <strong>Sincronizar a Google Drive</strong>
+    <div class="detail">
+      Ir a Sync &rarr; Sincronizar a Drive.
+      Esperar confirmacion: &ldquo;X muestras sincronizadas&rdquo;.
+      Los datos quedan en la carpeta PIX-Muestreo de Google Drive.
+    </div>
+  </div>
+
+  <div class="step success">
+    <span class="step-num">6</span>
+    <strong>Verificar en Google Drive</strong>
+    <div class="detail">
+      Abrir Google Drive en otro dispositivo. Buscar la carpeta PIX-Muestreo.
+      Verificar que el archivo JSON del proyecto tenga fecha/hora reciente.
+    </div>
+  </div>
+</div>
+
+<div class="info-box tip">
+  <strong>Auto-backup continuo:</strong> Ademas del backup manual, la app guarda automaticamente
+  una copia de las muestras no sincronizadas en localStorage cada vez que inicia.
+  Esto funciona como red de seguridad extra si IndexedDB se corrompe.
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION 7: TROUBLESHOOTING -->
+<!-- ============================================ -->
+<div class="page-break"></div>
+<h2><span class="num">7</span> Problemas y Soluciones</h2>
+
+<table>
+  <tr>
+    <th style="width:30%">Problema</th>
+    <th style="width:30%">Causa Probable</th>
+    <th style="width:40%">Solucion</th>
+  </tr>
+  <tr>
+    <td><strong>Mapa en blanco</strong> (sin imagen de fondo)</td>
+    <td>No descargo tiles offline (paso 2.5)</td>
+    <td>Buscar area con senal de datos. Descargar tiles. Los puntos GPS se guardan igual sin mapa.</td>
+  </tr>
+  <tr>
+    <td><strong>GPS no sale de rojo</strong> (> 2 min)</td>
+    <td>Obstruccion de cielo, modo ahorro de bateria</td>
+    <td>Alejarse de arboles/edificios. Desactivar ahorro de bateria. Reiniciar GPS desde Settings.</td>
+  </tr>
+  <tr>
+    <td><strong>GPS amarillo</strong> (degradado)</td>
+    <td>Senal debil pero funcional (warm-up forzado 90s)</td>
+    <td>Puede recolectar. La precision sera 15&ndash;50m. Aceptable para muestreo de zonas amplias.</td>
+  </tr>
+  <tr>
+    <td><strong>&ldquo;Coordenadas GPS invalidas&rdquo;</strong></td>
+    <td>GPS sin fix o lecturas erraticas</td>
+    <td>Esperar 30s mas. Si persiste, cerrar y reabrir la app en area abierta.</td>
+  </tr>
+  <tr>
+    <td><strong>Error al guardar muestra</strong></td>
+    <td>Almacenamiento lleno o IndexedDB bloqueado</td>
+    <td>Verificar espacio en Settings &rarr; Storage. Sincronizar a Drive para liberar espacio. Exportar backup.</td>
+  </tr>
+  <tr>
+    <td><strong>Formulario se perdio</strong> (QR, notas)</td>
+    <td>App fue cerrada/interrumpida antes de Guardar</td>
+    <td>Re-escanear QR y re-llenar. El progreso de puntos previos NO se pierde.</td>
+  </tr>
+  <tr>
+    <td><strong>&ldquo;Todos los puntos en Zona 1&rdquo;</strong></td>
+    <td>GeoJSON sin propiedad de zona reconocida</td>
+    <td>Re-exportar GeoJSON desde PIX Admin incluyendo propiedad &ldquo;zona&rdquo;, &ldquo;zone&rdquo; o &ldquo;mz&rdquo;.</td>
+  </tr>
+  <tr>
+    <td><strong>Drive no sincroniza</strong></td>
+    <td>No autentico en oficina (paso 2.3)</td>
+    <td>Conectar WiFi, autenticar Drive, reintentar sync. Mientras tanto, el backup local protege los datos.</td>
+  </tr>
+  <tr>
+    <td><strong>Puntos aparecen fuera del campo</strong></td>
+    <td>GeoJSON con sistema de coordenadas incorrecto</td>
+    <td>El GeoJSON debe estar en WGS84 (EPSG:4326). Re-exportar con CRS correcto.</td>
+  </tr>
+  <tr>
+    <td><strong>App se cierra sola</strong></td>
+    <td>Android mata la app por poca memoria</td>
+    <td>Cerrar otras apps. Al reabrir PIX Muestreo, el progreso se recupera automaticamente. Re-navegar al siguiente punto.</td>
+  </tr>
+</table>
+
+<div class="info-box">
+  <strong>Regla general ante cualquier problema:</strong>
+  Los datos guardados (puntos verdes) estan SEGUROS en la base local + backup automatico.
+  Si algo falla, exportar backup local inmediatamente y contactar soporte.
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION 8: CHECKLIST -->
+<!-- ============================================ -->
+<div class="page-break"></div>
+<h2><span class="num">8</span> Checklist Rapido &mdash; Hoja de Campo</h2>
+
+<p><em>Imprima esta pagina y llevela al campo como referencia rapida.</em></p>
+
+<div class="quick-card">
+  <h3>PRE-CAMPO (Oficina con WiFi)</h3>
+  <ul class="checklist">
+    <li>GeoJSON exportado con zonas de manejo</li>
+    <li>App abierta + Service Worker cacheado</li>
+    <li>Google Drive autenticado</li>
+    <li>GeoJSON importado &rarr; proyecto visible</li>
+    <li>Tiles descargados para el area del campo</li>
+    <li>Verificacion offline (modo avion &rarr; mapa carga)</li>
+    <li>Celular cargado al 100%</li>
+    <li>Bolsas IBRA con QR preparadas (1 por zona)</li>
+    <li>Barreno, balde, cuchillo, etiquetas listos</li>
+  </ul>
+</div>
+
+<div class="quick-card">
+  <h3>EN CAMPO (por cada zona)</h3>
+  <ul class="checklist">
+    <li>GPS en verde (o amarillo despues de 90s)</li>
+    <li>Proyecto y campo seleccionado</li>
+    <li>Navegar al punto principal de la zona</li>
+    <li>Barrenar, escanear QR IBRA, llenar formulario, GUARDAR</li>
+    <li>Submuestras: caminar &rarr; barrenar &rarr; guardar (repetir N veces)</li>
+    <li>Modal &ldquo;Zona Completa&rdquo; &rarr; confirmar QR bolsa IBRA</li>
+    <li>Mezclar submuestras en la bolsa IBRA fisica</li>
+    <li>Repetir para siguiente zona</li>
+  </ul>
+</div>
+
+<div class="quick-card">
+  <h3>CIERRE DE CAMPO</h3>
+  <ul class="checklist">
+    <li>Todos los puntos en verde (ninguno pendiente)</li>
+    <li>Conteo de bolsas IBRA = numero de zonas</li>
+    <li>Exportar backup local (Sync &rarr; Backup)</li>
+    <li>Al tener internet: Sincronizar a Google Drive</li>
+    <li>Verificar sync en Drive desde otro dispositivo</li>
+    <li>Etiquetar bolsas IBRA para envio al laboratorio</li>
+  </ul>
+</div>
+
+<hr class="separator">
+
+<div class="two-col" style="margin-top: 16px; font-size: 9.5pt; color: #666;">
+  <div>
+    <strong>App:</strong> PIX Muestreo v3.4.3 (Build 11)<br>
+    <strong>Empresa:</strong> Pixadvisor Agricultura de Precisao<br>
+    <strong>Soporte:</strong> nilton.camargo@pixadvisor.network
+  </div>
+  <div style="text-align: right;">
+    <strong>Fecha protocolo:</strong> Abril 2026<br>
+    <strong>Laboratorio:</strong> IBRA Megalab<br>
+    <strong>Telefono:</strong> 43 999819554
+  </div>
+</div>
+
+</div><!-- .content -->
+</body>
+</html>

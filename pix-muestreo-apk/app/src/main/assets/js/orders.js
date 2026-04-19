@@ -10,10 +10,36 @@ class PixOrders {
     this.currentFilter = filterStatus || 'todas';
     let orders;
 
+    // Always get ALL local orders first (avoids ID mismatch issues)
+    const allOrders = await pixDB.getAll('serviceOrders');
+
     if (pixAuth.isAdmin()) {
-      orders = await pixDB.getAll('serviceOrders');
+      orders = allOrders;
     } else {
-      orders = await pixDB.getAllByIndex('serviceOrders', 'technicianId', pixAuth.getUserId());
+      // Filter by technicianId OR by matching technician name (handles ID mismatch on fresh installs)
+      const userId = pixAuth.getUserId();
+      const userName = (pixAuth.getUserName() || '').toLowerCase();
+      orders = allOrders.filter(o =>
+        o.technicianId === userId ||
+        (userName && o.notes && o.notes.toLowerCase().includes(userName)) ||
+        (o.createdBy === 'cloud') // Cloud-imported orders always visible to logged-in tech
+      );
+    }
+
+    // ALWAYS pull from cloud when opening Orders view (non-blocking for existing orders)
+    if (pixCloud.isEnabled() && navigator.onLine) {
+      try {
+        await app._pullCloudOrders();
+        // Reload after pull to include any new orders
+        const refreshed = await pixDB.getAll('serviceOrders');
+        const userId = pixAuth.getUserId();
+        const userName = (pixAuth.getUserName() || '').toLowerCase();
+        orders = pixAuth.isAdmin() ? refreshed : refreshed.filter(o =>
+          o.technicianId === userId ||
+          (userName && o.notes && o.notes.toLowerCase().includes(userName)) ||
+          (o.createdBy === 'cloud')
+        );
+      } catch (e) { console.warn('[Orders] Cloud pull on load:', e.message); }
     }
 
     // Apply filter
@@ -63,17 +89,25 @@ class PixOrders {
     const priorityColors = { alta: 'var(--danger)', media: 'var(--warning)', baja: 'var(--success)' };
     const dueDate = order.dueDate ? new Date(order.dueDate).toLocaleDateString('es') : '—';
 
+    // All user-controlled values flow through escH. typeLabels/statusLabels/
+    // statusClasses/priorityColors are driven by order.serviceType/order.status/
+    // order.priority — attacker-controlled — so we escape every interpolation.
+    const priorityColor = priorityColors[order.priority] || 'var(--text-muted)';
+    const statusClass = statusClasses[order.status] || '';
+    const typeLabel = typeLabels[order.serviceType] || order.serviceType;
+    const statusLabel = statusLabels[order.status] || order.status;
+    const orderIdNum = Number(order.id) || 0;  // numeric coerce → safe in onclick
     return `
-      <div class="card order-card" style="border-left:3px solid ${priorityColors[order.priority] || 'var(--text-muted)'}"
-           onclick="pixOrders.showOrderDetail(${order.id})">
+      <div class="card order-card" style="border-left:3px solid ${escH(priorityColor)}"
+           onclick="pixOrders.showOrderDetail(${orderIdNum})">
         <div class="card-header">
           <div>
-            <div class="card-title">${typeLabels[order.serviceType] || order.serviceType}</div>
+            <div class="card-title">${escH(typeLabel)}</div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
-              ${order.clientName || 'Sin cliente'} &middot; Vence: ${dueDate}
+              ${escH(order.clientName || 'Sin cliente')} &middot; Vence: ${escH(dueDate)}
             </div>
           </div>
-          <span class="card-badge ${statusClasses[order.status] || ''}">${statusLabels[order.status] || order.status}</span>
+          <span class="card-badge ${escH(statusClass)}">${escH(statusLabel)}</span>
         </div>
         ${order.notes ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.4">${escH((order.notes || '').substring(0, 80))}${(order.notes || '').length > 80 ? '...' : ''}</div>` : ''}
       </div>`;
@@ -84,11 +118,12 @@ class PixOrders {
     const modal = document.getElementById('orderModal');
     if (!modal) return;
 
-    // Populate project selector
+    // Populate project selector (values + text both escaped to prevent XSS
+    // via crafted project names or IDs).
     const projects = await pixDB.getAll('projects');
     const projectSelect = document.getElementById('orderProject');
     projectSelect.innerHTML = '<option value="">Seleccionar proyecto...</option>' +
-      projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      projects.map(p => `<option value="${escH(String(p.id))}">${escH(p.name || '')}</option>`).join('');
 
     // Populate technician selector
     const technicians = await pixAuth.getTechnicians();
@@ -96,7 +131,7 @@ class PixOrders {
     const techUsers = allUsers.filter(u => u.role === 'tecnico' || u.role === 'admin');
     const techSelect = document.getElementById('orderTechnician');
     techSelect.innerHTML = '<option value="">Seleccionar tecnico...</option>' +
-      techUsers.map(u => `<option value="${u.id}">${u.name} (${u.role})</option>`).join('');
+      techUsers.map(u => `<option value="${escH(String(u.id))}">${escH(u.name || '')} (${escH(u.role || '')})</option>`).join('');
 
     // Reset or populate form
     if (editOrderId) {
@@ -134,7 +169,9 @@ class PixOrders {
     fieldSelect.innerHTML = '<option value="">Seleccionar campo...</option>';
     if (!projectId) return;
     const fields = await pixDB.getAllByIndex('fields', 'projectId', Number(projectId));
-    fieldSelect.innerHTML += fields.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+    fieldSelect.innerHTML += fields.map(f =>
+      `<option value="${escH(String(f.id))}">${escH(f.name || '')}</option>`
+    ).join('');
   }
 
   closeOrderModal() {
@@ -222,6 +259,15 @@ class PixOrders {
     const createdDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('es') : '—';
 
     const container = document.getElementById('ordersList');
+    // Escape every interpolated value — client/project/field/tech names come
+    // from the database but could contain HTML from cloud sync or CSV import.
+    // Status/priority are enum-valued but attacker-controllable via malformed
+    // cloud rows, so they flow through escH too.
+    const typeLabel = typeLabels[order.serviceType] || order.serviceType;
+    const statusLabel = statusLabels[order.status] || order.status;
+    const statusCssKey = order.status === 'en_progreso' ? 'active'
+                       : order.status === 'completada' ? 'complete'
+                       : 'pending';
     container.innerHTML = `
       <div style="margin-bottom:12px">
         <button class="action-btn secondary" onclick="pixOrders.backToList()" style="width:auto;padding:8px 16px;font-size:13px">
@@ -230,17 +276,17 @@ class PixOrders {
       </div>
       <div class="card" style="margin-bottom:12px">
         <div class="card-header">
-          <div class="card-title">${typeLabels[order.serviceType] || order.serviceType}</div>
-          <span class="card-badge badge-${order.status === 'en_progreso' ? 'active' : order.status === 'completada' ? 'complete' : 'pending'}">${statusLabels[order.status]}</span>
+          <div class="card-title">${escH(typeLabel)}</div>
+          <span class="card-badge badge-${escH(statusCssKey)}">${escH(statusLabel)}</span>
         </div>
         <div class="order-detail-grid">
-          <div class="order-detail-item"><span class="order-detail-label">Cliente</span><span>${order.clientName || '—'}</span></div>
-          <div class="order-detail-item"><span class="order-detail-label">Proyecto</span><span>${projectName}</span></div>
-          <div class="order-detail-item"><span class="order-detail-label">Campo</span><span>${fieldName}</span></div>
-          <div class="order-detail-item"><span class="order-detail-label">Tecnico</span><span>${techName}</span></div>
-          <div class="order-detail-item"><span class="order-detail-label">Prioridad</span><span style="text-transform:capitalize">${order.priority || '—'}</span></div>
-          <div class="order-detail-item"><span class="order-detail-label">Vence</span><span>${dueDate}</span></div>
-          <div class="order-detail-item"><span class="order-detail-label">Creada</span><span>${createdDate}</span></div>
+          <div class="order-detail-item"><span class="order-detail-label">Cliente</span><span>${escH(order.clientName || '—')}</span></div>
+          <div class="order-detail-item"><span class="order-detail-label">Proyecto</span><span>${escH(projectName)}</span></div>
+          <div class="order-detail-item"><span class="order-detail-label">Campo</span><span>${escH(fieldName)}</span></div>
+          <div class="order-detail-item"><span class="order-detail-label">Tecnico</span><span>${escH(techName)}</span></div>
+          <div class="order-detail-item"><span class="order-detail-label">Prioridad</span><span style="text-transform:capitalize">${escH(order.priority || '—')}</span></div>
+          <div class="order-detail-item"><span class="order-detail-label">Vence</span><span>${escH(dueDate)}</span></div>
+          <div class="order-detail-item"><span class="order-detail-label">Creada</span><span>${escH(createdDate)}</span></div>
         </div>
         ${order.notes ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);font-size:13px;color:var(--text-muted);line-height:1.5">${escH(order.notes)}</div>` : ''}
       </div>
@@ -269,6 +315,11 @@ class PixOrders {
     order.updatedAt = new Date().toISOString();
     if (newStatus === 'completada') order.completedAt = new Date().toISOString();
     await pixDB.put('serviceOrders', order);
+    // Sync status change to cloud (non-blocking)
+    if (pixCloud.isEnabled() && order.cloudOrderId) {
+      pixCloud.updateOrderStatus(order.cloudOrderId, newStatus).catch(e =>
+        console.warn('[Orders] Cloud status update failed:', e.message));
+    }
     app.toast(`Orden ${newStatus === 'en_progreso' ? 'iniciada' : newStatus === 'completada' ? 'completada' : 'cancelada'}`, 'success');
     this.showOrderDetail(orderId);
   }

@@ -1,0 +1,23 @@
+=============================================
+ PIX MUESTREO v3.15.0 — RELEASE ARTIFACTS
+=============================================
+versionCode  : 25
+versionName  : 3.15.0
+applicationId: network.pixadvisor.muestreo
+minSdk       : 24  (Android 7.0 Nougat)
+targetSdk    : 35  (Android 15)
+compileSdk   : 36  (Android 16 preview)
+
+APK (sideload / direct install):
+  pix-muestreo-v3.15.0.apk   3.62 MB
+  SHA-256: 9734adca6ea0f7ef0bf32ed9f1513ffd4679ee0f62d7754efb07b2861ab6d918
+
+AAB (Play Store upload):
+  pix-muestreo-v3.15.0.aab   3.85 MB
+  SHA-256: ca380e4e9188f43bc2d1f86473798356f87334b9837e7ec04e0937e766d3d556
+
+Signature: APK Signature Scheme v2  (RSA 2048)
+Signer DN: CN=Pixadvisor, OU=AP, O=Pixadvisor Agricultura de Precision, L=Asuncion, ST=Central, C=PY
+Cert SHA-256: 9515e0975d6c89a1f143541ef5d2f0368bff48e9708647db3f3f863e26c32f1c
+Cert SHA-1  : 48d6a1b58b2a113df4f7b725aa3ec51153be838e
+=============================================

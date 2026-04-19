@@ -38,5 +38,14 @@
         }
     }]
     
-  </string>  
+  </string>
+
+  <!--
+    Play Integrity — cloud project NUMBER (not ID). Fetch from:
+      Play Console → App Integrity → Integrity API → Cloud project number
+    Leave as "0" to disable the feature in builds where the integrity verdict
+    has no backend to verify against (the client-side request still runs but
+    the server path must be wired for it to mean anything).
+  -->
+  <string name="integrity_cloud_project">0</string>
 </resources>

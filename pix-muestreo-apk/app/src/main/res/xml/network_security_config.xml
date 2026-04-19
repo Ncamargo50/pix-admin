@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network security config for PIX Muestreo.
+
+  Policy:
+    - Default: deny cleartext everywhere (HTTPS-only).
+    - Allow cleartext for the local development server (pixadvisor.local),
+      which is only reachable on the technician's LAN/hotspot during setup.
+      Production traffic goes to https://pixadvisor.network and
+      https://*.supabase.co.
+    - Only the default system CA store is trusted. User-installed CAs are
+      NOT trusted, so a rogue proxy installed on the device cannot MITM
+      our Supabase / Drive / Stripe traffic.
+-->
+<network-security-config>
+  <base-config cleartextTrafficPermitted="false">
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </base-config>
+
+  <!-- Local dev server (LAN). Not reachable from the internet. -->
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="true">pixadvisor.local</domain>
+    <domain includeSubdomains="false">127.0.0.1</domain>
+    <domain includeSubdomains="false">10.0.2.2</domain>
+  </domain-config>
+</network-security-config>

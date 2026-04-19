@@ -1,6 +1,11 @@
 package network.pixadvisor.muestreo;
 
-import android.app.Activity;
+// Extends FragmentActivity (not plain Activity) so androidx.biometric's
+// BiometricPrompt can bind its lifecycle. FragmentActivity extends Activity
+// and adds LifecycleOwner + FragmentManager — no behavioural regression for
+// the WebView-only UI we run here.
+import android.app.Activity; // kept for Toast/CustomTab Activity.this references
+import androidx.fragment.app.FragmentActivity;
 import android.os.Bundle;
 import android.os.Build;
 import android.webkit.WebView;
@@ -27,6 +32,7 @@ import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.webkit.JavascriptInterface;
 import android.widget.Toast;
+import android.graphics.Color;
 import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.webkit.WebViewAssetLoader;
 import java.io.InputStream;
@@ -38,7 +44,7 @@ import java.io.InputStreamReader;
  * Usa WebViewAssetLoader para servir assets desde HTTPS local.
  * GPS, Cámara, IndexedDB funcionan 100% offline.
  */
-public class OfflineActivity extends Activity {
+public class OfflineActivity extends FragmentActivity {
     private static final String TAG = "PixMuestreo";
     private static final String APPASSETS_ORIGIN = "https://appassets.androidplatform.net";
     private static final int PERMISSION_REQUEST_CODE = 100;
@@ -53,19 +59,62 @@ public class OfflineActivity extends Activity {
     /**
      * JavaScript bridge for native Android features (OAuth, etc.)
      * Accessible from JS as: AndroidBridge.startGoogleAuth(clientId)
+     *
+     * SECURITY: The JS → Java bridge must treat every argument as untrusted. A
+     * compromised or XSS'd page could pass arbitrary URLs to openAuthUrl(). We
+     * whitelist hosts so the CustomTab can only go to real OAuth providers.
      */
     private class WebAppInterface {
+
+        // Hosts we're willing to open a CustomTab for. Anything else is rejected.
+        private final String[] AUTH_HOST_WHITELIST = new String[] {
+            "accounts.google.com",
+            "oauth2.googleapis.com",
+            "auth.supabase.com",
+            "fnoocboaupjmxpkhdnij.supabase.co"
+        };
+
+        private boolean isAllowedAuthHost(String host) {
+            if (host == null) return false;
+            host = host.toLowerCase();
+            for (String allowed : AUTH_HOST_WHITELIST) {
+                if (host.equals(allowed) || host.endsWith("." + allowed)) return true;
+            }
+            return false;
+        }
+
         @JavascriptInterface
         public void openAuthUrl(final String authUrl) {
-            Log.i(TAG, "[OAuth] openAuthUrl: " + (authUrl != null ? authUrl.substring(0, Math.min(80, authUrl.length())) + "..." : "NULL"));
+            if (authUrl == null || authUrl.isEmpty()) {
+                Log.w(TAG, "[OAuth] openAuthUrl called with null/empty");
+                return;
+            }
+            Uri parsed;
+            try {
+                parsed = Uri.parse(authUrl);
+            } catch (Exception e) {
+                Log.w(TAG, "[OAuth] openAuthUrl rejected — unparseable URI");
+                return;
+            }
+            // Hard requirements: HTTPS + host in whitelist
+            if (!"https".equalsIgnoreCase(parsed.getScheme())) {
+                Log.w(TAG, "[OAuth] openAuthUrl rejected — non-HTTPS scheme: " + parsed.getScheme());
+                return;
+            }
+            if (!isAllowedAuthHost(parsed.getHost())) {
+                Log.w(TAG, "[OAuth] openAuthUrl rejected — host not whitelisted: " + parsed.getHost());
+                return;
+            }
+            Log.i(TAG, "[OAuth] openAuthUrl: " + authUrl.substring(0, Math.min(80, authUrl.length())) + "...");
+            final Uri safeUri = parsed;
             runOnUiThread(() -> {
                 try {
                     CustomTabsIntent customTabsIntent = new CustomTabsIntent.Builder().build();
-                    customTabsIntent.launchUrl(OfflineActivity.this, Uri.parse(authUrl));
+                    customTabsIntent.launchUrl(OfflineActivity.this, safeUri);
                 } catch (Exception e) {
                     Log.e(TAG, "[OAuth] Custom Tabs failed: " + e.getMessage());
                     try {
-                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(authUrl)));
+                        startActivity(new Intent(Intent.ACTION_VIEW, safeUri));
                     } catch (Exception ex) {
                         Log.e(TAG, "[OAuth] Browser fallback also failed: " + ex.getMessage());
                         Toast.makeText(OfflineActivity.this, "Error: No se pudo abrir el navegador", Toast.LENGTH_LONG).show();
@@ -76,13 +125,21 @@ public class OfflineActivity extends Activity {
 
         @JavascriptInterface
         public void startGoogleAuth(final String clientId) {
-            Log.i(TAG, "[OAuth] startGoogleAuth (legacy) clientId: " + (clientId != null ? clientId.substring(0, Math.min(20, clientId.length())) + "..." : "NULL"));
+            // Validate clientId format: Google client IDs are "<digits>-<alnum>.apps.googleusercontent.com"
+            if (clientId == null || !clientId.matches("^[0-9A-Za-z_\\-]{1,200}\\.apps\\.googleusercontent\\.com$")) {
+                Log.w(TAG, "[OAuth] startGoogleAuth rejected — invalid clientId format");
+                return;
+            }
+            Log.i(TAG, "[OAuth] startGoogleAuth clientId: " + clientId.substring(0, Math.min(20, clientId.length())) + "...");
 
+            // NOTE: drive.readonly removed — the app only needs drive.file to
+            // create/read its own files. drive.readonly grants access to ALL
+            // Drive files, which is excessive for a sampling app.
             final String authUrl = "https://accounts.google.com/o/oauth2/v2/auth"
                 + "?client_id=" + Uri.encode(clientId)
                 + "&redirect_uri=" + Uri.encode("https://pixadvisor.network/pix-muestreo/oauth-callback.html")
                 + "&response_type=token"
-                + "&scope=" + Uri.encode("https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly")
+                + "&scope=" + Uri.encode("https://www.googleapis.com/auth/drive.file")
                 + "&prompt=consent"
                 + "&include_granted_scopes=true";
 
@@ -119,13 +176,27 @@ public class OfflineActivity extends Activity {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT);
         }
 
-        // Request runtime permissions (GPS + Camera)
+        // Status bar color matching app theme
+        if (Build.VERSION.SDK_INT >= 21) {
+            getWindow().setStatusBarColor(Color.parseColor("#0F1B2D"));
+        }
+
+        // Request runtime permissions (GPS + Camera + Notifications on Android 13+)
         if (Build.VERSION.SDK_INT >= 23) {
-            requestPermissions(new String[]{
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.CAMERA
-            }, PERMISSION_REQUEST_CODE);
+            if (Build.VERSION.SDK_INT >= 33) {
+                requestPermissions(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.POST_NOTIFICATIONS
+                }, PERMISSION_REQUEST_CODE);
+            } else {
+                requestPermissions(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.CAMERA
+                }, PERMISSION_REQUEST_CODE);
+            }
         }
 
         // WebViewAssetLoader: motor interno HTTPS local
@@ -153,7 +224,7 @@ public class OfflineActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 21) {
             ws.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         }
-        ws.setDatabasePath(getApplicationContext().getDir("database", MODE_PRIVATE).getPath());
+        ws.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
 
         // WebViewClient: intercepts requests and serves from local assets
         webView.setWebViewClient(new WebViewClient() {
@@ -170,8 +241,9 @@ public class OfflineActivity extends Activity {
                 super.onPageFinished(view, url);
                 webViewReady = true;
                 // Inject pending file from intent (cold start — WebView wasn't ready yet)
+                // Retry up to 3 times: 2s, 4s, 6s for slow devices
                 if (pendingFileJson != null) {
-                    view.postDelayed(() -> injectFileToWebView(), 1500);
+                    injectFileWithRetry(view, 0);
                 }
             }
 
@@ -233,6 +305,16 @@ public class OfflineActivity extends Activity {
         gnssBridge = new GNSSBridge(this);
         webView.addJavascriptInterface(gnssBridge, "AndroidGNSS");
 
+        // Biometric gate for master-key + sensitive operations. JS hits this via
+        // window.PixBiometric.prompt(tag, title, subtitle); results are pushed
+        // back as a `pix:biometric` CustomEvent. Graceful no-op on devices
+        // without a biometric sensor.
+        webView.addJavascriptInterface(new BiometricBridge(this, webView), "PixBiometric");
+
+        // Play Integrity — attestation that the running APK is genuine and
+        // the device isn't rooted/emulated. Server must verify the token.
+        webView.addJavascriptInterface(new IntegrityBridge(this, webView), "PixIntegrity");
+
         // Load from HTTPS local origin (motor interno)
         webView.loadUrl("https://appassets.androidplatform.net/assets/index.html");
 
@@ -281,7 +363,12 @@ public class OfflineActivity extends Activity {
             if (resultCode == RESULT_OK && data != null && data.getDataString() != null) {
                 result = new Uri[]{Uri.parse(data.getDataString())};
             }
+            // MUST always call onReceiveValue (even null on cancel) or file input breaks permanently
             fileCallback.onReceiveValue(result);
+            fileCallback = null;
+        } else if (fileCallback != null) {
+            // Different requestCode but callback pending — release to unblock file input
+            fileCallback.onReceiveValue(null);
             fileCallback = null;
         }
     }
@@ -372,10 +459,42 @@ public class OfflineActivity extends Activity {
     // ===== FILE INTENT HANDLING (WhatsApp, file managers, etc.) =====
 
     /**
+     * Retry file injection for slow devices. Checks if app JS is ready before injecting.
+     */
+    private void injectFileWithRetry(WebView view, int attempt) {
+        if (pendingFileJson == null) return;
+        int delay = 2000 + (attempt * 2000); // 2s, 4s, 6s
+        view.postDelayed(() -> {
+            if (pendingFileJson == null) return; // Already injected
+            // Check if app object exists in JS
+            view.evaluateJavascript(
+                "typeof app !== 'undefined' && typeof app.receiveFileFromIntent === 'function'",
+                result -> {
+                    if ("true".equals(result)) {
+                        Log.i(TAG, "App ready on attempt " + (attempt + 1) + ", injecting file");
+                        injectFileToWebView();
+                    } else if (attempt < 2) {
+                        Log.d(TAG, "App not ready (attempt " + (attempt + 1) + "), retrying...");
+                        injectFileWithRetry(view, attempt + 1);
+                    } else {
+                        Log.w(TAG, "App not ready after 3 attempts, forcing injection");
+                        injectFileToWebView();
+                    }
+                }
+            );
+        }, delay);
+    }
+
+    /**
      * Reads a JSON/GeoJSON file from a content:// or file:// URI.
      * Stores content in pendingFileJson for injection into WebView.
      * Works with ACTION_VIEW (open with) and ACTION_SEND (share to).
+     *
+     * SECURITY: bounded to MAX_IMPORT_BYTES. A malicious share could otherwise
+     * hand us a multi-GB file and OOM the app.
      */
+    private static final long MAX_IMPORT_BYTES = 10L * 1024 * 1024; // 10 MB
+
     private void handleFileIntent(Intent intent) {
         if (intent == null) return;
 
@@ -392,6 +511,16 @@ public class OfflineActivity extends Activity {
         if (fileUri == null) return;
 
         try {
+            // Pre-check size via OpenableColumns.SIZE if the provider exposes it.
+            // This lets us reject oversized files BEFORE spending memory on them.
+            long declaredSize = queryFileSize(fileUri);
+            if (declaredSize > MAX_IMPORT_BYTES) {
+                Log.w(TAG, "File too large: " + declaredSize + " bytes (> " + MAX_IMPORT_BYTES + ")");
+                Toast.makeText(this,
+                    "Archivo demasiado grande (máx. 10 MB).", Toast.LENGTH_LONG).show();
+                return;
+            }
+
             // Get the display name of the file
             String filename = getFileDisplayName(fileUri);
             if (filename == null) filename = "mapa.json";
@@ -416,7 +545,19 @@ public class OfflineActivity extends Activity {
             BufferedReader reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
             StringBuilder sb = new StringBuilder();
             String line;
+            long bytesRead = 0;
             while ((line = reader.readLine()) != null) {
+                // +1 for the newline appended below; guard against providers that
+                // lie about SIZE or don't advertise one (queryFileSize returns -1).
+                bytesRead += line.length() + 1;
+                if (bytesRead > MAX_IMPORT_BYTES) {
+                    reader.close();
+                    is.close();
+                    Log.w(TAG, "Truncated read: exceeded MAX_IMPORT_BYTES while streaming");
+                    Toast.makeText(this,
+                        "Archivo demasiado grande (máx. 10 MB).", Toast.LENGTH_LONG).show();
+                    return;
+                }
                 sb.append(line).append('\n');
             }
             reader.close();
@@ -451,6 +592,30 @@ public class OfflineActivity extends Activity {
             Log.e(TAG, "Error reading file intent: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Returns the declared file size from OpenableColumns.SIZE, or -1 if the
+     * provider doesn't expose it. Used to reject oversized imports before read.
+     */
+    private long queryFileSize(Uri uri) {
+        if (uri == null) return -1;
+        if (!"content".equals(uri.getScheme())) return -1;
+        Cursor cursor = null;
+        try {
+            cursor = getContentResolver().query(uri, null, null, null, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                int idx = cursor.getColumnIndex(OpenableColumns.SIZE);
+                if (idx >= 0 && !cursor.isNull(idx)) {
+                    return cursor.getLong(idx);
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not query file size: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return -1;
     }
 
     /**

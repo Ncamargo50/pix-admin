@@ -1,0 +1,144 @@
+==============================================================================
+  PIX MUESTREO — Release v3.17.0
+  Build date: 2026-04-18
+  Sprint focus: 12 gaps reales cerrados tras auditoria funcional completa
+==============================================================================
+
+ARTIFACTS
+---------
+  pix-muestreo-v3.17.0.apk         3,992,881 bytes (≈ 3.81 MB)
+    SHA-256: 16ca7da98b4e52975ab01b64a8d02a1bc6a19927c083c96df25d232325ec2809
+  pix-muestreo-v3.17.0.apk.idsig   38,474 bytes
+    SHA-256: ca7aaf0f80be1baba9c32b8500bda6f3ab6db461a3248ba262f35ca4f71a3559
+  pix-muestreo-v3.17.0.aab         4,490,818 bytes (≈ 4.28 MB)
+
+BUILD METADATA
+--------------
+  applicationId:    network.pixadvisor.muestreo
+  versionCode:      27
+  versionName:      3.17.0
+  minSdkVersion:    24  (Android 7.0)
+  targetSdkVersion: 35  (Android 15)
+  compileSdkVersion: 36
+  SW cache name:    pix-muestreo-v59
+  JS APP_VERSION:   pix-muestreo-v59
+
+SIGNING
+-------
+  Keystore:      pixadvisor.keystore (alias pixadvisor, RSA 2048)
+  Cert SHA-256:  9515e0975d6c89a1f143541ef5d2f0368bff48e9708647db3f3f863e26c32f1c
+
+  Signature schemes (apksigner verify):
+    v1: false   (legacy off intencionalmente)
+    v2: true
+    v3: true    (Play Store 2027 baseline)
+    v4: true    (incremental install Android 11+)
+
+CHANGES v3.16.0 → v3.17.0 — LO QUE LA AUDITORIA REVELO + SE ARREGLO
+-------------------------------------------------------------------
+
+AUDITORIA COMPLETA PREVIA (5 agentes en paralelo):
+  Se revisó en profundidad: recepción de órdenes, mapa base y capas, puntos,
+  ambientes, submuestras, navegación al punto más cercano, señal sonora,
+  sincronización bidireccional, inventario completo de botones. El auditor
+  entregó 15+ gaps etiquetados [FALTA], [INCOMPLETO], [CRITICO]. Se
+  verificó cada uno contra el código real — 3 eran falsos positivos (ya
+  estaban implementados), 12 eran reales y están arreglados en esta
+  release.
+
+ARREGLOS EN ESTA VERSIÓN:
+
+  1. Señal sonora progresiva (tipo detector / GPS de pesca)
+       • app.js → _maybePlayProximityBeep(dist)
+       • >50m silencio, 50m beep grave cada 6s, 20m medio cada 3s,
+         10m agudo cada 1.5s, 5m doble-agudo cada 1s, 3m fanfare de llegada
+       • técnico "oye" cuánto se acerca sin mirar el celular
+
+  2. Wake-lock de pantalla durante navegación activa
+       • app.js → _acquireWakeLock() / _releaseWakeLock()
+       • navigator.wakeLock.request('screen') mientras hay target
+       • se libera al completar zona o campo — ahorra batería
+       • re-acquiere al volver a foreground si se navegando
+
+  3. Detección de conflictos a nivel de muestra (multi-técnico)
+       • cloud.js → syncField() hace preflight fetch + merge
+       • si cloud tiene muestra más nueva y de OTRO colector → no la pisa
+       • ambos técnicos pueden trabajar el mismo lote sin perder datos
+       • reporta conflicts_resolved: N al office dashboard
+
+  4. Exponential backoff en failures de red (2G/3G rural)
+       • cloud.js._fetch() y drive.js._fetch()
+       • 4 intentos con delays 0s, 1s, 2s, 4s (máx ~7s total)
+       • 4xx bailan inmediato (no sirve reintentar auth)
+       • 5xx y 429 + network errors se reintentan
+       • elimina "falsos negativos" en señal inestable
+
+  5. Upload de tracks GPS a Supabase
+       • cloud.js → ahora sube track_positions + track_count en field_syncs
+       • el office dashboard puede auditar el recorrido del técnico
+       • antes quedaba SOLO en IndexedDB local
+
+  6. Compresión de foto antes de Drive
+       • drive.js → DriveSync._compressJPEG(dataUrl, 1600, 0.82)
+       • fotos > 1.3 MB se reducen al longest side 1600 px, JPEG q=0.82
+       • típicamente 2-3 MB → 250-400 KB
+       • diferencia entre éxito y timeout loop en 3G rural
+
+  7. Sync Status Card (UI)
+       • index.html → #syncStatusCard con dot online/offline + pendientes
+       • app.js → _updateSyncStatusCard() actualiza "hace X min",
+         N pendientes, warning si > 24h sin sincronizar
+       • persistido cloud_last_sync_at en settings
+
+  8. Stale data warning
+       • banner amarillo si offline + > 24h sin sync
+       • le avisa al técnico que sus datos pueden estar desactualizados
+
+  9. Background sync robusto
+       • sw.js → sync handler delega a clientes abiertos (como antes)
+         PERO si no hay clientes, re-registra el tag 'pix-sync-queue'
+         para que el navegador lo reintente cuando el usuario vuelva
+       • periodicsync escuchado para futuros navegadores que lo soporten
+
+ 10. try/catch defensivos en openCollectForm + nextPoint
+       • si una operación DB falla transiente, el técnico ve toast de
+         error en vez de quedar con formulario blanco sin feedback
+
+ 11. Link APK en installOverlay actualizado a v3.17.0
+       • antes apuntaba al obsoleto v3.12.2 (bug documental)
+
+ 12. Enriquecimiento de samples en sync con pointId + updatedAt
+       • habilita la detección de conflictos (#3) de forma robusta
+
+LO QUE LA AUDITORIA DIJO QUE FALTABA PERO YA ESTABA (falsos positivos):
+  - Auto-jump al próximo punto más cercano tras guardar: YA ESTABA
+    (app.js:1211 llama this.nextPoint() automáticamente)
+  - Barra de progreso del download de tiles: YA FUNCIONABA
+    (app.js:813-815 actualiza tileProgressFill.style.width)
+  - skipInstall trampa al usuario: FALSO — llama showApp() correctamente
+
+VERIFICACION
+------------
+  ✓ node --check: 17 JS files + sw.js sintaxis OK
+  ✓ gradle: clean + assembleRelease + bundleRelease → BUILD SUCCESSFUL
+  ✓ apksigner: v2 + v3 + v4 all true
+  ✓ APK size: 3.81 MB (Play Store limit: 150 MB)
+  ✓ AAB size: 4.28 MB (Play Store limit: 200 MB)
+  ✓ classes.dex: 1,845 classes preserved (con R8 shrink)
+  ✓ R8 keep rules protegen: Play Integrity, Biometric, GMS Tasks, GNSSBridge
+  ✓ Assets: 17 JS + leaflet + html5-qrcode + html2pdf + qrcode-gen
+  ✓ SW cache: pix-muestreo-v59 (bump desde v58)
+  ✓ Todos los fixes verificados forense-mente dentro del APK
+
+POST-DEPLOY CHECKLIST (humano)
+-------------------------------
+  [ ] Instalar pix-muestreo-v3.17.0.apk en teléfono de prueba
+  [ ] Test campo: login → ver órden → abrir mapa → navegar a punto
+  [ ] Confirmar beep progresivo a 50/20/10/5/3m del punto más cercano
+  [ ] Confirmar wake-lock (pantalla no se apaga mientras navega)
+  [ ] Confirmar Sync Status Card muestra "Sin sync / hace X min"
+  [ ] Si ok en prueba → deploy masivo a teléfonos de campo
+  [ ] Subir AAB a Play Console Internal track
+
+  Nota: la firma coincide con v3.16.0 → instala encima sin perder datos
+        locales (proyectos, muestras pendientes de sync quedan intactas)

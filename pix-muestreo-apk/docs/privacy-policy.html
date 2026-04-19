@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Política de privacidad — PIX Muestreo</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1.2rem; color: #1a1a1a; line-height: 1.55; }
+  h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; border-bottom: 1px solid #e5e5e5; padding-bottom: 0.2rem; }
+  .last-updated { color: #666; font-size: 0.9rem; margin-bottom: 1.5rem; }
+  ul { padding-left: 1.4rem; }
+  code { background: #f3f3f3; padding: 1px 5px; border-radius: 3px; font-size: 0.92em; }
+</style>
+</head>
+<body>
+
+<h1>Política de privacidad — PIX Muestreo</h1>
+<div class="last-updated">Última actualización: 17 de abril de 2026 · Versión 3.16</div>
+
+<p>
+  <strong>PIX Muestreo</strong> es una aplicación de colecta de muestras agrícolas
+  operada por <strong>Pixadvisor SRL</strong> (Bolivia / Paraguay, también registrada en
+  Brasil como Pixadvisor Agricultura de Precisión, CNPJ 41.196.481/0001-30). Esta
+  política describe qué datos recoge la APK, por qué, con quién los compartimos,
+  cuánto los guardamos y cómo podés ejercer tus derechos.
+</p>
+
+<h2>1. Datos que recoge la aplicación</h2>
+
+<h3>1.1 Datos técnicos y de uso</h3>
+<ul>
+  <li><strong>Ubicación precisa (GPS)</strong> — solo cuando estás tomando una muestra o
+    navegando a un punto. Se guarda junto con la muestra para geolocalizar
+    el resultado de laboratorio. <em>No</em> hacemos tracking continuo ni en segundo plano.</li>
+  <li><strong>Fotos y video</strong> — tomadas por vos a través de la cámara del dispositivo,
+    asociadas a una muestra, un punto o un problema fitosanitario reportado.</li>
+  <li><strong>Archivos que vos elegís compartir con la app</strong> — KMZ de lotes, GeoJSON,
+    CSV de grillas, imágenes de bolsas con código IBRA.</li>
+  <li><strong>Datos de sesión</strong> — correo electrónico y rol (técnico / cliente / admin),
+    token JWT emitido por Supabase, últimos proyectos y lotes consultados.</li>
+  <li><strong>Diagnóstico</strong> — stack traces de errores, versión de la app, marca / modelo
+    del dispositivo y versión de Android, enviados a Sentry <em>solo si tenés
+    telemetría activada</em> (podés desactivarla en Ajustes → Privacidad). No se
+    envían coordenadas GPS, correo, contraseña ni contenido de muestras.</li>
+</ul>
+
+<h3>1.2 Datos personales identificables</h3>
+<ul>
+  <li>Correo electrónico (necesario para el login).</li>
+  <li>Nombre completo (tal como lo cargó el administrador de tu organización).</li>
+  <li>Rol dentro de la plataforma (técnico, cliente, admin).</li>
+</ul>
+
+<h3>1.3 Datos que <u>no</u> recogemos</h3>
+<ul>
+  <li>Lista de contactos · SMS · llamadas · micrófono (salvo cuando usás el asistente de voz, y esa muestra no se persiste).</li>
+  <li>Historial de navegación web fuera de la app.</li>
+  <li>Publicidad / IDFA / advertising IDs.</li>
+  <li>Biometría (huella / rostro). El desbloqueo biométrico lo hace el sistema
+    operativo; la app sólo recibe un <em>sí</em> / <em>no</em>.</li>
+</ul>
+
+<h2>2. Cómo usamos los datos</h2>
+<ul>
+  <li>Georreferenciar muestras para que el laboratorio pueda mapear los resultados
+    al punto exacto del lote.</li>
+  <li>Sincronizar datos entre el dispositivo del técnico y el dashboard del cliente.</li>
+  <li>Generar reportes IBRA, recomendaciones de fertilización y monitoreo satelital.</li>
+  <li>Detectar y corregir errores de la aplicación (telemetría opt-in).</li>
+  <li>Cumplir obligaciones legales y contables (facturación, trazabilidad).</li>
+</ul>
+
+<h2>3. Con quién compartimos datos</h2>
+<ul>
+  <li><strong>Supabase (EE.UU. / UE)</strong> — almacenamiento cifrado en reposo de tu base de
+    datos, autenticación, funciones serverless. <a href="https://supabase.com/privacy">Política de Supabase</a>.</li>
+  <li><strong>Google Drive (opcional)</strong> — si vos autorizás, PIX Muestreo sube tus PDFs
+    y fotos a <em>tu propio</em> Drive, bajo el alcance <code>drive.file</code> (sólo los
+    archivos que la app creó, no el resto del Drive).</li>
+  <li><strong>Sentry (EE.UU. / UE, opt-in)</strong> — crash reports anonimizados, sin PII.</li>
+  <li><strong>Google Play Integrity API</strong> — atestiguación de integridad del dispositivo
+    (sólo se intercambia un nonce y un veredicto; sin datos personales).</li>
+  <li><strong>Laboratorio IBRA Megalab (Brasil)</strong> — sólo si explícitamente exportás
+    una orden de análisis. Los datos enviados son los que aparecen en la orden.</li>
+</ul>
+<p><strong>Nunca</strong> vendemos, alquilamos ni cedemos datos con fines publicitarios.</p>
+
+<h2>4. Transferencias internacionales</h2>
+<p>
+  Al usar Supabase y Google Drive, tus datos pueden viajar a EE.UU. o a la Unión
+  Europea. Estas empresas adhieren a los marcos <em>Data Privacy Framework</em>
+  (EU-US / UK-US / Swiss-US) y a Cláusulas Contractuales Tipo de la UE.
+</p>
+
+<h2>5. Retención</h2>
+<ul>
+  <li>Muestras, fotos y reportes → mientras tu organización mantenga la cuenta activa
+    en Pixadvisor, y por un máximo de 7 años después del alta para cumplir
+    obligaciones contables y de trazabilidad agronómica.</li>
+  <li>Crash reports → 90 días en Sentry.</li>
+  <li>Tokens de sesión → hasta el logout, o 24 horas máximo.</li>
+  <li>Caché offline del dispositivo (IndexedDB) → se purga al cerrar sesión o al
+    desinstalar la app. El contenido se guarda cifrado en reposo con AES-GCM 256.</li>
+</ul>
+
+<h2>6. Tus derechos</h2>
+<p>Podés, en cualquier momento:</p>
+<ul>
+  <li>Acceder a tus datos (exportación CSV / JSON desde el dashboard).</li>
+  <li>Rectificar datos incorrectos.</li>
+  <li>Solicitar la eliminación (borramos tu cuenta y los datos asociados en 30 días
+    hábiles, salvo las muestras que la legislación agronómica exija conservar).</li>
+  <li>Oponerte a la telemetría opt-in (Ajustes → Privacidad → Desactivar telemetría).</li>
+  <li>Retirar el consentimiento para Google Drive (Ajustes → Drive → Desvincular).</li>
+  <li>Portabilidad — entregamos un ZIP con todas tus muestras, fotos y reportes
+    en un plazo razonable (hasta 30 días).</li>
+</ul>
+<p>Contacto para ejercer estos derechos: <a href="mailto:privacidad@pixadvisor.network">privacidad@pixadvisor.network</a></p>
+
+<h2>7. Seguridad</h2>
+<ul>
+  <li>Conexiones HTTPS obligatorias (Network Security Config bloquea cleartext).</li>
+  <li>Base de datos cifrada en reposo (Supabase) y en el dispositivo (AES-GCM 256).</li>
+  <li>Autenticación con JWT + opcional huella / PIN del dispositivo.</li>
+  <li>APK firmado con el esquema v3 de Android (Rotación de Clave).</li>
+  <li>Row Level Security en Supabase — cada usuario sólo ve sus propios datos.</li>
+  <li>Rate-limiting de intentos de login.</li>
+</ul>
+
+<h2>8. Menores</h2>
+<p>
+  PIX Muestreo no está diseñada para menores de 16 años. No recolectamos
+  deliberadamente datos de menores. Si detectamos que una cuenta pertenece a
+  un menor, la eliminaremos.
+</p>
+
+<h2>9. Cambios a esta política</h2>
+<p>
+  Publicaremos cualquier cambio en esta página y bumpearemos la versión. Si
+  los cambios son sustanciales (nuevos terceros, nuevos tipos de datos)
+  notificaremos por e-mail a la cuenta registrada.
+</p>
+
+<h2>10. Contacto</h2>
+<address style="font-style:normal">
+  <strong>Pixadvisor SRL</strong><br>
+  Avenida [dirección completa] · Santa Cruz de la Sierra, Bolivia<br>
+  También: Pixadvisor Agricultura de Precisión Ltda. · CNPJ 41.196.481/0001-30 · Ibiporã/PR, Brasil<br>
+  Email: <a href="mailto:privacidad@pixadvisor.network">privacidad@pixadvisor.network</a><br>
+  Responsable: Nilton Luiz Camargo, Director Técnico
+</address>
+
+</body>
+</html>

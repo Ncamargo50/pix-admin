@@ -50,12 +50,26 @@ def twaManifest = [
     orientation: 'portrait',
 ]
 
-// Load signing credentials from keystore.properties (gitignored)
-def keystorePropertiesFile = rootProject.file("keystore.properties")
+// Load signing credentials.
+//   Precedence (first non-empty wins):
+//     1. Environment variables (preferred for CI/CD):
+//          PIX_KEYSTORE_FILE, PIX_KEYSTORE_PASSWORD, PIX_KEY_ALIAS, PIX_KEY_PASSWORD
+//     2. keystore.properties in repo root (gitignored — for local dev only)
+//     3. Gradle will fail the release build if still empty
 def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("keystore.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
+def resolveSigning = { envKey, propKey, fallback ->
+    def v = System.getenv(envKey)
+    if (v == null || v.isEmpty()) v = keystoreProperties[propKey]
+    return v ?: fallback
+}
+def signingStoreFile = resolveSigning('PIX_KEYSTORE_FILE', 'storeFile', 'pixadvisor.keystore')
+def signingStorePass = resolveSigning('PIX_KEYSTORE_PASSWORD', 'storePassword', '')
+def signingKeyAlias  = resolveSigning('PIX_KEY_ALIAS', 'keyAlias', 'pixadvisor')
+def signingKeyPass   = resolveSigning('PIX_KEY_PASSWORD', 'keyPassword', '')
 
 android {
     compileSdkVersion 36
@@ -64,8 +78,8 @@ android {
         applicationId "network.pixadvisor.muestreo"
         minSdkVersion 24
         targetSdkVersion 35
-        versionCode 18
-        versionName "3.11.0"
+        versionCode 28
+        versionName "3.17.1"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
@@ -159,24 +173,53 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file(keystoreProperties['storeFile'] ?: 'pixadvisor.keystore')
-            storePassword keystoreProperties['storePassword'] ?: ''
-            keyAlias keystoreProperties['keyAlias'] ?: 'pixadvisor'
-            keyPassword keystoreProperties['keyPassword'] ?: ''
+            storeFile file(signingStoreFile)
+            storePassword signingStorePass
+            keyAlias signingKeyAlias
+            keyPassword signingKeyPass
+            // APK Signature Scheme v1 (JAR) + v2 (current) + v3 (key rotation
+            // support, API 28+) + v4 (incremental, API 30+ / Android 11+).
+            // v3 is Play Store's recommended baseline for 2025+ uploads; v4
+            // enables Google Play Asset Delivery for large APKs but is also
+            // a no-cost win for smaller TWAs (faster install on Android 11+).
+            enableV1Signing false   // explicit: v1 is legacy + larger APK
+            enableV2Signing true
+            enableV3Signing true
+            enableV4Signing true
         }
     }
     buildTypes {
         release {
-            minifyEnabled false
+            // Shrink + obfuscate + strip unused resources → smaller APK, harder
+            // to reverse-engineer. TWA needs a proguard-rules.pro file to keep
+            // androidbrowserhelper, WebView bridge methods and reflective calls.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
+            debuggable false
+        }
+        debug {
+            // Explicit: never ship a signed-release with debuggable=true
+            debuggable true
+            // Do not minify debug → keep stack traces readable
+            minifyEnabled false
         }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-    lintOptions {
-        checkReleaseBuilds false
+    // NOTE: `lintOptions { checkReleaseBuilds false }` removed.
+    //       Release builds should fail-fast on lint errors; this surfaced real
+    //       bugs (unused permissions, missing @Keep annotations) that used to
+    //       slip through. Use `lintOptions { abortOnError false }` if you need
+    //       to let warnings pass temporarily.
+    lint {
+        checkReleaseBuilds true
+        abortOnError true
+        // Allow TWA-specific warnings that aren't actionable:
+        disable 'GoogleAppIndexingWarning'
     }
 }
 
@@ -224,5 +267,17 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.2'
-    implementation 'androidx.webkit:webkit:1.8.0'
+    // Bumped to 1.12.1 — includes SafeBrowsing improvements + WebSettingsCompat
+    // fixes relevant to TWA security and forced dark mode.
+    implementation 'androidx.webkit:webkit:1.12.1'
+    // BiometricPrompt — gate for master-key and sensitive ops. 1.1.0 is the
+    // last stable; 1.2.0-alpha adds Class 3 flags we don't need yet.
+    implementation 'androidx.biometric:biometric:1.1.0'
+    // FragmentActivity (transitively pulled by biometric) — explicit pin so
+    // the version the bridge compiles against is frozen.
+    implementation 'androidx.fragment:fragment:1.8.5'
+    // Play Integrity — device integrity attestation (root/emulator/tampered
+    // APK detection). Server-side verification happens in a Supabase Edge
+    // Function; see docs/INTEGRITY.md.
+    implementation 'com.google.android.play:integrity:1.4.0'
 }

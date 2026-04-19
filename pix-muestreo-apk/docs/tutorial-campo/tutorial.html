@@ -1,0 +1,2327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>PIX Muestreo — Guía Profesional de Campo Offline · v3.16.0</title>
+<style>
+  /* ================================================================
+     TYPOGRAPHY + BASE
+     ================================================================ */
+  @page {
+    size: A4;
+    margin: 18mm 16mm 20mm 16mm;
+    @bottom-center { content: counter(page) " / " counter(pages); font-family: Inter, sans-serif; font-size: 9pt; color: #8899AB; }
+  }
+  @page :first { margin: 0; @bottom-center { content: none; } }
+  @page cover  { margin: 0; @bottom-center { content: none; } }
+
+  :root {
+    --ink: #0A1220;          /* darkest ink — same as app --dark */
+    --surface: #162236;      /* card */
+    --surface-2: #1E3048;    /* elevated */
+    --line: #E6EAF0;
+    --line-dark: #CBD5E1;
+    --green: #7FD633;        /* brand accent */
+    --green-dark: #5DA624;
+    --teal: #00A4CC;
+    --warning: #F5A623;
+    --danger: #EF4444;
+    --muted: #64748B;
+    --paper: #FFFFFF;
+    --paper-tint: #F7FAFC;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1, h2, h3, h4 { font-family: inherit; color: var(--ink); font-weight: 700; margin-top: 0; }
+  h1 { font-size: 24pt; letter-spacing: -0.3px; }
+  h2 { font-size: 17pt; letter-spacing: -0.2px; border-bottom: 2px solid var(--green); padding-bottom: 6px; margin: 22pt 0 14pt 0; }
+  h3 { font-size: 12.5pt; color: #1E293B; margin: 14pt 0 6pt 0; }
+  h4 { font-size: 10.5pt; color: var(--teal); text-transform: uppercase; letter-spacing: 0.8px; margin: 10pt 0 4pt 0; }
+  p  { margin: 0 0 8pt 0; }
+  ul, ol { margin: 4pt 0 10pt 0; padding-left: 22pt; }
+  li { margin-bottom: 3pt; }
+  code {
+    font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+    font-size: 9pt;
+    background: #EEF2F7;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: #1E293B;
+  }
+  pre {
+    font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+    font-size: 8.5pt;
+    background: var(--ink);
+    color: #E2E8F0;
+    border-radius: 8px;
+    padding: 10pt 12pt;
+    overflow-x: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 6pt 0 10pt 0;
+  }
+  strong { font-weight: 700; color: #0F172A; }
+  em { color: #475569; font-style: italic; }
+  a { color: var(--teal); text-decoration: none; border-bottom: 1px solid rgba(0,164,204,0.25); }
+
+  /* ================================================================
+     COVER PAGE
+     ================================================================ */
+  .cover {
+    page: cover;
+    page-break-after: always;
+    background: linear-gradient(160deg, #0A1220 0%, #0F1B2D 40%, #102030 75%, #1A3A2E 100%);
+    color: #F8FAFC;
+    height: 297mm;
+    width: 210mm;
+    padding: 28mm 22mm;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    width: 420mm; height: 420mm;
+    right: -180mm; top: -180mm;
+    background: radial-gradient(closest-side, rgba(127,214,51,0.22), transparent 70%);
+    pointer-events: none;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    width: 260mm; height: 260mm;
+    left: -120mm; bottom: -140mm;
+    background: radial-gradient(closest-side, rgba(0,164,204,0.16), transparent 70%);
+    pointer-events: none;
+  }
+  .cover-brand {
+    display: flex; align-items: center; gap: 14px;
+    position: relative; z-index: 2;
+  }
+  .cover-brand .logo {
+    width: 64px; height: 64px; border-radius: 16px;
+    background: linear-gradient(135deg, #7FD633, #00A4CC);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 28pt; color: #0A1220;
+    letter-spacing: -2px;
+    box-shadow: 0 6px 28px rgba(127,214,51,0.35);
+  }
+  .cover-brand .brand-name { font-size: 15pt; font-weight: 700; letter-spacing: 0.5px; }
+  .cover-brand .brand-sub { font-size: 9.5pt; color: #94A3B8; letter-spacing: 0.4px; }
+
+  .cover-title-block { position: relative; z-index: 2; }
+  .cover-eyebrow {
+    display: inline-block;
+    background: rgba(127,214,51,0.15);
+    border: 1px solid rgba(127,214,51,0.4);
+    color: #BEF264;
+    padding: 5px 14px; border-radius: 20px;
+    font-size: 9pt; font-weight: 600; letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 14pt;
+  }
+  .cover-title { font-size: 40pt; font-weight: 800; line-height: 1.05; letter-spacing: -1.2px; }
+  .cover-title .accent { color: #7FD633; }
+  .cover-subtitle { font-size: 15pt; color: #CBD5E1; margin-top: 10pt; font-weight: 400; line-height: 1.4; max-width: 140mm; }
+
+  .cover-meta-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10mm;
+    position: relative; z-index: 2;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    padding-top: 10mm;
+  }
+  .cover-meta-item .lbl { font-size: 8pt; text-transform: uppercase; color: #64748B; letter-spacing: 1.1px; margin-bottom: 3px; }
+  .cover-meta-item .val { font-size: 12pt; color: #F1F5F9; font-weight: 600; }
+  .cover-meta-item .val .green { color: #7FD633; }
+
+  /* ================================================================
+     SECTIONS
+     ================================================================ */
+  section { page-break-inside: avoid; margin-bottom: 18pt; }
+  .page-break { page-break-before: always; }
+
+  .section-lead {
+    background: var(--paper-tint);
+    border-left: 4px solid var(--green);
+    padding: 12pt 14pt;
+    border-radius: 0 8px 8px 0;
+    margin: 10pt 0 14pt 0;
+    font-size: 10.5pt;
+    color: #334155;
+  }
+
+  /* Step card (numbered) */
+  .steps { counter-reset: pixstep; }
+  .step {
+    display: flex; gap: 14pt;
+    margin: 14pt 0;
+    padding: 12pt 14pt;
+    background: var(--paper-tint);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    page-break-inside: avoid;
+  }
+  .step::before {
+    counter-increment: pixstep;
+    content: counter(pixstep);
+    flex: 0 0 32pt;
+    height: 32pt; width: 32pt;
+    background: linear-gradient(135deg, var(--green), var(--teal));
+    color: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14pt;
+  }
+  .step-body { flex: 1; min-width: 0; }
+  .step-body h4 { color: #0F172A; text-transform: none; letter-spacing: 0; font-size: 12pt; margin: 2pt 0 5pt 0; }
+  .step-body p:last-child { margin-bottom: 0; }
+
+  /* Callouts */
+  .callout {
+    border-radius: 8px; padding: 10pt 12pt;
+    margin: 10pt 0; font-size: 10pt;
+    page-break-inside: avoid;
+    display: flex; gap: 10pt;
+  }
+  .callout .co-icon {
+    flex: 0 0 28pt; height: 28pt; width: 28pt; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14pt; font-weight: 800;
+  }
+  .callout .co-body { flex: 1; }
+  .callout .co-body strong { display: block; margin-bottom: 2pt; font-size: 10.5pt; }
+  .callout.tip     { background: #F0FDF4; border: 1px solid #86EFAC; color: #14532D; }
+  .callout.tip .co-icon { background: #7FD633; color: white; }
+  .callout.info    { background: #F0F9FF; border: 1px solid #7DD3FC; color: #0C4A6E; }
+  .callout.info .co-icon { background: #00A4CC; color: white; }
+  .callout.warn    { background: #FFFBEB; border: 1px solid #FCD34D; color: #713F12; }
+  .callout.warn .co-icon { background: #F5A623; color: white; }
+  .callout.danger  { background: #FEF2F2; border: 1px solid #FCA5A5; color: #7F1D1D; }
+  .callout.danger .co-icon { background: #EF4444; color: white; }
+
+  /* Two-col layout (step + screenshot) */
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 72mm;
+    gap: 14pt;
+    align-items: start;
+    margin: 10pt 0;
+    page-break-inside: avoid;
+  }
+  .row.narrow  { grid-template-columns: 1fr 60mm; }
+  .row.left    { grid-template-columns: 72mm 1fr; }
+  .row > .phone { justify-self: end; }
+  .row.left > .phone { justify-self: start; }
+
+  /* ================================================================
+     PHONE MOCKUP
+     ================================================================ */
+  .phone {
+    width: 72mm;
+    background: #0A1220;
+    border: 1.5mm solid #0A1220;
+    border-radius: 9mm;
+    padding: 2mm 0 0 0;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.22);
+    overflow: hidden;
+    position: relative;
+    page-break-inside: avoid;
+  }
+  .phone-notch {
+    width: 20mm; height: 3mm;
+    background: #0A1220; border-radius: 0 0 3mm 3mm;
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    z-index: 3;
+  }
+  .phone-screen {
+    width: 100%; aspect-ratio: 9/19;
+    background: #0A1220; color: #F1F5F9;
+    font-size: 7pt; line-height: 1.3;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    border-radius: 6mm;
+  }
+  .phone.small { width: 58mm; }
+  .phone.small .phone-screen { font-size: 6pt; }
+
+  /* Phone inner mock chrome — shared */
+  .mk-status {
+    height: 5mm;
+    background: #0A1220;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 4mm; color: #fff; font-size: 5pt; font-weight: 600;
+  }
+  .mk-status .icons { display: inline-flex; gap: 1.5mm; align-items: center; }
+  .mk-status .batt { font-weight: 700; font-size: 5pt; }
+  .mk-header {
+    background: #111D2E;
+    border-bottom: 1px solid rgba(127,214,51,0.25);
+    padding: 2mm 3mm;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .mk-header .brand {
+    display: flex; align-items: center; gap: 1.5mm;
+  }
+  .mk-logo {
+    width: 5mm; height: 5mm; border-radius: 1.2mm;
+    background: linear-gradient(135deg, #7FD633, #00A4CC);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 4pt; font-weight: 900; color: #0A1220;
+  }
+  .mk-header h5 { margin: 0; font-size: 6pt; font-weight: 700; color: #F1F5F9; }
+  .mk-header h5 span { display: block; font-size: 4.5pt; color: #94A3B8; font-weight: 400; margin-top: 0.5mm; }
+  .mk-pill {
+    font-size: 4.5pt;
+    background: rgba(127,214,51,0.12);
+    border: 1px solid rgba(127,214,51,0.35);
+    color: #7FD633;
+    padding: 0.7mm 1.8mm;
+    border-radius: 6mm;
+    display: inline-flex; align-items: center; gap: 1mm;
+  }
+  .mk-pill.off { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.4); color: #FCA5A5; }
+  .mk-pill .dot {
+    width: 1.3mm; height: 1.3mm; border-radius: 50%; background: #7FD633;
+    box-shadow: 0 0 1.5mm rgba(127,214,51,0.8);
+  }
+  .mk-pill.off .dot { background: #EF4444; box-shadow: 0 0 1.5mm rgba(239,68,68,0.8); }
+
+  /* Map mock */
+  .mk-map {
+    flex: 1;
+    background:
+      radial-gradient(circle at 30% 40%, rgba(127,214,51,0.08), transparent 30%),
+      radial-gradient(circle at 70% 60%, rgba(0,164,204,0.08), transparent 30%),
+      linear-gradient(140deg, #18392D 0%, #1F4838 35%, #1A3B4E 65%, #223C52 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .mk-map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* Nav panel */
+  .mk-navpanel {
+    background: rgba(17, 29, 46, 0.95);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 2mm 3mm;
+    color: #F1F5F9;
+  }
+  .mk-navpanel .field-name { font-size: 4.5pt; color: #94A3B8; margin-bottom: 0.5mm; }
+  .mk-navpanel .dist-row { display: flex; align-items: baseline; gap: 2.5mm; margin-bottom: 1mm; }
+  .mk-navpanel .dist-val { font-size: 14pt; font-weight: 800; color: #7FD633; line-height: 1; letter-spacing: -0.5px; }
+  .mk-navpanel .dist-unit { font-size: 5pt; color: #94A3B8; font-weight: 500; }
+  .mk-navpanel .target { font-size: 6pt; font-weight: 700; color: #F1F5F9; }
+  .mk-navpanel .direction { font-size: 4.5pt; color: #94A3B8; }
+  .mk-navpanel .gps-info { display: flex; justify-content: space-between; margin-top: 1mm; font-size: 4.5pt; color: #94A3B8; }
+  .mk-navpanel .gps-info .strong { color: #7FD633; font-weight: 700; }
+  .mk-navpanel .gps-bar {
+    height: 0.8mm; background: rgba(255,255,255,0.08); border-radius: 1mm; margin-top: 1mm; overflow: hidden;
+  }
+  .mk-navpanel .gps-bar-fill {
+    height: 100%; background: linear-gradient(90deg, #7FD633, #00A4CC); border-radius: 1mm;
+  }
+  .mk-navpanel .actions { display: flex; gap: 1.5mm; margin-top: 1.8mm; }
+  .mk-action {
+    flex: 1; padding: 1.5mm 0; text-align: center; border-radius: 1.5mm;
+    font-size: 5pt; font-weight: 700;
+  }
+  .mk-action.primary { background: linear-gradient(135deg, #7FD633, #0D9488); color: #0A1220; }
+  .mk-action.secondary { background: rgba(255,255,255,0.06); color: #F1F5F9; border: 1px solid rgba(255,255,255,0.1); }
+
+  /* Bottom nav */
+  .mk-bottom-nav {
+    display: flex; background: #0F1B2D;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 1.2mm 0 1.8mm 0;
+  }
+  .mk-bottom-nav > div { flex: 1; text-align: center; font-size: 4pt; color: #64748B; }
+  .mk-bottom-nav > div.active { color: #7FD633; }
+  .mk-bottom-nav .ico {
+    display: inline-block; width: 3.5mm; height: 3.5mm; border-radius: 1mm; margin: 0 auto 0.5mm;
+    background: currentColor; opacity: 0.7; mask-size: contain; mask-repeat: no-repeat; mask-position: center;
+  }
+
+  /* FAB */
+  .mk-fab {
+    position: absolute; right: 2mm; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 1.5mm;
+  }
+  .mk-fab .btn {
+    width: 6mm; height: 6mm; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 6pt; font-weight: 700;
+  }
+  .mk-fab .btn.p { background: linear-gradient(135deg, #7FD633, #0D9488); color: #0A1220; }
+  .mk-fab .btn.s { background: rgba(22, 34, 54, 0.9); color: #F1F5F9; border: 1px solid rgba(255,255,255,0.1); }
+
+  /* Login mock */
+  .mk-login {
+    flex: 1;
+    background: radial-gradient(ellipse at 30% 20%, rgba(127,214,51,0.12), transparent 60%), #0A1220;
+    display: flex; align-items: center; justify-content: center;
+    padding: 4mm;
+  }
+  .mk-login-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(127,214,51,0.15);
+    border-radius: 3mm;
+    padding: 5mm 4mm;
+    width: 100%;
+    text-align: center;
+  }
+  .mk-login-logo {
+    width: 10mm; height: 10mm; border-radius: 2.5mm; margin: 0 auto 2mm;
+    background: linear-gradient(135deg, #7FD633, #00A4CC);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 7pt; font-weight: 900; color: #0A1220;
+  }
+  .mk-login h3 { margin: 0; color: #F1F5F9; font-size: 7pt; font-weight: 700; }
+  .mk-login .sub { color: #94A3B8; font-size: 4.5pt; margin: 0.5mm 0 2.5mm; }
+  .mk-input {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 2mm;
+    padding: 2mm 2.5mm;
+    font-size: 5pt;
+    color: #F1F5F9;
+    width: 100%;
+    margin-bottom: 1.5mm;
+    text-align: left;
+  }
+  .mk-input.placeholder { color: #64748B; }
+  .mk-btn-primary {
+    background: linear-gradient(135deg, #7FD633, #0D9488);
+    color: #0A1220; font-weight: 700; font-size: 5.5pt;
+    padding: 2.5mm 0; border-radius: 2mm;
+    width: 100%; text-align: center;
+    margin-top: 0.5mm;
+  }
+
+  /* Project list item */
+  .mk-project {
+    background: #162236;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 1.8mm;
+    padding: 2mm 2.5mm;
+    margin-bottom: 1.2mm;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .mk-project .title { font-size: 5pt; font-weight: 700; color: #F1F5F9; }
+  .mk-project .meta { font-size: 4pt; color: #94A3B8; margin-top: 0.3mm; }
+  .mk-project .badge {
+    font-size: 4pt; background: rgba(127,214,51,0.1);
+    color: #7FD633; border: 1px solid rgba(127,214,51,0.3);
+    border-radius: 4mm; padding: 0.5mm 1.5mm; font-weight: 700;
+  }
+
+  /* Sample form */
+  .mk-form { padding: 2.5mm 3mm; color: #F1F5F9; font-size: 5pt; }
+  .mk-form .label { color: #94A3B8; font-size: 4.5pt; margin: 1.5mm 0 0.5mm; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; }
+  .mk-form .fld {
+    background: #162236; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 1.5mm; padding: 1.5mm 2mm; font-size: 5pt; color: #F1F5F9;
+  }
+  .mk-chip-row { display: flex; gap: 1mm; flex-wrap: wrap; }
+  .mk-chip {
+    font-size: 4.5pt; padding: 1mm 2mm; border-radius: 4mm;
+    background: #162236; border: 1px solid rgba(255,255,255,0.08); color: #94A3B8; font-weight: 600;
+  }
+  .mk-chip.active { background: linear-gradient(135deg, #7FD633, #0D9488); color: #0A1220; border-color: transparent; }
+
+  /* Scanner mock */
+  .mk-scanner {
+    flex: 1;
+    background: #000;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mk-scanner-frame {
+    width: 40mm; height: 40mm; border: 1mm solid rgba(255,255,255,0.35); border-radius: 2mm;
+    position: relative;
+    box-shadow: 0 0 0 1000mm rgba(0,0,0,0.5);
+  }
+  .mk-scanner-frame::before, .mk-scanner-frame::after {
+    content: ''; position: absolute; width: 7mm; height: 7mm;
+    border-color: #7FD633; border-style: solid;
+  }
+  .mk-scanner-frame::before { top: -1mm; left: -1mm; border-width: 1mm 0 0 1mm; }
+  .mk-scanner-frame::after  { top: -1mm; right: -1mm; border-width: 1mm 1mm 0 0; }
+  .mk-scanner-frame .corners-bottom { position: absolute; inset: auto 0 0 0; height: 7mm; }
+  .mk-scanner-frame .corners-bottom::before, .mk-scanner-frame .corners-bottom::after {
+    content: ''; position: absolute; bottom: -1mm; width: 7mm; height: 7mm;
+    border-color: #7FD633; border-style: solid;
+  }
+  .mk-scanner-frame .corners-bottom::before { left: -1mm; border-width: 0 0 1mm 1mm; }
+  .mk-scanner-frame .corners-bottom::after  { right: -1mm; border-width: 0 1mm 1mm 0; }
+  .mk-scanner-line {
+    position: absolute; left: 3mm; right: 3mm; top: 50%;
+    height: 0.6mm;
+    background: linear-gradient(90deg, transparent, #7FD633 50%, transparent);
+    box-shadow: 0 0 2mm #7FD633;
+  }
+  .mk-scanner-tip {
+    position: absolute; bottom: 5mm; left: 0; right: 0;
+    text-align: center; color: #fff; font-size: 5pt; font-weight: 500;
+  }
+
+  /* ================================================================
+     GENERIC VISUAL BLOCKS
+     ================================================================ */
+  .fact-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8pt;
+    margin: 10pt 0;
+  }
+  .fact-card {
+    background: var(--paper-tint);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10pt;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+  .fact-card .big { font-size: 22pt; font-weight: 800; color: var(--green-dark); line-height: 1; letter-spacing: -1px; }
+  .fact-card .label { font-size: 8pt; color: var(--muted); text-transform: uppercase; margin-top: 4pt; letter-spacing: 0.6px; font-weight: 600; }
+
+  .kpi-bar {
+    display: flex; gap: 2pt;
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 4pt 0 6pt 0;
+    height: 8pt;
+  }
+  .kpi-bar > div {
+    background: #E2E8F0;
+    border-right: 2px solid white;
+  }
+  .kpi-bar > div.on { background: linear-gradient(90deg, var(--green), var(--teal)); }
+
+  .tbl {
+    width: 100%; border-collapse: collapse; margin: 8pt 0;
+    font-size: 9.5pt;
+  }
+  .tbl th, .tbl td {
+    border: 1px solid var(--line);
+    padding: 6pt 8pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  .tbl th {
+    background: var(--paper-tint);
+    font-weight: 700; color: #0F172A;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .tbl tr:nth-child(even) td { background: #FAFBFC; }
+
+  /* TOC */
+  .toc ol { list-style: none; padding: 0; counter-reset: tocnum; }
+  .toc ol li { counter-increment: tocnum; display: flex; align-items: baseline; gap: 10pt; margin: 5pt 0; font-size: 10.5pt; }
+  .toc ol li::before { content: counter(tocnum, decimal-leading-zero); font-weight: 700; color: var(--green-dark); font-variant-numeric: tabular-nums; flex: 0 0 22pt; }
+  .toc ol li .dots { flex: 1; border-bottom: 1px dotted var(--line-dark); margin-bottom: 3pt; }
+  .toc ol li .pg { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 9.5pt; }
+
+  /* Flowchart (workflow overview) */
+  .flow {
+    display: grid; grid-template-columns: 1fr; gap: 6pt;
+    margin: 12pt 0;
+  }
+  .flow-row {
+    display: grid; grid-template-columns: 34pt 1fr;
+    gap: 10pt; align-items: start;
+    padding: 8pt 10pt;
+    background: var(--paper-tint);
+    border-left: 4px solid var(--teal);
+    border-radius: 0 6px 6px 0;
+    page-break-inside: avoid;
+  }
+  .flow-row .num {
+    font-size: 20pt; font-weight: 800; color: var(--teal);
+    line-height: 1; font-variant-numeric: tabular-nums;
+  }
+  .flow-row h5 { font-size: 11pt; font-weight: 700; margin: 0 0 2pt 0; color: #0F172A; }
+  .flow-row p { font-size: 10pt; margin: 0; color: #334155; }
+
+  /* Inline badges */
+  .b-on  { background: #ECFDF5; color: #047857; border: 1px solid #6EE7B7; padding: 1px 6px; border-radius: 10px; font-size: 8.5pt; font-weight: 700; }
+  .b-off { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; padding: 1px 6px; border-radius: 10px; font-size: 8.5pt; font-weight: 700; }
+  .b-warn{ background: #FFFBEB; color: #B45309; border: 1px solid #FCD34D; padding: 1px 6px; border-radius: 10px; font-size: 8.5pt; font-weight: 700; }
+
+  .chapter-intro {
+    background: linear-gradient(135deg, #F0FDF4 0%, #F0F9FF 100%);
+    border: 1px solid #BBF7D0;
+    border-radius: 10px;
+    padding: 14pt 16pt;
+    margin: 6pt 0 14pt 0;
+  }
+  .chapter-intro .ch-label {
+    font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--green-dark); font-weight: 700;
+  }
+  .chapter-intro .ch-title {
+    font-size: 20pt; font-weight: 800; color: #0F172A;
+    letter-spacing: -0.5px; margin: 2pt 0;
+  }
+  .chapter-intro .ch-desc { font-size: 11pt; color: #334155; margin-top: 4pt; }
+
+  .footer-brand {
+    border-top: 1px solid var(--line);
+    margin-top: 16pt; padding-top: 8pt;
+    font-size: 8pt; color: var(--muted);
+    display: flex; justify-content: space-between;
+  }
+
+  /* Suppress orphans */
+  .keep { page-break-inside: avoid; }
+
+  /* Phone screen mini titles */
+  .mk-modal-title {
+    font-size: 6pt; font-weight: 700; color: #F1F5F9;
+    padding: 2.5mm 3mm 0 3mm;
+  }
+  .mk-modal-sub { font-size: 4.5pt; color: #94A3B8; padding: 0 3mm; margin-bottom: 1mm; }
+
+  .mk-save-btn {
+    background: linear-gradient(135deg, #7FD633, #0D9488);
+    color: #0A1220; font-weight: 700; font-size: 5.5pt;
+    padding: 2mm 0; border-radius: 1.8mm;
+    width: 100%; text-align: center;
+    margin: 2mm 3mm; width: calc(100% - 6mm);
+  }
+
+  .mk-photo {
+    width: calc(100% - 6mm);
+    margin: 0.5mm 3mm;
+    background: repeating-linear-gradient(45deg, #1E3048 0 2mm, #1A2B3F 2mm 4mm);
+    border: 1px dashed rgba(255,255,255,0.15);
+    border-radius: 1.5mm;
+    height: 14mm;
+    display: flex; align-items: center; justify-content: center;
+    color: #64748B; font-size: 5pt;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- ====================================================================
+     COVER PAGE
+     ==================================================================== -->
+<div class="cover">
+  <div class="cover-brand">
+    <div class="logo">P</div>
+    <div>
+      <div class="brand-name">PIXADVISOR</div>
+      <div class="brand-sub">Agricultura de Precisión</div>
+    </div>
+  </div>
+
+  <div class="cover-title-block">
+    <span class="cover-eyebrow">Guía profesional de campo · v3.16.0</span>
+    <div class="cover-title">PIX Muestreo<br><span class="accent">en el Campo</span></div>
+    <div class="cover-subtitle">
+      Manual operativo completo para el técnico de campo:
+      proyectos, navegación GPS, captura de muestras, códigos IBRA y
+      sincronización — todo funcionando 100&nbsp;% offline.
+    </div>
+  </div>
+
+  <div class="cover-meta-grid">
+    <div class="cover-meta-item">
+      <div class="lbl">Versión APK</div>
+      <div class="val">3.16.0 <span class="green">·</span> build 26</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="lbl">Audiencia</div>
+      <div class="val">Ing. Agrónomos · Técnicos de campo</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="lbl">Actualizado</div>
+      <div class="val">Abril 2026</div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================================================
+     TABLE OF CONTENTS
+     ==================================================================== -->
+<section class="toc">
+  <h2 style="border:none; margin-top:0;">Índice</h2>
+  <p style="color:#64748B; font-size:10pt;">
+    Esta guía está diseñada para ser consultada en el campo. Cada sección
+    incluye capturas de la app, pasos numerados y observaciones prácticas de
+    campo. Si lee la versión digital, los números de página son clickeables.
+  </p>
+  <ol>
+    <li>Filosofía offline de PIX Muestreo <span class="dots"></span> <span class="pg">3</span></li>
+    <li>Instalación de la APK en el teléfono <span class="dots"></span> <span class="pg">4</span></li>
+    <li>Primera configuración (una sola vez) <span class="dots"></span> <span class="pg">6</span></li>
+    <li>Preparación antes de ir al campo <span class="dots"></span> <span class="pg">8</span></li>
+    <li>Llegada al talhão y creación del proyecto <span class="dots"></span> <span class="pg">11</span></li>
+    <li>Navegación GPS a los puntos de muestreo <span class="dots"></span> <span class="pg">13</span></li>
+    <li>Captura de la submuestra en el punto <span class="dots"></span> <span class="pg">15</span></li>
+    <li>Cierre de zona y QR IBRA de la bolsa <span class="dots"></span> <span class="pg">18</span></li>
+    <li>Contornar el talhão (perímetro GPS) <span class="dots"></span> <span class="pg">20</span></li>
+    <li>Pulso operativo en modo 100 % offline <span class="dots"></span> <span class="pg">22</span></li>
+    <li>Fin de jornada — backup local <span class="dots"></span> <span class="pg">24</span></li>
+    <li>Regreso a señal — sincronización Drive + Cloud <span class="dots"></span> <span class="pg">25</span></li>
+    <li>Generación del reporte IBRA y PDF profesional <span class="dots"></span> <span class="pg">27</span></li>
+    <li>Solución de problemas frecuentes en campo <span class="dots"></span> <span class="pg">29</span></li>
+    <li>Apéndice A: lectura de la barra de calidad GPS <span class="dots"></span> <span class="pg">31</span></li>
+    <li>Apéndice B: íconos del encabezado y significado <span class="dots"></span> <span class="pg">32</span></li>
+    <li>Apéndice C: glosario y contactos de soporte <span class="dots"></span> <span class="pg">33</span></li>
+  </ol>
+</section>
+
+<!-- ====================================================================
+     1. FILOSOFÍA OFFLINE
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 1</div>
+    <div class="ch-title">La filosofía offline de PIX&nbsp;Muestreo</div>
+    <div class="ch-desc">
+      El campo real no tiene señal. Esta app fue diseñada desde el día uno
+      para operar sin red, con el teléfono en modo avión si hace falta, y
+      guardar toda la información localmente hasta que el técnico vuelva a
+      un lugar con Wi-Fi o datos.
+    </div>
+  </div>
+
+  <p>
+    <strong>PIX Muestreo</strong> no es una web que «a veces funciona offline». Es
+    una aplicación nativa de Android (APK firmada) que incluye un motor HTTPS
+    interno que sirve toda la interfaz desde los propios archivos instalados
+    en el teléfono. Los mapas base se descargan con anticipación, los puntos
+    de muestreo se almacenan en una base local cifrada con
+    <strong>AES-GCM 256</strong>, y las fotos + coordenadas + códigos IBRA quedan en
+    cola para sincronizar cuando haya red.
+  </p>
+
+  <div class="fact-grid">
+    <div class="fact-card"><div class="big">100 %</div><div class="label">Funciones en campo sin red</div></div>
+    <div class="fact-card"><div class="big">AES-256</div><div class="label">Cifrado local de muestras</div></div>
+    <div class="fact-card"><div class="big">&lt; 4 MB</div><div class="label">Peso de la APK instalada</div></div>
+  </div>
+
+  <h3>Qué SÍ funciona sin red</h3>
+  <ul>
+    <li><strong>Login</strong> con llave maestra guardada en el equipo.</li>
+    <li><strong>Creación</strong> y edición de proyectos, talhões y zonas.</li>
+    <li><strong>Mapa</strong> base con los tiles que haya descargado antes de salir.</li>
+    <li><strong>GPS</strong> nativo + GNSS multi-constelación (GPS/GLONASS/Galileo/BeiDou).</li>
+    <li><strong>Escaneo QR</strong> de las bolsas IBRA con la cámara del teléfono.</li>
+    <li><strong>Captura</strong> de foto, observaciones, profundidad y tipo de análisis.</li>
+    <li><strong>Backup local</strong> descargable como JSON + respaldo integral en IndexedDB.</li>
+  </ul>
+
+  <h3>Qué necesita señal</h3>
+  <ul>
+    <li>Primer <strong>login</strong> con Google Drive (solo la primera vez).</li>
+    <li><strong>Sincronización</strong> a Google Drive y Supabase Cloud.</li>
+    <li><strong>Descarga</strong> de nuevos tiles de mapa para una zona no cacheada.</li>
+    <li>Publicación del <strong>reporte IBRA</strong> por email o WhatsApp.</li>
+  </ul>
+
+  <div class="callout tip keep">
+    <div class="co-icon">✓</div>
+    <div class="co-body">
+      <strong>Filosofía oficial</strong>
+      Una jornada típica: llegar a zona rural con el teléfono ya preparado
+      en la oficina (tiles + proyecto cargados), trabajar todo el día sin
+      red, sincronizar al regresar. Ninguna muestra se pierde, porque
+      ninguna muestra depende de la red para guardarse.
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     2. INSTALACIÓN DE LA APK
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 2</div>
+    <div class="ch-title">Instalación de la APK en el teléfono</div>
+    <div class="ch-desc">
+      La app se distribuye como archivo APK firmado con el certificado
+      oficial de Pixadvisor. La primera vez que se instala, Android pedirá
+      permiso para instalar desde un origen desconocido — es normal y es
+      una sola vez.
+    </div>
+  </div>
+
+  <h3>Requisitos del teléfono</h3>
+  <table class="tbl">
+    <tr><th style="width:38%">Componente</th><th>Requisito mínimo</th></tr>
+    <tr><td>Sistema operativo</td><td>Android 7.0 (Nougat) o superior</td></tr>
+    <tr><td>Espacio disponible</td><td>120 MB (app + tiles + datos de campo de 1 semana)</td></tr>
+    <tr><td>RAM</td><td>2 GB (recomendado 3 GB+ para mapas grandes)</td></tr>
+    <tr><td>GPS</td><td>Hardware nativo — cualquier teléfono de ≥ 2020 lo trae</td></tr>
+    <tr><td>Cámara</td><td>≥ 5 MP, autofoco, para escanear los QR IBRA</td></tr>
+    <tr><td>Permisos</td><td>GPS (alta precisión), Cámara, Almacenamiento</td></tr>
+  </table>
+
+  <div class="row">
+    <div>
+      <h3 style="margin-top:0;">Instalación paso a paso</h3>
+      <div class="steps">
+        <div class="step"><div class="step-body"><h4>Recibir la APK</h4>
+          <p>Por WhatsApp, Google Drive, correo o USB. El archivo se llama
+          <code>pix-muestreo-v3.16.0.apk</code> (~3.8&nbsp;MB).</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Habilitar «Orígenes desconocidos»</h4>
+          <p>La primera vez que tocás la APK, Android abre un diálogo:
+          <strong>«Por seguridad, este tipo de archivos no se instalan por
+          defecto»</strong> → tocar <strong>Configuración</strong> →
+          activar <em>«Permitir esta fuente»</em>.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Instalar</h4>
+          <p>Volver al archivo, tocar nuevamente, y elegir <strong>Instalar</strong>.
+          Si Google Play Protect muestra un aviso verde («se verificó la
+          firma») tocar <strong>Instalar de todas formas</strong>.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Abrir la app</h4>
+          <p>Terminada la instalación aparece el botón <strong>Abrir</strong>.
+          La primera carga descomprime y prepara la base local — puede
+          tardar 10-15 segundos. No lo interrumpa.</p>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="phone small">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status">
+          <span>08:12</span>
+          <span class="icons">▲ 4G ▮</span>
+        </div>
+        <div style="flex:1; background:#FFFFFF; color:#1E293B; padding:3mm; font-size:5pt; display:flex; flex-direction:column; gap:2mm;">
+          <div style="background:#FEF2F2; border:1px solid #FCA5A5; border-radius:1.5mm; padding:2mm; color:#7F1D1D; font-weight:600;">
+            ⚠ Por seguridad, este tipo de archivos no se instalan por defecto
+          </div>
+          <div style="font-weight:700; color:#0F172A; font-size:5.5pt;">Archivo</div>
+          <div style="background:#F1F5F9; border-radius:1.5mm; padding:1.5mm; display:flex; gap:2mm; align-items:center;">
+            <div style="width:6mm; height:6mm; background:linear-gradient(135deg,#7FD633,#00A4CC); border-radius:1.2mm; display:flex;align-items:center;justify-content:center;color:#0A1220;font-weight:900;font-size:5pt;">P</div>
+            <div style="flex:1;">
+              <div style="font-weight:700; color:#0F172A;">pix-muestreo-v3.16.0.apk</div>
+              <div style="color:#64748B; font-size:4pt;">3,80 MB · Pixadvisor</div>
+            </div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="display:flex; gap:2mm;">
+            <div style="flex:1; background:#E2E8F0; color:#64748B; padding:2mm 0; text-align:center; border-radius:1.5mm; font-weight:700;">Cancelar</div>
+            <div style="flex:1; background:#7FD633; color:#0A1220; padding:2mm 0; text-align:center; border-radius:1.5mm; font-weight:700;">Configuración</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout info keep">
+    <div class="co-icon">i</div>
+    <div class="co-body">
+      <strong>Actualizaciones</strong>
+      Para pasar de v3.15.0 a v3.16.0 (o cualquier versión nueva) basta con
+      abrir el nuevo APK. Se instala encima de la versión anterior
+      conservando todas las muestras, ajustes y credenciales. El certificado
+      de firma no cambia y Android reconoce la actualización.
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     3. PRIMERA CONFIGURACIÓN
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 3</div>
+    <div class="ch-title">Primera configuración — una sola vez</div>
+    <div class="ch-desc">
+      Cuatro pasos que se hacen <strong>una única vez</strong>, idealmente en la
+      oficina con Wi-Fi. Quedan guardados en el teléfono y no hay que
+      repetirlos al salir al campo.
+    </div>
+  </div>
+
+  <div class="row left">
+    <div class="phone small">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>08:15</span><span class="icons">▲ Wi-Fi ▮</span></div>
+        <div class="mk-login">
+          <div class="mk-login-card">
+            <div class="mk-login-logo">P</div>
+            <h3>PIX Muestreo</h3>
+            <div class="sub">Ingresa tus credenciales para acceder</div>
+            <div class="mk-input">ing.camargo@pixadvisor.network</div>
+            <div class="mk-input">••••••••••••</div>
+            <div class="mk-btn-primary">Ingresar</div>
+            <div style="font-size:3.5pt; color:#475569; margin-top:2mm;">Pixadvisor — Agricultura de Precisión</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-top:0">Paso 1 · Llave maestra</h3>
+      <p>
+        Al abrir la app por primera vez aparece una pantalla oscura con el
+        logo verde de Pixadvisor y dos campos: <strong>email</strong> y
+        <strong>contraseña</strong>.
+      </p>
+      <p>
+        Ingrese las credenciales provistas por el director técnico. La app
+        las valida contra el servidor Supabase (requiere Wi-Fi) y guarda
+        una llave derivada localmente con PBKDF2-SHA256 (250&nbsp;000
+        iteraciones). A partir de ahí, el login es instantáneo y offline.
+      </p>
+      <div class="callout warn keep">
+        <div class="co-icon">!</div>
+        <div class="co-body">
+          <strong>Bloqueo biométrico (opcional)</strong>
+          Si el teléfono tiene lector de huella o PIN configurado, después
+          de la contraseña la app pide confirmación biométrica. Cancelar
+          cuenta como intento fallido — a los 5 fallos la cuenta queda
+          bloqueada por 15 min.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Paso 2 · Nombre del recolector</h3>
+  <p>
+    En <strong>Ajustes → Nombre del recolector</strong> escribir el nombre
+    completo con título. Este valor se incrusta en cada muestra, cada
+    reporte PDF y en los metadatos IBRA. Ejemplo:
+    <code>Ing. Agr. Nilton Camargo</code>.
+  </p>
+
+  <div class="row narrow">
+    <div>
+      <h3 style="margin-top:0">Paso 3 · Conectar Google Drive</h3>
+      <p>
+        En <strong>Ajustes → Google Drive — OAuth Client ID</strong> pegar el
+        ID provisto por el director técnico y tocar
+        <strong>Conectar Google Drive</strong>. Se abre el navegador,
+        pide consentimiento para acceso solo a los archivos de la app
+        (<code>drive.file</code>) y vuelve solo a la app. El estado debe
+        mostrar <span class="b-on">● Conectado</span>.
+      </p>
+      <p>
+        Drive se usa para sincronizar las carpetas de cada proyecto,
+        guardar las fotos y publicar los PDFs profesionales. La app
+        <em>nunca</em> accede a archivos que no haya creado ella misma.
+      </p>
+    </div>
+    <div class="phone">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>08:18</span><span class="icons">▲ Wi-Fi ▮</span></div>
+        <div class="mk-header">
+          <div class="brand"><div class="mk-logo">P</div><h5>PIX Muestreo<span>Agricultura de Precisión</span></h5></div>
+          <div class="mk-pill"><span class="dot"></span>Online</div>
+        </div>
+        <div style="flex:1; background:#0A1220; padding:3mm; font-size:5pt; color:#F1F5F9;">
+          <div style="color:#94A3B8; font-size:4.5pt; letter-spacing:0.3px; margin-bottom:1mm;">AJUSTES</div>
+          <div style="color:#94A3B8; font-size:4.5pt; margin-bottom:1mm;">Google Drive — OAuth Client ID</div>
+          <div class="mk-input">1012775070766-ai7lg....apps.googleusercontent.com</div>
+          <div style="display:flex; gap:1.5mm; align-items:center; margin-top:2mm;">
+            <div style="flex:1; background:linear-gradient(135deg,#7FD633,#0D9488); color:#0A1220; padding:2mm 2.5mm; border-radius:1.8mm; font-weight:700; font-size:5pt; text-align:center;">↗ Conectar Google Drive</div>
+          </div>
+          <div style="font-size:4.5pt; color:#7FD633; margin-top:2mm; font-weight:700;">● Conectado</div>
+          <div style="color:#94A3B8; font-size:4.5pt; letter-spacing:0.3px; margin-top:4mm; margin-bottom:1mm;">NOMBRE DEL RECOLECTOR</div>
+          <div class="mk-input">Ing. Agr. Nilton Camargo</div>
+        </div>
+        <div class="mk-bottom-nav">
+          <div><div class="ico"></div>Mapa</div>
+          <div><div class="ico"></div>Proyectos</div>
+          <div><div class="ico"></div>Sincro</div>
+          <div class="active"><div class="ico"></div>Ajustes</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Paso 4 · Permisos de Android</h3>
+  <p>
+    La primera vez que se usa el mapa o la cámara, Android lanza los
+    diálogos de permiso. <strong>Aceptar los tres</strong>:
+  </p>
+  <ul>
+    <li><strong>Ubicación</strong> → «Con precisión alta» (no «aproximada»).</li>
+    <li><strong>Cámara</strong> → para escanear QR IBRA y tomar fotos.</li>
+    <li><strong>Almacenamiento</strong> → para guardar fotos y exportar backups.</li>
+  </ul>
+  <p>
+    Si se rechazó alguno por error: <strong>Android → Configuración →
+    Apps → PIX Muestreo → Permisos</strong> y activar manualmente.
+  </p>
+</section>
+
+<!-- ====================================================================
+     4. PREPARACIÓN ANTES DE IR AL CAMPO
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 4</div>
+    <div class="ch-title">Preparación antes de ir al campo</div>
+    <div class="ch-desc">
+      Esta es la parte <strong>crítica</strong>. Todo lo que se hace con Wi-Fi en
+      la oficina evita dolores de cabeza con señal en la zona rural. 20
+      minutos de prep = un día de trabajo garantizado.
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-row">
+      <div class="num">01</div>
+      <div>
+        <h5>Cargar el teléfono al 100 %</h5>
+        <p>La pantalla encendida + GPS + cámara consumen bastante. Un
+        teléfono con batería buena resiste 6–8 h de campo intenso. Llevar
+        powerbank de 10&nbsp;000&nbsp;mAh si la jornada es larga.</p>
+      </div>
+    </div>
+    <div class="flow-row">
+      <div class="num">02</div>
+      <div>
+        <h5>Verificar GPS en el patio</h5>
+        <p>Abrir la app, ir a la vista <strong>Mapa</strong>, tocar el botón
+        «Seguir mi ubicación» (icono de mira 🎯). Salir al patio — la barra
+        de calidad GPS debe llenarse en menos de 60&nbsp;s. Si no, revisar
+        permisos.</p>
+      </div>
+    </div>
+    <div class="flow-row">
+      <div class="num">03</div>
+      <div>
+        <h5>Importar el proyecto del cliente</h5>
+        <p>Si otro técnico o el director ya lo preparó: tocar el ícono de
+        carpeta en la vista <strong>Proyectos</strong> y cargar el archivo
+        <code>.json</code> o <code>.geojson</code> provisto. Si no, crear
+        el proyecto nuevo en la misma vista.</p>
+      </div>
+    </div>
+    <div class="flow-row">
+      <div class="num">04</div>
+      <div>
+        <h5>Descargar tiles de mapa offline</h5>
+        <p>En la vista <strong>Mapa</strong>, centrar sobre la finca, tocar el
+        FAB de descarga (↓). Elegir nivel de zoom 16 o 17 (recomendado para
+        caminos de campo). La app cachea 2–5&nbsp;MB de tiles en IndexedDB.</p>
+      </div>
+    </div>
+    <div class="flow-row">
+      <div class="num">05</div>
+      <div>
+        <h5>Sincronizar ajustes y código cliente OAuth</h5>
+        <p>Una última pasada por <strong>Sincronización → Sincronizar
+        Datos</strong> con Wi-Fi para asegurar que el nombre del recolector
+        y el token de Drive están frescos. Después de eso, modo avión si
+        quieren para ahorrar batería.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Cómo descargar los tiles de mapa offline</h3>
+
+  <div class="row">
+    <div>
+      <p>
+        Los <strong>tiles</strong> son cuadrados de 256&nbsp;×&nbsp;256 px
+        del mapa base (OpenStreetMap + satélite Google). Sin tiles
+        previamente cacheados, el mapa se ve en blanco cuando no hay red.
+      </p>
+      <div class="steps">
+        <div class="step"><div class="step-body"><h4>Centrar sobre la finca</h4>
+          <p>Usar el buscador del mapa o arrastrar manualmente hasta que el
+          talhão de interés esté en el centro de la pantalla.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Ajustar zoom</h4>
+          <p><strong>Z-16</strong> muestra caminos; <strong>Z-17</strong>
+          muestra entradas y cabeceras de talhão; <strong>Z-18</strong>
+          muestra surcos. Cada nivel x4 en tiles descargadas.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Tocar FAB de descarga</h4>
+          <p>Botón con flecha hacia abajo. La app baja todos los tiles del
+          recuadro visible + un margen del 20&nbsp;% alrededor.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Esperar confirmación</h4>
+          <p>Aparece toast verde: <em>«N tiles cacheados (~X MB)»</em>.
+          A partir de ese momento el mapa funciona offline.</p>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>08:42</span><span class="icons">▲ Wi-Fi ▮</span></div>
+        <div class="mk-header">
+          <div class="brand"><div class="mk-logo">P</div><h5>PIX Muestreo<span>Proyecto Serro Alto</span></h5></div>
+          <div class="mk-pill"><span class="dot"></span>Online</div>
+        </div>
+        <div class="mk-map">
+          <svg viewBox="0 0 100 180" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="field" width="8" height="8" patternUnits="userSpaceOnUse">
+                <path d="M 0 4 L 8 4" stroke="rgba(127,214,51,0.1)" stroke-width="0.3"/>
+              </pattern>
+            </defs>
+            <rect width="100" height="180" fill="url(#field)"/>
+            <path d="M 15 40 L 85 35 L 90 95 L 80 140 L 20 135 Z"
+                  fill="rgba(127,214,51,0.15)" stroke="#7FD633" stroke-width="1.2"/>
+            <path d="M 20 135 L 25 130 L 35 105 L 55 70 L 85 35"
+                  stroke="rgba(245,166,35,0.7)" stroke-width="0.6" stroke-dasharray="1.5,1.5" fill="none"/>
+            <g>
+              <circle cx="30" cy="115" r="2.2" fill="#7FD633"/>
+              <circle cx="45" cy="95" r="2.2" fill="#7FD633"/>
+              <circle cx="60" cy="75" r="2.2" fill="#7FD633"/>
+              <circle cx="75" cy="55" r="2.2" fill="#7FD633"/>
+              <circle cx="50" cy="125" r="2.2" fill="#00A4CC"/>
+              <circle cx="65" cy="105" r="2.2" fill="#00A4CC"/>
+            </g>
+            <circle cx="38" cy="110" r="3" fill="#7FD633" stroke="#fff" stroke-width="0.8"/>
+            <circle cx="38" cy="110" r="6" fill="none" stroke="#7FD633" stroke-width="0.4" opacity="0.5"/>
+          </svg>
+
+          <div class="mk-fab">
+            <div class="btn p">🎯</div>
+            <div class="btn s">→</div>
+            <div class="btn s" style="background:linear-gradient(135deg,#F5A623,#F97316); color:#fff;">↓</div>
+            <div class="btn s">⬡</div>
+          </div>
+
+          <div style="position:absolute; bottom:2mm; left:2mm; background:rgba(10,18,32,0.9); color:#7FD633; padding:1.5mm 2.5mm; border-radius:1.5mm; font-size:4.5pt; font-weight:700; border:1px solid rgba(127,214,51,0.3);">
+            ✓ 168 tiles cacheados · 2,3 MB
+          </div>
+        </div>
+        <div class="mk-bottom-nav">
+          <div class="active"><div class="ico"></div>Mapa</div>
+          <div><div class="ico"></div>Proyectos</div>
+          <div><div class="ico"></div>Sincro</div>
+          <div><div class="ico"></div>Ajustes</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="co-icon">✓</div>
+    <div class="co-body">
+      <strong>Truco de campo</strong>
+      Descargar los tiles de TODAS las fincas que va a visitar ese día
+      <em>antes</em> de salir. No tiene que estar cerca físicamente; basta
+      con que el mapa las muestre en pantalla. La app cachea lo que ve.
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     5. LLEGADA AL TALHÃO Y CREACIÓN DEL PROYECTO
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 5</div>
+    <div class="ch-title">Llegada al talhão y creación del proyecto</div>
+    <div class="ch-desc">
+      Si el proyecto ya fue importado en la oficina, este paso es
+      simplemente «seleccionarlo». Si llega al campo y tiene que crearlo
+      desde cero, la app lo permite — no requiere señal.
+    </div>
+  </div>
+
+  <h3>Estructura lógica de un proyecto</h3>
+  <p>
+    La jerarquía de datos en PIX Muestreo sigue la lógica agronómica:
+  </p>
+
+  <div class="row narrow">
+    <div>
+      <table class="tbl">
+        <tr><th>Nivel</th><th>Contiene</th></tr>
+        <tr><td><strong>Proyecto</strong></td><td>Cliente + campaña + año</td></tr>
+        <tr><td><strong>Finca</strong></td><td>Propiedad rural con su nombre</td></tr>
+        <tr><td><strong>Talhão</strong></td><td>Lote de cultivo con perímetro GPS</td></tr>
+        <tr><td><strong>Zona</strong></td><td>Subdivisión del talhão por productividad / color / textura</td></tr>
+        <tr><td><strong>Punto</strong></td><td>Submuestra individual con lat/lng + foto + QR</td></tr>
+      </table>
+      <p style="margin-top:10pt;">
+        Un talhão tiene entre 5 y 15 puntos de muestreo por zona, según
+        el protocolo del director técnico. Cada punto se combina con
+        otros 10-20 para formar una <strong>muestra compuesta</strong> que va
+        al laboratorio en una única bolsa con QR IBRA Megalab.
+      </p>
+    </div>
+
+    <div class="phone">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>09:05</span><span class="icons">▲ 3G ▮</span></div>
+        <div class="mk-header">
+          <div class="brand"><div class="mk-logo">P</div><h5>Proyectos<span>3 activos</span></h5></div>
+          <div style="display:flex; gap:1mm;">
+            <div style="width:5mm; height:5mm; border-radius:50%; background:linear-gradient(135deg,#7FD633,#00A4CC); display:flex; align-items:center; justify-content:center; color:#0A1220; font-weight:900; font-size:6pt;">+</div>
+          </div>
+        </div>
+        <div style="flex:1; background:#0A1220; padding:2mm; overflow:hidden;">
+          <div class="mk-project">
+            <div>
+              <div class="title">Serro Alto · Campaña 26</div>
+              <div class="meta">12 talhões · 248 puntos · IA zonif.</div>
+            </div>
+            <div class="badge">Activo</div>
+          </div>
+          <div class="mk-project">
+            <div>
+              <div class="title">Estancia La Ladera</div>
+              <div class="meta">3 talhões · 45 puntos</div>
+            </div>
+            <div class="badge">Activo</div>
+          </div>
+          <div class="mk-project">
+            <div>
+              <div class="title">Finca San Pedro</div>
+              <div class="meta">7 talhões · 112 puntos</div>
+            </div>
+            <div style="font-size:4pt; background:rgba(148,163,184,0.15); color:#94A3B8; border-radius:4mm; padding:0.5mm 1.5mm; font-weight:700;">Pausado</div>
+          </div>
+          <div class="mk-project" style="border:1px dashed rgba(127,214,51,0.4); background:rgba(127,214,51,0.04); justify-content:center;">
+            <span style="color:#7FD633; font-size:5pt; font-weight:700;">+ Crear proyecto nuevo</span>
+          </div>
+        </div>
+        <div class="mk-bottom-nav">
+          <div><div class="ico"></div>Mapa</div>
+          <div class="active"><div class="ico"></div>Proyectos</div>
+          <div><div class="ico"></div>Sincro</div>
+          <div><div class="ico"></div>Ajustes</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Crear el proyecto en el campo</h3>
+  <div class="steps">
+    <div class="step"><div class="step-body"><h4>Pestaña «Proyectos» → botón «+»</h4>
+      <p>Aparece un modal: <strong>Nombre del proyecto</strong>,
+      <strong>Cliente</strong>, <strong>Área estimada (ha)</strong>.</p>
+    </div></div>
+    <div class="step"><div class="step-body"><h4>Elegir cómo definir el talhão</h4>
+      <p>Tres opciones: importar un GeoJSON, dibujarlo tocando el mapa, o
+      <strong>contornar caminando</strong> (ver Capítulo 9).</p>
+    </div></div>
+    <div class="step"><div class="step-body"><h4>Definir zonas</h4>
+      <p>Si ya trae polígonos de zonificación, se importan con el
+      GeoJSON. Si no, la app puede generarlas automáticamente con grilla
+      regular de N zonas.</p>
+    </div></div>
+    <div class="step"><div class="step-body"><h4>Generar puntos de muestreo</h4>
+      <p>Con las zonas listas, la app calcula N puntos aleatorios
+      estratificados por zona (algoritmo Lhs o grilla según protocolo).
+      Aparecen en el mapa con color por zona.</p>
+    </div></div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     6. NAVEGACIÓN GPS
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 6</div>
+    <div class="ch-title">Navegación GPS a los puntos de muestreo</div>
+    <div class="ch-desc">
+      El corazón de la experiencia de campo. Un panel flotante muestra
+      distancia en tiempo real, rumbo relativo y calidad del GPS. El
+      técnico camina hacia el punto hasta que la distancia baje a
+      &lt;&nbsp;3&nbsp;m.
+    </div>
+  </div>
+
+  <div class="row left">
+    <div class="phone">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>09:47</span><span class="icons">▲ ◌ ▮</span></div>
+        <div class="mk-header">
+          <div class="brand"><div class="mk-logo">P</div><h5>Talhão 03<span>12 puntos restantes</span></h5></div>
+          <div class="mk-pill off"><span class="dot"></span>Offline</div>
+        </div>
+        <div class="mk-map">
+          <svg viewBox="0 0 100 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 10 20 L 92 15 L 95 90 L 85 115 L 8 110 Z" fill="rgba(127,214,51,0.12)" stroke="#7FD633" stroke-width="1"/>
+            <!-- user path -->
+            <path d="M 50 95 L 55 80" stroke="#7FD633" stroke-width="1" fill="none" stroke-dasharray="1,1"/>
+            <!-- points -->
+            <circle cx="30" cy="40" r="2" fill="#7FD633"/>
+            <circle cx="60" cy="35" r="2" fill="#7FD633" opacity="0.4"/>
+            <circle cx="75" cy="60" r="2" fill="#7FD633" opacity="0.4"/>
+            <circle cx="55" cy="80" r="2.6" fill="#F5A623" stroke="#fff" stroke-width="0.5"/>
+            <circle cx="55" cy="80" r="5" fill="none" stroke="#F5A623" stroke-width="0.5" stroke-dasharray="1,0.7"/>
+            <!-- user -->
+            <circle cx="50" cy="95" r="3" fill="#00A4CC" stroke="#fff" stroke-width="0.8"/>
+            <circle cx="50" cy="95" r="6" fill="none" stroke="#00A4CC" stroke-width="0.3" opacity="0.6"/>
+            <path d="M 50 87 L 48 93 L 52 93 Z" fill="#00A4CC"/>
+          </svg>
+          <div class="mk-fab">
+            <div class="btn p">🎯</div>
+            <div class="btn s">→</div>
+            <div class="btn s">↓</div>
+          </div>
+          <div style="position:absolute; top:2mm; left:50%; transform:translateX(-50%); background:rgba(10,18,32,0.9); color:#fff; padding:1mm 2.5mm; border-radius:4mm; font-size:5pt; font-weight:700; border:1px solid rgba(127,214,51,0.35);">
+            <span style="color:#7FD633;">↑</span> 17,8 m
+          </div>
+        </div>
+        <div class="mk-navpanel">
+          <div class="field-name">TALHÃO 03 · ZONA 2 · PUNTO 7 de 12</div>
+          <div class="dist-row">
+            <span class="dist-val">17,8</span>
+            <span class="dist-unit">m al siguiente punto</span>
+          </div>
+          <div class="target">P07 · Norte 23°</div>
+          <div class="direction">↗ girar a la derecha</div>
+          <div class="gps-info">
+            <span>GPS: <span class="strong">2,3 m</span></span>
+            <span>14 sat.</span>
+            <span>HDOP 0,8</span>
+          </div>
+          <div class="gps-bar"><div class="gps-bar-fill" style="width:82%"></div></div>
+          <div class="actions">
+            <div class="mk-action primary">+ Recolectar</div>
+            <div class="mk-action secondary">→ Siguiente</div>
+          </div>
+        </div>
+        <div class="mk-bottom-nav">
+          <div class="active"><div class="ico"></div>Mapa</div>
+          <div><div class="ico"></div>Proyectos</div>
+          <div><div class="ico"></div>Sincro</div>
+          <div><div class="ico"></div>Ajustes</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-top:0">Panel de navegación</h3>
+      <p>
+        Cuando selecciona un punto en el mapa, aparece un panel flotante
+        abajo con cinco informaciones clave:
+      </p>
+      <ol>
+        <li>
+          <strong>Distancia</strong> al punto en metros (actualiza 2×/s).
+          En verde si &lt;&nbsp;50&nbsp;m, amarillo 50-200&nbsp;m, rojo
+          &gt;&nbsp;200&nbsp;m.
+        </li>
+        <li>
+          <strong>Nombre del punto</strong> y rumbo cardinal aproximado
+          (↑N, ↗NE, →E, etc.).
+        </li>
+        <li>
+          <strong>Precisión GPS</strong> actual en metros (más chico =
+          mejor). Típico: 2-5&nbsp;m sin obstáculos, &lt;&nbsp;1,5&nbsp;m
+          con banda L5 disponible.
+        </li>
+        <li>
+          <strong>Satélites visibles</strong> y HDOP (dilución horizontal).
+          Por debajo de 1,0 = excelente; por encima de 2,0 = mover a zona
+          más abierta.
+        </li>
+        <li>
+          <strong>Barra de calidad</strong> que integra precisión +
+          satélites + estabilidad. Objetivo: &gt;&nbsp;75&nbsp;% antes
+          de recolectar.
+        </li>
+      </ol>
+      <div class="callout info keep">
+        <div class="co-icon">i</div>
+        <div class="co-body">
+          <strong>Indicador «Offline» en rojo</strong>
+          Es normal y esperado. No afecta el GPS ni la precisión — solo
+          indica que no hay datos móviles, que es exactamente el estado
+          deseado en el campo.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Cómo llegar al punto exacto</h3>
+  <ol>
+    <li>Caminar hacia la dirección que indica la flecha pequeña del panel.</li>
+    <li>La distancia debe bajar conforme uno se acerca. Si sube, está caminando en dirección contraria.</li>
+    <li>Cuando la distancia queda &lt;&nbsp;3&nbsp;m, la app vibra suavemente y el punto en el mapa parpadea en verde.</li>
+    <li>Tocar el botón grande verde <strong>+ Recolectar</strong>.</li>
+  </ol>
+</section>
+
+<!-- ====================================================================
+     7. CAPTURA DE MUESTRA
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 7</div>
+    <div class="ch-title">Captura de la submuestra en el punto</div>
+    <div class="ch-desc">
+      La pantalla de captura es un formulario vertical con todo lo que el
+      laboratorio necesita. Tiene autocompletado: el GPS ya está, el
+      recolector ya está, la fecha/hora se registra sola.
+    </div>
+  </div>
+
+  <div class="row left">
+    <div class="phone">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>09:51</span><span class="icons">▲ ◌ ▮</span></div>
+        <div style="background:#111D2E; padding:2.5mm 3mm 2mm; border-bottom:1px solid rgba(127,214,51,0.2);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:6pt; color:#F1F5F9; font-weight:700;">Punto P07 · Zona 2</div>
+              <div style="font-size:4pt; color:#94A3B8;">−21,4728° · −58,9372° · ±2,3 m</div>
+            </div>
+            <div style="font-size:5pt; color:#94A3B8;">✕</div>
+          </div>
+        </div>
+
+        <div class="mk-form">
+          <div class="label">Código de bolsa · QR IBRA</div>
+          <div style="background:#162236; border:1px solid rgba(255,255,255,0.08); border-radius:1.5mm; padding:1.5mm 2mm; display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#64748B; font-size:5pt;">Sin escanear</span>
+            <div style="background:linear-gradient(135deg,#7FD633,#0D9488); color:#0A1220; font-weight:700; font-size:4.5pt; padding:1.2mm 2mm; border-radius:1.2mm;">▣ Escanear QR</div>
+          </div>
+
+          <div class="label">Profundidad (cm)</div>
+          <div class="mk-chip-row">
+            <div class="mk-chip active">0-20</div>
+            <div class="mk-chip">20-40</div>
+            <div class="mk-chip">40-60</div>
+            <div class="mk-chip">0-10</div>
+            <div class="mk-chip">10-20</div>
+          </div>
+
+          <div class="label">Tipo de análisis</div>
+          <div class="fld">Químico completo ▾</div>
+
+          <div class="label">Recolector</div>
+          <div class="fld">Ing. Agr. Nilton Camargo</div>
+
+          <div class="label">Foto</div>
+          <div class="mk-photo" style="margin:0.5mm 0;">📷 Tocar para tomar foto</div>
+        </div>
+
+        <div class="mk-save-btn" style="margin:2mm 3mm;">✓ Guardar Muestra</div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-top:0">Campos del formulario</h3>
+      <table class="tbl">
+        <tr><th>Campo</th><th>Comportamiento</th></tr>
+        <tr><td><strong>QR IBRA</strong></td><td>Opcional a nivel de punto; obligatorio al cerrar la zona.</td></tr>
+        <tr><td><strong>Profundidad</strong></td><td>Chip seleccionado; por defecto <code>0-20</code>.</td></tr>
+        <tr><td><strong>Tipo análisis</strong></td><td>Heredado del proyecto; se puede cambiar por punto.</td></tr>
+        <tr><td><strong>Recolector</strong></td><td>Auto-rellenado del ajuste global.</td></tr>
+        <tr><td><strong>Foto</strong></td><td>Cámara trasera; se comprime a ≤ 1,2 MB antes de guardar.</td></tr>
+        <tr><td><strong>GPS</strong></td><td>Coordenadas + precisión al momento del toque <em>Guardar</em>.</td></tr>
+        <tr><td><strong>Notas</strong></td><td>Texto libre; ej. «barbecho reciente», «zona de inundación».</td></tr>
+      </table>
+
+      <div class="callout warn keep" style="margin-top:10pt;">
+        <div class="co-icon">!</div>
+        <div class="co-body">
+          <strong>Qué NO hacer</strong>
+          No tocar «Guardar Muestra» si la barra de calidad GPS está en
+          rojo (&lt;&nbsp;40&nbsp;%). La app deja guardar igual, pero el
+          punto quedará con ±&nbsp;10&nbsp;m de error y distorsiona el
+          mapa. Caminar 3-5 metros hasta zona abierta y reintentar.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Escaneo del QR de la bolsa IBRA</h3>
+
+  <div class="row">
+    <div>
+      <p>
+        Cada bolsa IBRA Megalab trae un QR en la etiqueta. Al tocar
+        <strong>Escanear QR</strong>, la app abre la cámara con un recuadro
+        visual. Apuntar a la etiqueta, mantener el QR dentro del recuadro
+        verde, y la detección es automática (no hay que tocar nada).
+      </p>
+      <p>
+        Al leer el QR, la app:
+      </p>
+      <ol>
+        <li>Valida el formato (número IBRA de 10 dígitos).</li>
+        <li>Extrae cliente, campaña y tipo de análisis.</li>
+        <li>Pre-rellena el formulario si algún dato estaba vacío.</li>
+        <li>Vuelve automáticamente a la pantalla de captura.</li>
+      </ol>
+      <div class="callout tip keep">
+        <div class="co-icon">✓</div>
+        <div class="co-body">
+          <strong>Truco</strong>
+          Si el QR está sucio o roto, tocar el ícono de teclado al pie del
+          scanner y digitar los 10 dígitos manualmente. Mismo resultado.
+        </div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>09:52</span><span class="icons">▲ ◌ ▮</span></div>
+        <div class="mk-scanner">
+          <div class="mk-scanner-frame">
+            <div class="corners-bottom"></div>
+            <div class="mk-scanner-line"></div>
+          </div>
+          <div class="mk-scanner-tip">Apuntá al QR de la bolsa IBRA</div>
+          <div style="position:absolute; top:2mm; left:2mm; color:#fff; font-size:5pt;">✕ Cerrar</div>
+          <div style="position:absolute; top:2mm; right:2mm; color:#fff; font-size:5pt;">⌨ Manual</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     8. CIERRE DE ZONA
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 8</div>
+    <div class="ch-title">Cierre de zona y QR IBRA de la bolsa compuesta</div>
+    <div class="ch-desc">
+      Una zona se cierra cuando se recolectaron todas las submuestras
+      planificadas. El primer punto de la siguiente zona dispara
+      automáticamente un modal para escanear la bolsa IBRA maestra.
+    </div>
+  </div>
+
+  <div class="row left">
+    <div class="phone">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>11:12</span><span class="icons">▲ ◌ ▮</span></div>
+        <div style="flex:1; background:rgba(10,18,32,0.95); position:relative;">
+          <div style="position:absolute; inset:0; background:repeating-linear-gradient(45deg,#0F1B2D 0 2mm,#14253A 2mm 4mm); opacity:0.5;"></div>
+          <div style="position:absolute; bottom:0; left:0; right:0; background:#111D2E; border-top-left-radius:3mm; border-top-right-radius:3mm; padding:3mm;">
+            <div style="width:10mm; height:0.6mm; background:rgba(255,255,255,0.2); border-radius:1mm; margin:0 auto 2mm;"></div>
+            <div style="text-align:center; margin-bottom:2mm;">
+              <div style="display:inline-block; background:linear-gradient(135deg,#7FD633,#0D9488); color:#0A1220; padding:0.7mm 3mm; border-radius:3mm; font-weight:700; font-size:5pt;">✓ ZONA 2 COMPLETA</div>
+              <div style="color:#F1F5F9; font-size:7pt; font-weight:700; margin-top:1.5mm;">Zona completa!</div>
+              <div style="color:#94A3B8; font-size:4.5pt;">15 submuestras recolectadas · 12 min 18 s</div>
+            </div>
+
+            <div style="color:#94A3B8; font-size:4.5pt; text-transform:uppercase; letter-spacing:0.4px; margin-top:2mm; margin-bottom:1mm; font-weight:600;">Escanear QR de la bolsa IBRA para esta zona</div>
+            <div style="background:#162236; border:1px solid rgba(255,255,255,0.08); border-radius:1.5mm; padding:1.5mm 2mm; display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:#64748B; font-size:5pt;">Sin escanear</span>
+              <div style="background:linear-gradient(135deg,#7FD633,#0D9488); color:#0A1220; font-weight:700; font-size:4.5pt; padding:1.2mm 2mm; border-radius:1.2mm;">▣ Escanear</div>
+            </div>
+
+            <div style="display:flex; gap:1.5mm; margin-top:2.5mm;">
+              <div style="flex:0.4; background:rgba(255,255,255,0.06); color:#F1F5F9; padding:2mm 0; text-align:center; border-radius:1.5mm; font-size:5pt; font-weight:700; border:1px solid rgba(255,255,255,0.1);">Sin IBRA</div>
+              <div style="flex:1; background:linear-gradient(135deg,#7FD633,#0D9488); color:#0A1220; padding:2mm 0; text-align:center; border-radius:1.5mm; font-size:5.5pt; font-weight:700;">→ Siguiente zona</div>
+            </div>
+            <div style="text-align:center; color:#64748B; font-size:4pt; margin-top:1.5mm;">Escanea el QR solo en el punto principal de cada zona</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-top:0">Flujo de cierre</h3>
+      <p>
+        Al guardar la última submuestra de la zona, aparece este modal
+        deslizándose desde abajo:
+      </p>
+      <ol>
+        <li>
+          <strong>Badge verde «Zona completa»</strong> con el número de
+          submuestras realizadas y el tiempo total de trabajo.
+        </li>
+        <li>
+          <strong>Escaneo del QR maestro</strong> de la bolsa donde el
+          técnico juntó físicamente todas las submuestras. El mismo
+          scanner del Capítulo 7.
+        </li>
+        <li>
+          <strong>Siguiente zona</strong> → mueve al primer punto de la
+          siguiente zona planificada y vuelve al modo navegación.
+        </li>
+      </ol>
+      <p>
+        Si por alguna razón no tiene bolsa IBRA (muestra interna de
+        chequeo, duplicado técnico, etc.), tocar <strong>«Sin IBRA»</strong>.
+        La zona queda marcada con bandera amarilla en el reporte para que
+        el director técnico decida qué hacer.
+      </p>
+      <div class="callout danger keep">
+        <div class="co-icon">✕</div>
+        <div class="co-body">
+          <strong>No saltarse el cierre de zona</strong>
+          Si toca «Siguiente zona» sin escanear QR, el laboratorio no
+          puede vincular las submuestras con la bolsa física. Resultado:
+          muestra anónima, rechazada por IBRA. El modal existe justamente
+          para evitar eso.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     9. CONTORNAR TALHÃO
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 9</div>
+    <div class="ch-title">Contornar el talhão caminando (perímetro GPS)</div>
+    <div class="ch-desc">
+      Herramienta disponible en el FAB del mapa: si no tiene un GeoJSON
+      previo del talhão, la app lo genera caminando el borde. La
+      precisión típica es ±&nbsp;2-3&nbsp;m con GNSS multi-constelación.
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <h3 style="margin-top:0">Flujo operativo</h3>
+      <div class="steps">
+        <div class="step"><div class="step-body"><h4>Tocar el FAB de polígono</h4>
+          <p>Ícono hexagonal en el menú flotante del mapa. La app pide
+          confirmación: <em>«¿Iniciar trazado del perímetro?»</em>.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Caminar el borde del talhão</h4>
+          <p>A paso moderado (≈1&nbsp;m/s), siguiendo la línea
+          delimitadora. La app captura un vértice cada 5&nbsp;s o cada
+          cambio de rumbo &gt;&nbsp;20°. Línea magenta en vivo en el
+          mapa.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Cerrar el polígono</h4>
+          <p>Al volver a &lt;&nbsp;10&nbsp;m del punto de inicio la app
+          pregunta: <em>«¿Cerrar polígono aquí?»</em>. Tocar
+          <strong>Sí</strong> — se calcula área y perímetro.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Editar vértices</h4>
+          <p>Si algún vértice quedó mal (un paso atrás accidental), modo
+          edición: arrastrar con el dedo. La app suaviza la geometría
+          con Douglas-Peucker a 1&nbsp;m de tolerancia.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Guardar como talhão</h4>
+          <p>Nombre del talhão, cultivo actual, y listo. El GeoJSON
+          queda guardado en el proyecto y sincroniza a Drive al volver
+          a señal.</p>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>10:04</span><span class="icons">▲ ◌ ▮</span></div>
+        <div class="mk-header">
+          <div class="brand"><div class="mk-logo">P</div><h5>Trazar perímetro<span>GPS ±2,1 m</span></h5></div>
+          <div class="mk-pill off"><span class="dot"></span>Offline</div>
+        </div>
+        <div class="mk-map">
+          <svg viewBox="0 0 100 160" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Hand-drawn polygon -->
+            <path d="M 20 30 L 45 25 L 72 32 L 85 55 L 82 90 L 65 118 L 35 125 L 22 100 L 18 65 L 20 30 Z"
+                  fill="rgba(239,68,68,0.08)" stroke="#EF4444" stroke-width="1" stroke-dasharray="2,1"/>
+            <!-- vertices -->
+            <circle cx="20" cy="30" r="1.8" fill="#7FD633" stroke="#fff" stroke-width="0.4"/>
+            <circle cx="45" cy="25" r="1.4" fill="#EF4444"/>
+            <circle cx="72" cy="32" r="1.4" fill="#EF4444"/>
+            <circle cx="85" cy="55" r="1.4" fill="#EF4444"/>
+            <circle cx="82" cy="90" r="1.4" fill="#EF4444"/>
+            <circle cx="65" cy="118" r="1.4" fill="#EF4444"/>
+            <circle cx="35" cy="125" r="1.4" fill="#EF4444"/>
+            <circle cx="22" cy="100" r="1.4" fill="#EF4444"/>
+            <circle cx="18" cy="65" r="1.4" fill="#EF4444"/>
+            <!-- user -->
+            <circle cx="24" cy="35" r="2.6" fill="#00A4CC" stroke="#fff" stroke-width="0.8"/>
+            <circle cx="24" cy="35" r="5" fill="none" stroke="#00A4CC" stroke-width="0.3" opacity="0.6"/>
+          </svg>
+          <div style="position:absolute; top:2mm; left:50%; transform:translateX(-50%); background:rgba(239,68,68,0.9); color:#fff; padding:1mm 2.5mm; border-radius:4mm; font-size:4.5pt; font-weight:700;">
+            ● GRABANDO · 38 puntos · 12,4 ha
+          </div>
+        </div>
+        <div style="background:#111D2E; padding:2mm 3mm; border-top:1px solid rgba(127,214,51,0.2);">
+          <div style="display:flex; gap:1.5mm;">
+            <div style="flex:1; background:rgba(239,68,68,0.15); color:#FCA5A5; padding:2mm 0; text-align:center; border-radius:1.8mm; font-size:5pt; font-weight:700; border:1px solid rgba(239,68,68,0.3);">⏹ Detener</div>
+            <div style="flex:1; background:linear-gradient(135deg,#7FD633,#0D9488); color:#0A1220; padding:2mm 0; text-align:center; border-radius:1.8mm; font-size:5pt; font-weight:700;">✓ Cerrar aquí</div>
+          </div>
+          <div style="text-align:center; color:#94A3B8; font-size:4pt; margin-top:1.5mm;">Caminá a &lt; 10 m del punto inicial para cerrar</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="co-icon">✓</div>
+    <div class="co-body">
+      <strong>Truco de precisión</strong>
+      Antes de empezar a caminar, pararse 30 segundos quieto en el primer
+      vértice. Eso estabiliza el GPS (el teléfono promedia muestras y el
+      error cae de ±&nbsp;5&nbsp;m a ±&nbsp;2&nbsp;m). El vértice inicial
+      es el más crítico porque es también el de cierre.
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     10. MODO OFFLINE EN DETALLE
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 10</div>
+    <div class="ch-title">Pulso operativo en modo 100&nbsp;% offline</div>
+    <div class="ch-desc">
+      Cómo reconocer el estado offline, qué indica la app, y qué esperar
+      del comportamiento. Importante: la app no «simula» funcionar —
+      funciona idéntico con y sin señal.
+    </div>
+  </div>
+
+  <h3>Indicadores visuales de estado</h3>
+
+  <table class="tbl">
+    <tr><th style="width:28%">Elemento</th><th>Online</th><th>Offline</th></tr>
+    <tr>
+      <td>Pill del encabezado</td>
+      <td><span class="b-on">● Online</span> punto verde fijo</td>
+      <td><span class="b-off">● Offline</span> punto rojo tenue</td>
+    </tr>
+    <tr>
+      <td>Botón sincronizar</td>
+      <td>Verde, activo — toca y sube</td>
+      <td>Gris con candado — en cola</td>
+    </tr>
+    <tr>
+      <td>Contador de pendientes</td>
+      <td>0 (todo sincronizado)</td>
+      <td>Crece con cada muestra guardada</td>
+    </tr>
+    <tr>
+      <td>Mapa base</td>
+      <td>Se ve cualquier zona</td>
+      <td>Solo zonas con tiles cacheados</td>
+    </tr>
+    <tr>
+      <td>Escaneo QR</td>
+      <td>Normal + valida online</td>
+      <td>Normal + valida al sincronizar</td>
+    </tr>
+    <tr>
+      <td>Foto cámara</td>
+      <td>Guarda local + sube en paralelo</td>
+      <td>Guarda local, sube cuando haya red</td>
+    </tr>
+    <tr>
+      <td>Captura GPS</td>
+      <td>Idéntico</td>
+      <td>Idéntico</td>
+    </tr>
+  </table>
+
+  <h3>Lo que pasa por debajo</h3>
+  <p>
+    Cada muestra que se guarda en modo offline entra a una cola de
+    sincronización. La cola se persiste en IndexedDB bajo la clave
+    <code>pix_sync_queue</code>. Cuando el teléfono vuelve a tener
+    conexión, un <strong>Background Sync</strong> dispara la subida
+    automáticamente — <em>sin que el usuario toque nada</em> — y va
+    marcando las muestras como enviadas.
+  </p>
+
+  <div class="fact-grid">
+    <div class="fact-card"><div class="big">1 200+</div><div class="label">muestras en cola soportadas</div></div>
+    <div class="fact-card"><div class="big">IndexedDB</div><div class="label">con AES-GCM 256</div></div>
+    <div class="fact-card"><div class="big">0 bytes</div><div class="label">se pierden en modo offline</div></div>
+  </div>
+
+  <h3>Qué pasa si el teléfono se apaga</h3>
+  <p>
+    Nada. La cola está en disco, no en memoria. Al prender y abrir la
+    app, todo sigue exactamente como estaba:
+  </p>
+  <ul>
+    <li>Proyectos, talhões y zonas intactos.</li>
+    <li>Muestras ya capturadas, con su foto y QR.</li>
+    <li>Tiles de mapa descargados.</li>
+    <li>Cola de sincronización pendiente.</li>
+  </ul>
+  <p>
+    La app ni siquiera necesita que el técnico cierre sesión al final de
+    la jornada. Simplemente guardar el teléfono y seguir al día
+    siguiente.
+  </p>
+
+  <div class="callout info keep">
+    <div class="co-icon">i</div>
+    <div class="co-body">
+      <strong>Cifrado en reposo</strong>
+      Desde v3.16.0 la base local está cifrada con AES-GCM 256 bits y
+      clave derivada por PBKDF2 (250&nbsp;000 iteraciones). Si pierde el
+      teléfono, el que lo encuentra no puede leer las muestras sin la
+      contraseña del técnico. Antes las guardaba en texto plano.
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     11. FIN DE JORNADA
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 11</div>
+    <div class="ch-title">Fin de jornada — backup local en el campo</div>
+    <div class="ch-desc">
+      Antes de volver a la oficina, una buena práctica es exportar un
+      backup JSON desde el teléfono. Lleva 10 segundos y cubre cualquier
+      eventualidad (pérdida del teléfono, rotura, robo).
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <h3 style="margin-top:0">Backup en 3 toques</h3>
+      <div class="steps">
+        <div class="step"><div class="step-body"><h4>Sincronización → Descargar Backup Local</h4>
+          <p>Botón gris con ícono de disco. Funciona sin Internet.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Elegir dónde guardar</h4>
+          <p>El gestor de archivos de Android abre un selector. Guardar
+          en <strong>Descargas</strong> o en el Drive local del teléfono.</p>
+        </div></div>
+        <div class="step"><div class="step-body"><h4>Archivo generado</h4>
+          <p>Se llama <code>pix-backup-YYYYMMDD-HHmm.json</code>. Entre
+          0,2 y 2&nbsp;MB dependiendo de la cantidad de muestras.
+          Contiene TODO: proyectos, muestras, zonas, fotos embebidas en
+          base64.</p>
+        </div></div>
+      </div>
+
+      <div class="callout tip keep" style="margin-top:10pt;">
+        <div class="co-icon">✓</div>
+        <div class="co-body">
+          <strong>Recomendación de flota</strong>
+          Enviar el backup por WhatsApp al director técnico al terminar
+          la jornada, incluso antes de sincronizar a Drive. Es un
+          segundo canal de redundancia operativa.
+        </div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>17:42</span><span class="icons">▲ ◌ ▮</span></div>
+        <div class="mk-header">
+          <div class="brand"><div class="mk-logo">P</div><h5>Sincronización<span>Fin de jornada</span></h5></div>
+          <div class="mk-pill off"><span class="dot"></span>Offline</div>
+        </div>
+        <div style="flex:1; background:#0A1220; padding:3mm; color:#F1F5F9; font-size:5pt;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5mm; margin-bottom:2.5mm;">
+            <div style="background:#162236; padding:1.5mm; border-radius:1.5mm; text-align:center; border:1px solid rgba(245,166,35,0.25);">
+              <div style="font-size:9pt; font-weight:800; color:#F5A623;">47</div>
+              <div style="font-size:3.5pt; color:#94A3B8; text-transform:uppercase;">Pendientes</div>
+            </div>
+            <div style="background:#162236; padding:1.5mm; border-radius:1.5mm; text-align:center; border:1px solid rgba(127,214,51,0.25);">
+              <div style="font-size:9pt; font-weight:800; color:#7FD633;">0</div>
+              <div style="font-size:3.5pt; color:#94A3B8; text-transform:uppercase;">Sincronizadas</div>
+            </div>
+            <div style="background:#162236; padding:1.5mm; border-radius:1.5mm; text-align:center;">
+              <div style="font-size:9pt; font-weight:800; color:#F1F5F9;">47</div>
+              <div style="font-size:3.5pt; color:#94A3B8; text-transform:uppercase;">Total muestras</div>
+            </div>
+            <div style="background:#162236; padding:1.5mm; border-radius:1.5mm; text-align:center;">
+              <div style="font-size:9pt; font-weight:800; color:#F1F5F9;">1</div>
+              <div style="font-size:3.5pt; color:#94A3B8; text-transform:uppercase;">Proyectos</div>
+            </div>
+          </div>
+
+          <div style="background:#162236; opacity:0.5; padding:2mm 0; text-align:center; border-radius:1.8mm; font-weight:700; font-size:5pt; color:#64748B; margin-bottom:1mm;">
+            🔒 Sin conexión — reintentar al volver a señal
+          </div>
+
+          <div style="background:linear-gradient(135deg,#374151,#1F2937); color:#F1F5F9; padding:2mm 0; text-align:center; border-radius:1.8mm; font-weight:700; font-size:5.5pt; margin-bottom:1mm;">
+            ⬇ Descargar Backup Local
+          </div>
+
+          <div style="background:linear-gradient(135deg,#F44336,#FF9800); color:#fff; padding:2mm 0; text-align:center; border-radius:1.8mm; font-weight:700; font-size:5pt;">
+            📄 Reporte IBRA — Ficha de envío
+          </div>
+        </div>
+        <div class="mk-bottom-nav">
+          <div><div class="ico"></div>Mapa</div>
+          <div><div class="ico"></div>Proyectos</div>
+          <div class="active"><div class="ico"></div>Sincro</div>
+          <div><div class="ico"></div>Ajustes</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     12. SINCRONIZACIÓN DE REGRESO
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 12</div>
+    <div class="ch-title">Regreso a señal — sincronización Drive + Cloud</div>
+    <div class="ch-desc">
+      Con Wi-Fi disponible, la app sincroniza automáticamente en segundo
+      plano. El botón <em>«Sincronizar Datos»</em> lo fuerza si no quiere
+      esperar. Canal doble: Google Drive (archivos del proyecto) + Supabase
+      Cloud (registro de auditoría).
+    </div>
+  </div>
+
+  <div class="row left">
+    <div class="phone">
+      <span class="phone-notch"></span>
+      <div class="phone-screen">
+        <div class="mk-status"><span>19:15</span><span class="icons">▲ Wi-Fi ▮</span></div>
+        <div class="mk-header">
+          <div class="brand"><div class="mk-logo">P</div><h5>Sincronizando<span>Todo quedó al día</span></h5></div>
+          <div class="mk-pill"><span class="dot"></span>Online</div>
+        </div>
+        <div style="flex:1; background:#0A1220; padding:3mm; color:#F1F5F9; font-size:5pt;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5mm; margin-bottom:2.5mm;">
+            <div style="background:#162236; padding:1.5mm; border-radius:1.5mm; text-align:center; border:1px solid rgba(127,214,51,0.3);">
+              <div style="font-size:9pt; font-weight:800; color:#7FD633;">0</div>
+              <div style="font-size:3.5pt; color:#94A3B8; text-transform:uppercase;">Pendientes</div>
+            </div>
+            <div style="background:#162236; padding:1.5mm; border-radius:1.5mm; text-align:center; border:1px solid rgba(127,214,51,0.3);">
+              <div style="font-size:9pt; font-weight:800; color:#7FD633;">47</div>
+              <div style="font-size:3.5pt; color:#94A3B8; text-transform:uppercase;">Sincronizadas</div>
+            </div>
+          </div>
+
+          <div style="background:linear-gradient(135deg,#7FD633,#0D9488); color:#0A1220; padding:2mm 0; text-align:center; border-radius:1.8mm; font-weight:700; font-size:5.5pt; margin-bottom:1mm;">
+            ↻ Sincronizar Datos
+          </div>
+          <div style="background:linear-gradient(135deg,#0D9488,#7FD633); color:#0A1220; padding:2mm 0; text-align:center; border-radius:1.8mm; font-weight:700; font-size:5pt; margin-bottom:2mm;">
+            ☁ Sincronizar con Cloud
+          </div>
+
+          <div style="color:#94A3B8; font-size:4pt; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:1mm;">REGISTRO DE ACTIVIDAD</div>
+          <div style="background:#111D2E; border-radius:1.5mm; padding:1.5mm; font-size:4pt; line-height:1.5;">
+            <div style="color:#7FD633;">[19:15:02] ✓ Drive · 47 muestras subidas</div>
+            <div style="color:#7FD633;">[19:15:08] ✓ Drive · 47 fotos subidas</div>
+            <div style="color:#7FD633;">[19:15:11] ✓ Cloud · registro audit OK</div>
+            <div style="color:#00A4CC;">[19:15:14] → Reporte IBRA compartido</div>
+            <div style="color:#94A3B8;">[19:15:15] Todo al día · 0 pendientes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-top:0">Qué sube, a dónde</h3>
+      <table class="tbl">
+        <tr><th>Dato</th><th>Destino</th><th>Propósito</th></tr>
+        <tr>
+          <td>Proyecto + talhões + zonas</td>
+          <td>Google Drive (<code>drive.file</code>)</td>
+          <td>Acceso para el director técnico</td>
+        </tr>
+        <tr>
+          <td>Muestras individuales (GPS, QR, notas)</td>
+          <td>Drive + Supabase</td>
+          <td>Archivo editable + auditoría</td>
+        </tr>
+        <tr>
+          <td>Fotos de los puntos</td>
+          <td>Google Drive</td>
+          <td>Evidencia visual para el reporte</td>
+        </tr>
+        <tr>
+          <td>Registro «quién-cuándo»</td>
+          <td>Supabase Cloud</td>
+          <td>Traza auditable con firma digital</td>
+        </tr>
+        <tr>
+          <td>Reporte IBRA PDF</td>
+          <td>Drive + WhatsApp opcional</td>
+          <td>Entrega al laboratorio</td>
+        </tr>
+      </table>
+
+      <div class="callout info keep" style="margin-top:10pt;">
+        <div class="co-icon">i</div>
+        <div class="co-body">
+          <strong>Sincronización idempotente</strong>
+          Cada muestra tiene un UUID único. Si la red se corta a mitad
+          de la subida, al reintentar NO se duplican — la app detecta
+          lo ya subido y continúa desde donde quedó.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     13. REPORTE PDF IBRA
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 13</div>
+    <div class="ch-title">Generación del reporte IBRA y PDF profesional</div>
+    <div class="ch-desc">
+      Dos documentos se generan desde la app: (a) la <strong>ficha IBRA de
+      envío al laboratorio</strong> con códigos QR y resumen de bolsas, y
+      (b) el <strong>reporte profesional</strong> con mapas, tabla de
+      muestras, fotos y metadatos, listo para el cliente.
+    </div>
+  </div>
+
+  <h3>Ficha IBRA de envío</h3>
+  <p>
+    Desde <strong>Sincronización → Reporte IBRA — Ficha de envío</strong>
+    (botón con degradado rojo/naranja). Genera un PDF tabloide con:
+  </p>
+  <ul>
+    <li>Encabezado con cliente, técnico, fecha, lote.</li>
+    <li>Tabla por zona: número IBRA · punto principal · profundidad · tipo de análisis · nota.</li>
+    <li>QR de cada bolsa renderizado tamaño pegable.</li>
+    <li>Pie con firma digital y folio único.</li>
+  </ul>
+
+  <h3>Reporte profesional (cliente)</h3>
+  <p>
+    Desde el botón morado <strong>«PDF Profesional»</strong>. Documento A4
+    con layout de 6-10 páginas dependiendo del tamaño del proyecto:
+  </p>
+  <ol>
+    <li><strong>Portada</strong> con logo Pixadvisor, nombre del cliente y fecha.</li>
+    <li><strong>Mapa general</strong> de los talhões sampleados con leyenda por zona.</li>
+    <li><strong>Resumen agronómico</strong>: área total, densidad de muestreo, método, cultivo.</li>
+    <li><strong>Tabla consolidada</strong> de submuestras con todas las columnas del formulario.</li>
+    <li><strong>Galería de fotos</strong> 3&nbsp;×&nbsp;3 por página con coordenadas al pie.</li>
+    <li><strong>Pie técnico</strong>: versión de app, firma del recolector, hash SHA-256 del archivo.</li>
+  </ol>
+
+  <div class="callout tip">
+    <div class="co-icon">✓</div>
+    <div class="co-body">
+      <strong>Compartir por WhatsApp en un toque</strong>
+      Botón verde <em>«Compartir»</em> al lado de «PDF Profesional»
+      abre el share-sheet nativo de Android con el PDF ya adjunto. 3
+      toques y llega al cliente.
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     14. PROBLEMAS FRECUENTES
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Capítulo 14</div>
+    <div class="ch-title">Solución de problemas frecuentes en campo</div>
+    <div class="ch-desc">
+      Los 10 casos que surgen 90&nbsp;% de las veces, con la solución
+      concreta. Si nada de esto aplica, ir al Apéndice C (soporte).
+    </div>
+  </div>
+
+  <table class="tbl">
+    <tr><th style="width:32%">Síntoma</th><th>Solución</th></tr>
+
+    <tr>
+      <td><strong>El GPS no fija posición (barra en rojo)</strong></td>
+      <td>
+        Salir de debajo de árboles o techos metálicos. Esperar
+        30–60&nbsp;s con el teléfono a altura del pecho. Verificar
+        Ajustes&nbsp;→&nbsp;Ubicación&nbsp;→&nbsp;<em>«Precisión
+        alta»</em>. Si sigue sin fijar, reiniciar el teléfono.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>El mapa se ve blanco en el campo</strong></td>
+      <td>
+        Los tiles no se descargaron. Regresar a una zona con señal,
+        abrir la app sobre la finca y tocar el FAB de descarga (↓).
+        Hacerlo <em>antes</em> de volver a perder señal.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>La cámara no enfoca el QR</strong></td>
+      <td>
+        Limpiar la lente con un paño suave. Si el QR está dañado, tocar
+        el ícono de teclado (esquina superior derecha del scanner) y
+        digitar los 10 dígitos manualmente.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>La app se cerró sin avisar</strong></td>
+      <td>
+        Volver a abrirla — las muestras guardadas se recuperan
+        automáticamente desde IndexedDB. Si el crash se repite,
+        Sentry lo reporta solo; avisar al director técnico.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>El login bloqueado por «demasiados intentos»</strong></td>
+      <td>
+        Esperar 15 minutos. Es defensa anti-bruteforce. La contraseña
+        guardada localmente sigue funcionando en ese intervalo — el
+        bloqueo es solo para nuevos logins.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Se quedó sin batería a mitad de zona</strong></td>
+      <td>
+        Todo lo ya guardado sobrevive. Cargar el teléfono, abrir la
+        app, y continuar desde el mismo punto donde quedó. La cola
+        de sincronización se preserva.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Sincronización a Drive falla</strong></td>
+      <td>
+        Revisar que el teléfono tenga señal estable (3G mínimo). En
+        <em>Ajustes → Google Drive</em> el estado debe decir «●
+        Conectado». Si dice «expirado», tocar <strong>Reconectar</strong>.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>La foto se ve oscura/borrosa</strong></td>
+      <td>
+        Tocar la pantalla sobre el suelo antes de disparar para fijar
+        el enfoque. En días nublados, activar el flash tocando el
+        rayo en la esquina del visor.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>El cliente pide reimprimir la ficha IBRA</strong></td>
+      <td>
+        Volver a tocar <em>Reporte IBRA — Ficha de envío</em>. El PDF
+        se regenera idéntico al original (mismo folio, mismos QRs, mismo
+        hash). No es una copia — es bit-exact.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>No aparecen mis muestras en el mapa</strong></td>
+      <td>
+        Verificar que el proyecto activo sea el correcto: pestaña
+        <em>Proyectos</em>, el proyecto activo tiene badge verde
+        «Activo». Tocar otro proyecto para cambiar el contexto.
+      </td>
+    </tr>
+  </table>
+</section>
+
+<!-- ====================================================================
+     APÉNDICE A: CALIDAD GPS
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Apéndice A</div>
+    <div class="ch-title">Lectura de la barra de calidad GPS</div>
+    <div class="ch-desc">
+      La barra que aparece en el panel de navegación integra cuatro
+      métricas en un índice 0-100&nbsp;%. Acá está la tabla oficial para
+      interpretarla.
+    </div>
+  </div>
+
+  <h3>Cómo se calcula</h3>
+  <p>
+    La app combina <strong>precisión horizontal</strong> (HACC),
+    <strong>HDOP</strong>, <strong>número de satélites</strong>, y
+    <strong>variación de la posición en los últimos 5 segundos</strong>.
+    El resultado es un score 0-100. Pesos:
+  </p>
+  <ul>
+    <li>40&nbsp;% precisión HACC (ideal &lt;&nbsp;3&nbsp;m).</li>
+    <li>25&nbsp;% HDOP (ideal &lt;&nbsp;1,5).</li>
+    <li>20&nbsp;% número de satélites (ideal ≥&nbsp;10).</li>
+    <li>15&nbsp;% estabilidad (ideal: deriva &lt;&nbsp;0,5&nbsp;m).</li>
+  </ul>
+
+  <h3>Tabla de interpretación</h3>
+  <table class="tbl">
+    <tr><th style="width:14%">Score</th><th style="width:16%">Color</th><th style="width:24%">Precisión típica</th><th>Interpretación</th></tr>
+    <tr>
+      <td><strong>90-100</strong></td>
+      <td><span style="background:#BBF7D0; color:#14532D; padding:1px 6px; border-radius:3px; font-weight:700;">Verde</span></td>
+      <td>±&nbsp;1-2&nbsp;m</td>
+      <td>Señal óptima, multi-constelación + L5. Recolectar sin duda.</td>
+    </tr>
+    <tr>
+      <td><strong>75-89</strong></td>
+      <td><span style="background:#D9F99D; color:#365314; padding:1px 6px; border-radius:3px; font-weight:700;">Verde claro</span></td>
+      <td>±&nbsp;2-4&nbsp;m</td>
+      <td>Muy buena. Apta para agricultura de precisión estándar.</td>
+    </tr>
+    <tr>
+      <td><strong>60-74</strong></td>
+      <td><span style="background:#FEF3C7; color:#713F12; padding:1px 6px; border-radius:3px; font-weight:700;">Amarillo</span></td>
+      <td>±&nbsp;4-7&nbsp;m</td>
+      <td>Aceptable. Esperar 30&nbsp;s o moverse a zona despejada.</td>
+    </tr>
+    <tr>
+      <td><strong>40-59</strong></td>
+      <td><span style="background:#FED7AA; color:#7C2D12; padding:1px 6px; border-radius:3px; font-weight:700;">Naranja</span></td>
+      <td>±&nbsp;7-15&nbsp;m</td>
+      <td>Marginal. Solo para puntos indicativos, no oficiales.</td>
+    </tr>
+    <tr>
+      <td><strong>&lt; 40</strong></td>
+      <td><span style="background:#FECACA; color:#7F1D1D; padding:1px 6px; border-radius:3px; font-weight:700;">Rojo</span></td>
+      <td>&gt;&nbsp;15&nbsp;m</td>
+      <td>NO recolectar. Cielo tapado, interior, callejón. Salir a
+      cielo abierto.</td>
+    </tr>
+  </table>
+
+  <div class="callout info">
+    <div class="co-icon">i</div>
+    <div class="co-body">
+      <strong>Teléfonos con banda L5</strong>
+      Los teléfonos modernos (Pixel 5+, Samsung S21+, Xiaomi Mi11+) tienen
+      GPS L5 dual-frequency. PIX Muestreo detecta automáticamente L5 y
+      usa sus correcciones para bajar la precisión a ±&nbsp;1&nbsp;m. En el
+      panel aparece un indicador pequeño «L5» cuando está activo.
+    </div>
+  </div>
+</section>
+
+<!-- ====================================================================
+     APÉNDICE B: ÍCONOS
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Apéndice B</div>
+    <div class="ch-title">Íconos del encabezado y significado</div>
+    <div class="ch-desc">
+      Los pequeños íconos arriba a la derecha son la «barra de estado» de
+      la app. Cada uno comunica algo importante de un vistazo.
+    </div>
+  </div>
+
+  <table class="tbl">
+    <tr><th style="width:14%">Ícono</th><th style="width:24%">Nombre</th><th>Significado</th></tr>
+    <tr>
+      <td style="font-size:14pt; text-align:center;">📡</td>
+      <td><strong>Pill de conectividad</strong></td>
+      <td>Verde = online · Rojo = offline. Se actualiza cada 5&nbsp;s; no bloquea nada.</td>
+    </tr>
+    <tr>
+      <td style="font-size:14pt; text-align:center;">📍</td>
+      <td><strong>Grabar recorrido</strong></td>
+      <td>Activa la grabación GPS continua para trazar un camino
+      (útil para recorridos de inspección). Punto rojo parpadeante = grabando.</td>
+    </tr>
+    <tr>
+      <td style="font-size:14pt; text-align:center;">👤</td>
+      <td><strong>Usuario activo</strong></td>
+      <td>Nombre del recolector logueado. Tocar para ver menú (cerrar sesión, cambiar usuario).</td>
+    </tr>
+    <tr>
+      <td style="font-size:14pt; text-align:center;">🎯</td>
+      <td><strong>Seguir mi ubicación</strong> (FAB primario)</td>
+      <td>Centra el mapa en el GPS actual. Tocar 2× activa modo seguimiento continuo.</td>
+    </tr>
+    <tr>
+      <td style="font-size:14pt; text-align:center;">→</td>
+      <td><strong>Siguiente punto</strong></td>
+      <td>Salta al siguiente punto pendiente del talhão activo.</td>
+    </tr>
+    <tr>
+      <td style="font-size:14pt; text-align:center;">↓</td>
+      <td><strong>Descargar tiles offline</strong></td>
+      <td>Cachea los tiles del recuadro visible + 20&nbsp;% de margen.</td>
+    </tr>
+    <tr>
+      <td style="font-size:14pt; text-align:center;">⬡</td>
+      <td><strong>Contornar talhão</strong></td>
+      <td>Inicia el trazado del perímetro caminando (Capítulo 9).</td>
+    </tr>
+    <tr>
+      <td style="font-size:14pt; text-align:center;">📁</td>
+      <td><strong>Importar archivo local</strong></td>
+      <td>Carga GeoJSON/KML/JSON desde el teléfono o desde un mensaje compartido.</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ====================================================================
+     APÉNDICE C: GLOSARIO Y CONTACTOS
+     ==================================================================== -->
+<div class="page-break"></div>
+<section>
+  <div class="chapter-intro">
+    <div class="ch-label">Apéndice C</div>
+    <div class="ch-title">Glosario y contactos de soporte</div>
+  </div>
+
+  <h3>Términos técnicos</h3>
+  <table class="tbl">
+    <tr><th style="width:22%">Término</th><th>Definición</th></tr>
+    <tr><td><strong>Talhão</strong></td><td>Lote de cultivo con perímetro definido; en castellano equivale a «lote» o «parcela».</td></tr>
+    <tr><td><strong>Zona</strong></td><td>Subdivisión del talhão según productividad, color de suelo o textura.</td></tr>
+    <tr><td><strong>Submuestra</strong></td><td>Cada uno de los N puntos individuales que se juntan en una bolsa compuesta.</td></tr>
+    <tr><td><strong>QR IBRA</strong></td><td>Código QR de la bolsa Megalab; identifica unívocamente la muestra en el laboratorio.</td></tr>
+    <tr><td><strong>GNSS</strong></td><td>Sistema Global de Navegación por Satélite — incluye GPS, GLONASS, Galileo y BeiDou.</td></tr>
+    <tr><td><strong>HDOP</strong></td><td>Horizontal Dilution of Precision — dispersión geométrica de los satélites visibles; menor = mejor.</td></tr>
+    <tr><td><strong>Tile</strong></td><td>Cuadrado de 256&nbsp;×&nbsp;256 px que compone el mapa base.</td></tr>
+    <tr><td><strong>IndexedDB</strong></td><td>Base de datos local del navegador/WebView; donde la app persiste las muestras.</td></tr>
+    <tr><td><strong>AES-GCM 256</strong></td><td>Algoritmo de cifrado simétrico usado en reposo para proteger la base local.</td></tr>
+    <tr><td><strong>TWA</strong></td><td>Trusted Web Activity — formato Android para apps que son PWAs empaquetadas nativamente.</td></tr>
+    <tr><td><strong>Service Worker</strong></td><td>Motor offline de la app; intercepta pedidos de red y sirve desde caché cuando no hay señal.</td></tr>
+  </table>
+
+  <h3>Contactos de soporte</h3>
+  <table class="tbl">
+    <tr><th style="width:30%">Motivo</th><th>Canal</th></tr>
+    <tr><td>Problema técnico con la app en campo</td><td>WhatsApp al director técnico</td></tr>
+    <tr><td>Credenciales nuevas / cambio de recolector</td><td>gis.agronomico@pixadvisor.network</td></tr>
+    <tr><td>Defecto reproducible o crash</td><td>Reporte automático Sentry + email de seguimiento</td></tr>
+    <tr><td>Capacitación</td><td>Agendar con el director técnico</td></tr>
+    <tr><td>Provisión de APK actualizada</td><td>Google Drive compartido del equipo</td></tr>
+  </table>
+
+  <div class="footer-brand">
+    <div>© 2026 Pixadvisor SRL · Agricultura de Precisión</div>
+    <div>PIX Muestreo v3.16.0 · Guía de campo</div>
+  </div>
+</section>
+
+</body>
+</html>
