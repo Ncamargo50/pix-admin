@@ -598,6 +598,10 @@ class PixApp {
     pixMap.updatePointStatus(point.id, 'current');
     this.isNavigating = true;
     this._arrivedNotified = false; // Reset arrival flag for new target
+    if (this._arrivalBeepInterval) {
+      clearInterval(this._arrivalBeepInterval);
+      this._arrivalBeepInterval = null;
+    }
     // v3.17: acquire screen wake-lock so GPS + audio keep working when técnico
     // puts phone in pocket during a long walk. Released on arrival / zone end.
     this._acquireWakeLock().catch(() => {});
@@ -687,17 +691,28 @@ class PixApp {
       }
     }
 
-    // Auto-alert when arriving at point (vibration + beep + toast) — 3m radius trigger
-    // (v3.17.1: progressive proximity beep REMOVED per user request —
-    //  la alarma suena sólo al llegar a <3m, como era originalmente)
-    if (dist < 3 && this.isNavigating && !this._arrivedNotified) {
-      this._arrivedNotified = true;
-      // Strong vibration pattern
-      if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
-      // Audible beep using Web Audio API
-      this._playArrivalBeep();
-      this.toast('Llegaste al punto!', 'success');
-      // Flag is reset when navigation target changes (onPointClick / nextPoint)
+    // Arrival alarm: when entering the 3m radius, fire the fanfare once
+    // (vibration + arrival beep + toast) and start a continuous beep loop
+    // that keeps sounding while the técnico stays inside 3m. The loop stops
+    // automatically when they walk out of range (e.g. GPS jitter), when
+    // they collect the sample, or when navigation moves to the next point.
+    if (dist < 3 && this.isNavigating) {
+      if (!this._arrivedNotified) {
+        this._arrivedNotified = true;
+        if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+        this._playArrivalBeep();
+        this.toast('Llegaste al punto!', 'success');
+        // Start continuous tick beep — soft 660Hz pulse every 600ms while inside.
+        this._arrivalBeepInterval = setInterval(() => {
+          this._playApproachBeep();
+        }, 600);
+      }
+    } else if (this._arrivedNotified) {
+      // Walked out of the 3m radius — stop the loop and re-arm so it
+      // re-triggers (with vibration) if the técnico walks back in.
+      clearInterval(this._arrivalBeepInterval);
+      this._arrivalBeepInterval = null;
+      this._arrivedNotified = false;
     }
   }
 
@@ -3584,6 +3599,7 @@ ${detailHTML}
     gpsNav.clearTarget();
     pixMap.clearNavigationLine();
     this.isNavigating = false;
+    if (this._arrivalBeepInterval) { clearInterval(this._arrivalBeepInterval); this._arrivalBeepInterval = null; }
     this._releaseWakeLock && this._releaseWakeLock().catch(() => {});
     const _ov = document.getElementById('mapDistOverlay'); if (_ov) _ov.style.display = 'none';
 
@@ -3662,6 +3678,7 @@ ${detailHTML}
       gpsNav.clearTarget();
       pixMap.clearNavigationLine();
       this.isNavigating = false;
+      if (this._arrivalBeepInterval) { clearInterval(this._arrivalBeepInterval); this._arrivalBeepInterval = null; }
       this._releaseWakeLock && this._releaseWakeLock().catch(() => {});
       const _ov2 = document.getElementById('mapDistOverlay'); if (_ov2) _ov2.style.display = 'none';
 
@@ -3986,6 +4003,27 @@ ${detailHTML}
       this.toast(`"${fieldName}" eliminado`, '');
     } catch (e) {
       this.toast('Error al eliminar: ' + e.message, 'error');
+    }
+  }
+
+  // Short soft beep used during the approach (5m → 3m). Single 660Hz tone,
+  // 80ms long, lower gain than arrival beep so it doesn't startle.
+  _playApproachBeep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 660;
+      osc.type = 'sine';
+      gain.gain.value = 0.15;
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.08);
+      setTimeout(() => ctx.close(), 200);
+    } catch (e) {
+      console.warn('[Audio] Approach beep failed:', e.message);
     }
   }
 

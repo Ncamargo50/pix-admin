@@ -7,7 +7,10 @@
 //       photo compression, track-to-cloud upload, persistent background sync.
 // v60 — Dashboard v1.1: Chart.js + Leaflet.heat in pre-cache (offline dashboard
 //       for admin techs) + dashboard.html with 8 new features.
-const CACHE_NAME = 'pix-muestreo-v60';
+// v61 — deleteTechnician fallback (silent-DELETE detection + soft-delete).
+// v62 — v3.17.2: arrival alarm beeps continuously while inside 3m radius
+//       (GPS jitter compensation) + dashboard fix synced from website.
+const CACHE_NAME = 'pix-muestreo-v62';
 const TILE_CACHE = 'pix-tiles-v1';
 
 // Derive base path dynamically — works in both web (/pix-muestreo/) and APK WebView
