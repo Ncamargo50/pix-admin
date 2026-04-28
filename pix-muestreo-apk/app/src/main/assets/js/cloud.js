@@ -4,7 +4,7 @@
 
 // App version constant — used by registerDevice() for fleet tracking
 // IMPORTANT: Keep APP_VERSION in sync with CACHE_NAME in sw.js
-const APP_VERSION = 'pix-muestreo-v59';
+const APP_VERSION = 'pix-muestreo-v63';
 
 // ── Supabase "bootstrap" endpoint & anon key ─────────────────────────────
 // SECURITY MODEL: The Supabase anon key is PUBLIC by design — it grants only
@@ -262,6 +262,31 @@ class PixCloud {
     });
 
     console.log(`[Cloud] Synced: ${fieldName} (${samples.length} samples)`);
+  }
+
+  // ═══════════════════════════════════════════════
+  // DELETE FIELD SYNC — Remove cloud row when técnico deletes the field locally
+  // Without this the dashboard keeps showing the deleted field as "pendiente".
+  // Identifies the row by the (project, field_name) unique pair used on upsert.
+  // Silent on failure: local delete must succeed even if cloud is offline.
+  // ═══════════════════════════════════════════════
+
+  async deleteFieldSync(projectName, fieldName) {
+    if (!this._enabled) return;
+    if (!projectName && !fieldName) return;
+    try {
+      const path = `/field_syncs?project=eq.${encodeURIComponent(projectName || 'Sin proyecto')}` +
+                   `&field_name=eq.${encodeURIComponent(fieldName || 'Sin campo')}`;
+      const resp = await this._fetch(path, { method: 'DELETE', _prefer: 'return=representation' });
+      const body = await resp.text();
+      const deleted = body && body !== '[]' ? JSON.parse(body).length : 0;
+      console.log(`[Cloud] deleteFieldSync(${projectName}/${fieldName}) → ${deleted} row(s) removed`);
+      if (deleted > 0) {
+        await this._logActivity('system', 'delete_field_sync', { project: projectName, field: fieldName });
+      }
+    } catch (e) {
+      console.warn('[Cloud] deleteFieldSync failed (non-fatal):', e.message || e);
+    }
   }
 
   // ═══════════════════════════════════════════════

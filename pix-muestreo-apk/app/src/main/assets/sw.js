@@ -10,7 +10,11 @@
 // v61 — deleteTechnician fallback (silent-DELETE detection + soft-delete).
 // v62 — v3.17.2: arrival alarm beeps continuously while inside 3m radius
 //       (GPS jitter compensation) + dashboard fix synced from website.
-const CACHE_NAME = 'pix-muestreo-v62';
+// v63 — v3.17.3: auto cloud sync after each saveSample (3s debounced) +
+//       immediate cloud push on lote completion in nextZone(). Fixes
+//       supervisor not seeing samples until manual sync. Also wires
+//       cloud.deleteFieldSync from deleteField/deleteProjectSilent.
+const CACHE_NAME = 'pix-muestreo-v63';
 const TILE_CACHE = 'pix-tiles-v1';
 
 // Derive base path dynamically — works in both web (/pix-muestreo/) and APK WebView

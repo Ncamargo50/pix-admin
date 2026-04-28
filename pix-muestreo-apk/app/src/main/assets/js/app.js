@@ -1271,6 +1271,12 @@ class PixApp {
     this._checkAndCompleteOrder(this.currentField).catch(e =>
       console.warn('[App] Auto-complete check:', e.message));
 
+    // v3.17.3 FIX: push the new sample to Supabase so the supervisor
+    // dashboard reflects field progress in (near) real-time. Debounced 3s
+    // so rapid saves don't spam the network. Silent failure when offline —
+    // the existing online-event auto-sync (5s debounce) will catch up.
+    this._triggerCloudSyncDebounced();
+
     // Check if current zone is complete → show QR modal only on principal point
     const currentZone = this._detectZone(this.currentPoint);
     const zoneComplete = await this._checkZoneComplete(currentZone);
@@ -3686,6 +3692,29 @@ ${detailHTML}
       this._autoSaveFieldReports(this.currentField).catch(e => {
         console.warn('[AutoSave] Report error:', e.message);
       });
+
+      // v3.17.3 FIX: explicit immediate cloud push on lote completion.
+      // Don't wait for the 3s debounce — the técnico is hitting the final
+      // button and expects the supervisor to see the work immediately.
+      // Cancel any pending debounced sync to avoid a duplicate round-trip.
+      if (this._cloudSyncDebounceTimer) {
+        clearTimeout(this._cloudSyncDebounceTimer);
+        this._cloudSyncDebounceTimer = null;
+      }
+      if (pixCloud && pixCloud.isEnabled && pixCloud.isEnabled() && navigator.onLine) {
+        pixCloud.syncAll().then(r => {
+          if (r && r.synced > 0) {
+            this.toast(`✅ Datos enviados al supervisor (${r.synced} campo${r.synced > 1 ? 's' : ''})`, 'success');
+          }
+        }).catch(e => {
+          if (!String(e.message || '').includes('en progreso')) {
+            this.toast('⚠ No se pudo enviar al supervisor — se reintentará cuando haya señal', 'warning');
+            console.warn('[Sync] Lote-complete sync failed:', e.message);
+          }
+        });
+      } else if (!navigator.onLine) {
+        this.toast('📡 Sin señal — datos guardados, se enviarán al recuperar conexión', 'info');
+      }
     } else {
       // Navigate to next zone's principal
       this.nextPoint();
@@ -3940,6 +3969,8 @@ ${detailHTML}
   // A11 FIX: Also delete service orders + tracks associated with the project
   // Silent delete (no confirm) — used by duplicate replacement
   async deleteProjectSilent(projectId) {
+    const project = await pixDB.get('projects', projectId);
+    const projectName = project ? project.name : null;
     const fields = await pixDB.getAllByIndex('fields', 'projectId', projectId);
     for (const f of fields) {
       const points = await pixDB.getAllByIndex('points', 'fieldId', f.id);
@@ -3949,6 +3980,11 @@ ${detailHTML}
       const tracks = await pixDB.getAllByIndex('tracks', 'fieldId', f.id);
       for (const t of tracks) await pixDB.delete('tracks', t.id);
       await pixDB.delete('fields', f.id);
+      // v3.17.3: also remove the cloud field_syncs row so it disappears
+      // from the supervisor dashboard. Non-blocking: local delete already done.
+      if (projectName && f.name && typeof pixCloud !== 'undefined' && pixCloud.isEnabled && pixCloud.isEnabled()) {
+        pixCloud.deleteFieldSync(projectName, f.name).catch(() => {});
+      }
     }
     const orders = await pixDB.getAllByIndex('serviceOrders', 'projectId', projectId);
     for (const o of orders) await pixDB.delete('serviceOrders', o.id);
@@ -3975,6 +4011,12 @@ ${detailHTML}
     if (!ok) return;
 
     try {
+      // v3.17.3: capture project name BEFORE deleting field, for cloud cleanup
+      let projectName = null;
+      if (field && field.projectId) {
+        const proj = await pixDB.get('projects', field.projectId);
+        projectName = proj ? proj.name : null;
+      }
       // Delete all points of this field
       const points = await pixDB.getAllByIndex('points', 'fieldId', fieldId);
       for (const p of points) await pixDB.delete('points', p.id);
@@ -3986,6 +4028,12 @@ ${detailHTML}
       for (const t of tracks) await pixDB.delete('tracks', t.id);
       // Delete the field itself
       await pixDB.delete('fields', fieldId);
+
+      // v3.17.3 FIX: also remove the cloud field_syncs row so the supervisor
+      // dashboard stops seeing the deleted field as "pendiente". Non-blocking.
+      if (projectName && fieldName && typeof pixCloud !== 'undefined' && pixCloud.isEnabled && pixCloud.isEnabled()) {
+        pixCloud.deleteFieldSync(projectName, fieldName).catch(() => {});
+      }
 
       // If this was the current field on the map, clear it
       if (this.currentField && this.currentField.id === fieldId) {
@@ -4556,6 +4604,40 @@ ${detailHTML}
     } catch (e) {
       console.warn('[App] Credential sync:', e.message);
     }
+  }
+
+  // ═══════════════════════════════════════════════
+  // AUTO CLOUD SYNC AFTER EACH SAMPLE (v3.17.3)
+  // ═══════════════════════════════════════════════
+  // Called after every sample save and zone completion. Pushes field_syncs
+  // rows so the supervisor dashboard sees field progress without waiting for
+  // the 24h auto-sync timer or the técnico's manual "Sincronizar" tap.
+  //
+  // Debounced 3000ms so a fast collector saving 4 samples in 30s only
+  // triggers one network round-trip. Silent failure when offline — local
+  // data stays at synced=0 and the existing online-event handler will retry.
+  _triggerCloudSyncDebounced() {
+    if (this._cloudSyncDebounceTimer) clearTimeout(this._cloudSyncDebounceTimer);
+    this._cloudSyncDebounceTimer = setTimeout(async () => {
+      this._cloudSyncDebounceTimer = null;
+      if (!pixCloud || !pixCloud.isEnabled || !pixCloud.isEnabled()) return;
+      if (!navigator.onLine) {
+        console.log('[Sync] Offline — skipping debounced cloud sync, will retry on online event');
+        return;
+      }
+      try {
+        const result = await pixCloud.syncAll();
+        if (result && result.synced > 0) {
+          console.log(`[Sync] Auto-pushed ${result.synced} field(s) to Supabase`);
+          this.addSyncLog && this.addSyncLog(`✅ ${result.synced} campo(s) sincronizado(s) automaticamente`);
+        }
+      } catch (e) {
+        // "Sync ya en progreso" is benign — manual or 24h sync already running
+        if (!String(e.message || '').includes('en progreso')) {
+          console.warn('[Sync] Auto-sync after sample failed:', e.message);
+        }
+      }
+    }, 3000);
   }
 
   // ═══════════════════════════════════════════════
