@@ -1,0 +1,40 @@
+name: Supabase Keep-Alive
+
+# Pings the Supabase REST endpoint every 5 days to keep the free-tier project
+# active. Free-tier Supabase projects auto-pause after ~7 days of inactivity.
+# A 5-day cadence leaves margin if a run fails.
+
+on:
+  schedule:
+    - cron: '0 12 */5 * *'   # 12:00 UTC every 5 days
+  workflow_dispatch:           # manual trigger from Actions tab
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping Supabase REST
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: GET /rest/v1/field_syncs?select=count
+        env:
+          SUPA_URL: https://fnoocboaupjmxpkhdnij.supabase.co
+          # anon key is public (already exposed in dashboard.html / cloud.js client code)
+          SUPA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZub29jYm9hdXBqbXhwa2hkbmlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NzA3MTYsImV4cCI6MjA5MTM0NjcxNn0.WCoLdveWAwpcwzWpvLFSgQeXeot6X263DTffdEWoCfg
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/body.txt -w "%{http_code}" \
+            -H "apikey: ${SUPA_ANON}" \
+            -H "Authorization: Bearer ${SUPA_ANON}" \
+            -H "Prefer: count=exact" \
+            "${SUPA_URL}/rest/v1/field_syncs?select=count")
+          echo "HTTP ${code}"
+          echo "Body: $(cat /tmp/body.txt | head -c 500)"
+          if [ "${code}" -ge 200 ] && [ "${code}" -lt 300 ]; then
+            echo "Keep-alive OK"
+            exit 0
+          fi
+          echo "Keep-alive FAILED — Supabase may be paused or unreachable"
+          exit 1
