@@ -14,7 +14,10 @@
 //       immediate cloud push on lote completion in nextZone(). Fixes
 //       supervisor not seeing samples until manual sync. Also wires
 //       cloud.deleteFieldSync from deleteField/deleteProjectSilent.
-const CACHE_NAME = 'pix-muestreo-v63';
+// v64 — v3.17.4: P1 hardening — initial sync on app load if pending samples,
+//       multi-técnico conflict toasts, 401/auth-expired user-facing alert,
+//       APP_VERSION + SW cache aligned with versionCode bump.
+const CACHE_NAME = 'pix-muestreo-v64';
 const TILE_CACHE = 'pix-tiles-v1';
 
 // Derive base path dynamically — works in both web (/pix-muestreo/) and APK WebView

@@ -4,7 +4,7 @@
 
 // App version constant — used by registerDevice() for fleet tracking
 // IMPORTANT: Keep APP_VERSION in sync with CACHE_NAME in sw.js
-const APP_VERSION = 'pix-muestreo-v63';
+const APP_VERSION = 'pix-muestreo-v64';
 
 // ── Supabase "bootstrap" endpoint & anon key ─────────────────────────────
 // SECURITY MODEL: The Supabase anon key is PUBLIC by design — it grants only
@@ -262,6 +262,9 @@ class PixCloud {
     });
 
     console.log(`[Cloud] Synced: ${fieldName} (${samples.length} samples)`);
+    // v3.17.4: return conflict info so syncAll can aggregate and the UI
+    // can warn the técnico their work was overwritten by another técnico's newer data.
+    return { conflicts: conflictsSkipped, sampleCount: mergedSamples.length };
   }
 
   // ═══════════════════════════════════════════════
@@ -310,12 +313,15 @@ class PixCloud {
 
     let synced = 0;
     let total = 0;
+    let totalConflicts = 0; // v3.17.4: aggregate cross-técnico conflicts
+    let authFailed = false; // v3.17.4: 401 short-circuits remaining fields
 
     // Count fields with samples
     const fieldIds = [...new Set(allSamples.map(s => s.fieldId))];
     total = fieldIds.length;
 
     for (const fieldId of fieldIds) {
+      if (authFailed) break; // No point trying more fields if auth is bad
       const field = allFields.find(f => f.id === fieldId);
       if (!field) continue;
 
@@ -328,7 +334,7 @@ class PixCloud {
       field._totalPoints = fieldPoints.length;
 
       try {
-        await this.syncField(
+        const result = await this.syncField(
           project?.name || 'Sin proyecto',
           field.name || 'Sin campo',
           project?.client || '',
@@ -338,18 +344,31 @@ class PixCloud {
           fieldTracks
         );
         synced++;
+        if (result && result.conflicts) totalConflicts += result.conflicts;
         if (onProgress) onProgress(synced, total);
       } catch (e) {
         console.warn(`[Cloud] Failed to sync field ${field.name}:`, e.message);
-        // Store last error for caller to surface to user
-        this._lastSyncError = `${field.name}: ${e.message}`;
+        // v3.17.4: detect auth failure (401) and surface a clear flag so
+        // the técnico can see "sesión expirada" instead of a silent miss.
+        if (e.status === 401 || /401|unauthorized|JWT/i.test(String(e.message || ''))) {
+          authFailed = true;
+          this._lastSyncError = 'AUTH_EXPIRED: Sesión Supabase vencida — reconfigurá la nube en Ajustes';
+        } else {
+          this._lastSyncError = `${field.name}: ${e.message}`;
+        }
       }
     }
 
     // Persist timestamp of last successful cloud sync so the UI can show
     // "Última sincronización hace X min" and the stale-data warning.
     try { await pixDB.setSetting('cloud_last_sync_at', new Date().toISOString()); } catch (_) {}
-    return { synced, total, lastError: this._lastSyncError || null };
+    return {
+      synced,
+      total,
+      conflicts: totalConflicts,
+      authFailed,
+      lastError: this._lastSyncError || null
+    };
     } finally { this._syncing = false; }
   }
 

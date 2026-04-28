@@ -2975,7 +2975,23 @@ ${detailHTML}
   async _checkAutoSync() {
     const lastSync = await pixDB.getSetting('lastSyncTime');
     const now = Date.now();
-    if (!lastSync) {
+
+    // v3.17.4 FIX (P1-1): always check for unsynced samples on app load and
+    // flush them if online. Without this, samples collected on a previous
+    // offline session sit at synced=0 forever (until 24h elapses or the
+    // técnico goes offline → online again, which won't happen if they're
+    // already online when opening the app).
+    let pendingSamples = 0;
+    try {
+      const allSamples = await pixDB.getAll('samples');
+      pendingSamples = allSamples.filter(s => !s.synced || s.synced === 0).length;
+    } catch (_) { /* ignore */ }
+
+    if (pendingSamples > 0 && navigator.onLine) {
+      console.log(`[AutoSync] ${pendingSamples} pending sample(s) on app load — triggering sync`);
+      this.addSyncLog(`⏰ ${pendingSamples} muestra(s) pendiente(s) — sincronizando...`);
+      setTimeout(() => this._runAutoSync(), 1500);
+    } else if (!lastSync) {
       // First login ever — sync immediately to pull orders
       console.log('[AutoSync] First login — auto-triggering sync');
       this.addSyncLog('⏰ Primer inicio: sincronizando...');
@@ -3005,6 +3021,15 @@ ${detailHTML}
         try {
           const result = await pixCloud.syncAll();
           this.addSyncLog(`☁ Auto-sync: ${result.synced} campos`);
+          // v3.17.4: surface conflicts and auth failures in the auto-sync path too.
+          if (result.conflicts > 0) {
+            this.toast(`⚠ ${result.conflicts} muestra(s) sobreescrita(s) por otro técnico`, 'warning', 6000);
+            this.addSyncLog(`⚠ Auto-sync: ${result.conflicts} conflicto(s) resuelto(s)`);
+          }
+          if (result.authFailed) {
+            this.toast('⛔ Sesión nube vencida — reconfigurá en Ajustes para sincronizar', 'error', 8000);
+            this.addSyncLog('⛔ Auto-sync: sesión nube vencida');
+          }
         } catch (e) { console.warn('[AutoSync] Cloud:', e.message); }
         // Upload pending boundaries + auxiliary syncs (each independently guarded)
         try { await this._syncBoundariesToCloud(); } catch (e) { /* silent */ }
@@ -3705,6 +3730,12 @@ ${detailHTML}
         pixCloud.syncAll().then(r => {
           if (r && r.synced > 0) {
             this.toast(`✅ Datos enviados al supervisor (${r.synced} campo${r.synced > 1 ? 's' : ''})`, 'success');
+          }
+          if (r && r.conflicts > 0) {
+            this.toast(`⚠ ${r.conflicts} muestra(s) en conflicto con otro técnico`, 'warning', 6000);
+          }
+          if (r && r.authFailed) {
+            this.toast('⛔ Sesión nube vencida — reconfigurá en Ajustes', 'error', 8000);
           }
         }).catch(e => {
           if (!String(e.message || '').includes('en progreso')) {
@@ -4627,9 +4658,21 @@ ${detailHTML}
       }
       try {
         const result = await pixCloud.syncAll();
-        if (result && result.synced > 0) {
-          console.log(`[Sync] Auto-pushed ${result.synced} field(s) to Supabase`);
-          this.addSyncLog && this.addSyncLog(`✅ ${result.synced} campo(s) sincronizado(s) automaticamente`);
+        if (result) {
+          if (result.synced > 0) {
+            console.log(`[Sync] Auto-pushed ${result.synced} field(s) to Supabase`);
+            this.addSyncLog && this.addSyncLog(`✅ ${result.synced} campo(s) sincronizado(s) automaticamente`);
+          }
+          // v3.17.4: surface multi-técnico conflicts so the user knows
+          // their data was overwritten by another técnico's newer work.
+          if (result.conflicts > 0) {
+            this.toast(`⚠ ${result.conflicts} muestra(s) en conflicto — datos de otro técnico prevalecieron`, 'warning', 6000);
+            this.addSyncLog && this.addSyncLog(`⚠ ${result.conflicts} muestra(s) sobreescrita(s) por otro técnico`);
+          }
+          // v3.17.4: visible auth failure — silent 401 was P1 audit finding.
+          if (result.authFailed) {
+            this.toast('⛔ Sesión nube vencida — reconfigurá en Ajustes para sincronizar', 'error', 8000);
+          }
         }
       } catch (e) {
         // "Sync ya en progreso" is benign — manual or 24h sync already running
