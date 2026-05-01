@@ -78,8 +78,8 @@ android {
         applicationId "network.pixadvisor.muestreo"
         minSdkVersion 24
         targetSdkVersion 35
-        versionCode 31
-        versionName "3.17.4"
+        versionCode 32
+        versionName "3.17.5"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
