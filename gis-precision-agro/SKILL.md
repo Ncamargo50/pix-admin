@@ -33,7 +33,9 @@ Este skill se organiza en módulos. Leer la sección relevante:
 | # | Módulo | Trigger principal |
 |---|--------|-------------------|
 | 1 | [Zonas de Manejo y UGDs](#1-zonas-de-manejo-y-ugds) | "zonas de manejo", "ambientes productivos", "UGD" |
+| 1.5 | [Zonificación por COLOR/TIPO de suelo (suelo desnudo)](#15-zonificación-por-colortipo-de-suelo-suelo-desnudo--cuando-el-vigor-no-basta) | "tierra roja / tierra negra", "bajura vs altura", "color de suelo", "suelo desnudo", "textura de suelo", "las zonas no coinciden con el campo", "redness", "SYSI/bare-soil" |
 | 2 | [Índices de Vegetación por Cultivo/Fenología](#2-índices-de-vegetación-por-cultivo-y-etapa-fenológica) | "índice", "NDVI", "NDRE", "qué índice usar" |
+| 2.4 | [Mapa de N y Prescripción VRT (red-edge)](#24-mapa-de-nitrógeno-y-prescripción-vrt--metodología-red-edge-cereales) | "mapa de nitrógeno", "índice de N", "urea tasa variable", "VRT", "prescripción", "REIP", "Bonfil", "NNI" |
 | 3 | [Firmas Espectrales e Identificación de Cultivos](#3-firmas-espectrales-e-identificación-de-cultivos) | "firma espectral", "identificar cultivo", "clasificar" |
 | 4 | [Detección de Malezas](#4-detección-de-malezas) | "maleza", "weed", "herbicida sitio-específico" |
 | 5 | [Fallas de Plantio y Restitución Caña](#5-fallas-de-plantio-y-restitución-de-líneas-caña-de-azúcar) | "falla", "gap", "restitución", "stand" |
@@ -140,6 +142,81 @@ def farthest_point_sampling(polygon, n_points, seed_point=None):
 - Zona > 20 ha → 2 principales + 8 submuestras c/u
 
 **Nomenclatura:** `{PREFIJO}-Z{zona}-P{n}` (principal) / `{PREFIJO}-Z{zona}-S{n}` (submuestra)
+
+> ⚠️ **Convención validada (Serro Alto): UN principal por ambiente, y el número de P ES el número de
+> ambiente.** Principal `{lote}-B{blk}-P{zona}` (P1=ambiente1, P2=ambiente2, P3=ambiente3), submuestra
+> `{lote}-B{blk}-P{zona}-{NN}` (hereda el ID del principal + correlativo). Así el ID queda ÚNICO sin
+> esfuerzo (la zona va codificada en el número de P) y la trazabilidad muestra↔laboratorio no se rompe.
+> ❌ NO usar un contador de principal por-zona `P{n}` que se reinicia en cada ambiente (genera `P1-01`
+> repetido en Z1/Z2/Z3 → IDs duplicados en el APK). ❌ NO poner 2+ principales por ambiente: es **1
+> muestra compuesta por ambiente** (el principal), integrada por sus submuestras. Verificar al exportar:
+> `assert gdf['punto_id'].is_unique`. Densidad de submuestras por ambiente: 5 (<3 ha) / 7 (3–10) / 10 (10–20) / 12 (>20).
+
+### 1.5 Zonificación por COLOR/TIPO DE SUELO (suelo desnudo) — cuando el vigor NO basta
+
+**Cuándo usar (obligatorio si aplica).** El score por vigor NDVI (§1.2) falla cuando el campo tiene
+**cuerpos de suelo pedológicamente contrastantes** — clásico: **bajura de tierra negra vs altura de
+tierra roja**. Si los técnicos reportan que las zonas "no coinciden con el terreno", el problema casi
+siempre es (a) falta de una capa de suelo y (b) normalización POR-LOTE. Corregir ambas.
+
+**A. Compuesto de SUELO DESNUDO (bare-soil / SYSI) — solo suelo, sin cultivo:**
+```python
+# Sentinel-2 SR + Cloud Score+ (cs_cdf>=0.60). CLAVE: SOLO estación seca (evita mezclar humedad).
+bare_col = s2.filter(ee.Filter.calendarRange(5, 9, 'month'))     # hemisferio sur: may–sep
+def bare_mask(img):                                              # pixel SIN cultivo NI residuo
+    ndvi = img.normalizedDifference(['B8','B4'])
+    nbr2 = img.normalizedDifference(['B11','B12'])               # rastrojo/paja da NDVI bajo -> excluir
+    return img.updateMask(ndvi.lt(0.22).And(nbr2.lt(0.10)))
+soil = bare_col.map(bare_mask).select(BB).median()              # mediana multi-fecha
+bare_count = bare_col.map(bare_mask).select('B4').count()       # QA: nº de fechas desnudas por píxel
+# Confiabilidad: usar solo píxeles bare_count>=4; rellenar huecos con el confiable más cercano.
+```
+> Restringir a estación seca es CRÍTICO: el suelo húmedo post-cosecha enrojece/oscurece distinto y
+> confunde `redness`/albedo. En Serro Alto (2026) esto subió la correlación redness↔elevación de +0.09
+> a +0.28. Validar SIEMPRE el compuesto con un PNG RGB (que no haya parches de cultivo). Ver
+> `feedback_s2_cloudfree_median` y `feedback_verify_layer_ranges`.
+
+**B. Índices de suelo (desde el compuesto desnudo):**
+
+| Índice | Fórmula | Interpretación | Peso sugerido |
+|--------|---------|----------------|---------------|
+| **Redness** | B4/B2 | **alto = tierra roja (óxidos Fe, altura, bien drenada)**; bajo = tierra oscura/negra (bajura). Discriminador pedológico principal y validado. | ALTO (0.30–0.40) |
+| Ferric | (B4−B2)/(B4+B2) | confirma redness (redundante, no doble-contar) | — |
+| Arcilla | B11/B12 | mayor = más arcilla. **Señal DÉBIL a 10–20 m** (spread ~0.03). NO venderla como "arcilla medida". | BAJO (≤0.10) |
+
+> **Materia orgánica: NO usar albedo/brillo como proxy.** El suelo rojo oxídico absorbe fuerte en el
+> visible y sale "oscuro", invirtiendo el signo esperado (albedo↔elevación dio −0.38). La MO real y la
+> textura se definen con el **LABORATORIO** de las muestras — no inventar una capa que contradice los datos.
+
+**C. Score compuesto orientado a suelo (ejemplo validado Serro Alto, suma=1.0):**
+```
+redness 0.36  clay_inv 0.10           -> SUELO/COLOR 0.46  (color = eje que ven los técnicos)
+twi_inv 0.10  elev 0.08  flow_inv 0.06  distdren 0.06 -> DRENAJE/TOPO 0.30 (bajura/altura/agua)
+ndvi_verano 0.16  estabilidad 0.08    -> VIGOR cultivo (capa de apoyo) 0.24
+```
+Signos: `clay_inv`, `twi_inv`, `flow_inv` (altura = menos arcilla, más seca, mejor drenada).
+Score ALTO = altura roja bien drenada; BAJO = bajura oscura húmeda arcillosa.
+
+**D. Clasificación BLOCK-WIDE, no por-lote (causa raíz de zonas "inventadas"):**
+```python
+# Normalizar cada capa sobre TODO el bloque (percentil 5–95), NO dentro de cada lote.
+# Por-lote fuerza 3 zonas aunque el lote sea monoambiente -> zonas falsas que no matchean el campo.
+score = gaussian_filter(np.where(M, score, score[M].mean()), sigma=2.0)
+km = KMeans(3, n_init=10, random_state=42).fit(score[M].reshape(-1,1))
+order = np.argsort([score[M][km.labels_==k].mean() for k in range(3)])  # ordenar por score medio
+# Zonas MUTUAMENTE EXCLUYENTES: al vectorizar, restar las ya asignadas (difference) + buffer(0).
+```
+
+**E. Ambientes NOMINALES, no ranking de calidad.** Etiquetar por color/posición (p.ej. "Altura roja
+bien drenada" / "Transición" / "Bajura negra húmeda"), NO "Baja/Media/Alta": la bajura negra suele
+tener MÁS MO/arcilla y puede ser más fértil. La jerarquía de valor la define el laboratorio.
+
+**F. Validación obligatoria** (imprimir antes de clasificar): min/p5/mean/p95/max/std de cada capa en
+la máscara + **correlación de redness/arcilla vs elevación** (esperado redness↑ con altura, arcilla↑ en
+bajura). Si una capa es degenerada o de signo contrario al esperado, descartarla o revisarla, no forzarla.
+
+**G. Puntos:** mismo FPS de §1.4, principal al centro (pole of inaccessibility) + submuestras
+distribuidas con buffer de borde. Mantener el patrón si ya hay campañas en curso.
 
 ---
 
@@ -250,6 +327,54 @@ indices_maleza = ["NDVI", "ExG", "MSAVI2"]  # + RGB (ExG = 2G-R-B)
 # OBJETIVO: Timing de cosecha caña
 indices_cosecha = ["PSRI", "NDVI_temporal", "NDMI"]
 ```
+
+---
+
+### 2.4 MAPA DE NITRÓGENO Y PRESCRIPCIÓN VRT — Metodología red-edge (cereales)
+
+> Metodología **verificada con fuentes reales** (NUNCA inventar refs). Validada en campo:
+> Hda Santo Antonio (trigo invierno 2026, cliente S. M. Bigati) — urea VRT con Stara Hércules.
+
+#### Índices de N (orden de prioridad para N absorbido en trigo/cereal)
+
+| Índice | Fórmula Sentinel-2 | Notas |
+|--------|--------------------|-------|
+| **REIP** (Red Edge Inflection Point) | `700 + 40·((((B4+B7)/2) − B5)/(B6 − B5))` | **El mejor para N absorbido** en trigo (Bonfil et al. 2021). Guyot & Baret. Limpiar a rango válido **695–745 nm** (la fórmula es inestable fuera de canopeo). |
+| **NDRE** | `(B8 − B5)/(B8 + B5)` | Robusto, base de la curva crítica NNI. |
+| **CIre** (Gitelson) | `(B7/B5) − 1` | Clorofila red-edge. Reemplaza a "ICCI" cuando no se dispone de su fórmula exacta. |
+| GNDVI | `(B8 − B3)/(B8 + B3)` | Apoyo/clorofila. |
+
+**Índice N compuesto recomendado** = media ponderada de z-scores: `REIP 0.45 + NDRE 0.35 + CIre 0.20`.
+
+#### Base científica (metodología israelí ARO/Volcani + NNI)
+- **Bonfil et al. 2021**, *Remote Sensing* 13(19):3934 — "Optimizing Top-Dressing Nitrogen Fertilization Using VENµS and Sentinel-2 L1 Data". Índices red-edge **REIP, NDRE, ICCI** detectan mejor el N absorbido en trigo; app GEE mapea variabilidad para guiar la cobertura. https://www.mdpi.com/2072-4292/13/19/3934
+- **NNI / curva crítica de dilución** (NDRE): `Nc = 0.90·NDRE^(−0.88)` para NDRE>0.19 (constante 3.81% si ≤0.19); `NNI = Na/Nc`. NNI<1 = deficiencia → cobertura. https://pmc.ncbi.nlm.nih.gov/articles/PMC7146448/
+- Sin muestreo foliar (Na) NO se calcula NNI absoluto → usar **enfoque de zona de referencia**: el percentil alto (p85–p90) del índice DENTRO del estrato = "N-suficiente"; los píxeles por debajo reciben más N. Es exactamente la lógica operativa de la app GEE israelí.
+
+#### Estratificación por fecha de siembra (CRÍTICO)
+Si el lote tiene siembras en distinta fecha/estadio, **NO comparar el índice de N directamente**: la
+zona más joven da índice bajo solo por ser joven y recibiría urea de más. Procedimiento:
+1. **Detectar estratos por NDVI multitemporal** (la siembra tardía = menor NDVI + mayor pendiente
+   temporal de crecimiento). Confirmar con **RVI de Sentinel-1** (menor biomasa) y validar con PNG.
+2. **Normalizar el índice de N (z-score robusto mediana/MAD) DENTRO de cada estrato** → desacopla
+   estadio de deficiencia real de N.
+3. **Fusión radar S1**: el RVI separa "índice bajo por poca biomasa/joven" de "índice bajo por N".
+4. Estadio inmaduro (NDVI<~0.4): lectura red-edge **prematura** → mapa preliminar + remuestrear al macollaje.
+
+#### VRT compensatorio (inverso) → urea
+```python
+# z = índice N normalizado por estrato (z<0 = bajo N)
+dose = MEAN - SLOPE * z          # compensatorio: bajo N -> más urea
+dose = clip(dose, MIN_D, MAX_D)  # ej. trigo: MEAN 140, MIN 100, MAX 180 kg urea/ha
+# discretizar a 4-5 clases (abonadora de arrastre: ancho 24-36 m -> zonas, NO grilla fina)
+```
+- Conversión: **Urea = 46% N**. Trigo cobertura típica ~46–83 kg N/ha → 100–180 kg urea/ha.
+- Salida para **Stara Topper** (Hércules arrastre): SHP polígonos EPSG local, columna **TAXA** (kg/ha),
+  disolver por dosis, eliminar slivers <0.3 ha, suavizar bordes `buffer(2).buffer(-2)`.
+
+#### Pipeline de referencia (scripts probados)
+`Desktop/PIXADVISOR_Santo_Antonio_Trigo_N_VRT_2026-06-26/_build/`: step1 extracción GEE (S2 L2A
+Cloud Score+ + S1 GRD) → step2 detección siembra → step3 índice N + VRT → step5 SHP Stara → step6/7 mapas+PDF.
 
 ---
 
