@@ -171,10 +171,10 @@ definirla y defenderla; no hay antecedente en el que apoyarse.
 
 ## 5. Orden de construcción
 
-**Paso 0 — medir la disponibilidad real de imagen.** Antes de prometer cadencia. Con Earth Engine,
-sobre el AOI real y las últimas 5 campañas: cuántas ventanas de 10 días tuvieron ≥1 observación con
-<20% de nube útil sobre el lote. Da el % de ciclos en que la promesa fallaría. Es una tarde.
-Estadística publicada para Santa Cruz: **NO EXISTE**, hay que generarla.
+**Paso 0 — YA RESUELTO, ver `AUDITORIA_2026-07-24.md` §1 y `DISPONIBILIDAD_MULTISITIO.md`.**
+Medido: **48% de las dekadas tienen escena útil a escala de lote** en Santa Cruz (febrero 33%).
+**La promesa de 5–10 días solo con óptico no se sostiene.** El orden de construcción vigente es el
+de `METODOLOGIA_RECOMENDADA.md`, que corrige este documento: medición primero, detector después.
 
 **Paso 1 — el lazo de retorno en la APK.** Sin esto todo lo demás es opinión.
 
