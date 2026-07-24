@@ -1,0 +1,24 @@
+lote_id,variedad,clase_maduracion,fecha_corte_anterior,fecha_plantacion,ciclo,madurador_producto,madurador_fecha,riego,observaciones
+# INSTRUCCIONES — completar y guardar como datos_hacienda_<HACIENDA>.csv
+# Estas variables predicen la maduracion MEJOR que cualquier indice satelital y
+# la hacienda ya las tiene. La fecha optima de corte varia hasta ~6 semanas solo
+# por variedad (Rahimi Jamnani et al. 2019, DOI 10.5194/isprs-archives-XLII-4-W18-857-2019),
+# y un madurador quimico DESACOPLA a proposito la biomasa verde de la sacarosa
+# (SASRI IS 12.1), por lo que un modelo espectral que ignore su fecha queda sesgado.
+#
+# lote_id .............. debe coincidir EXACTAMENTE con el del shapefile
+# variedad ............. p.ej. RB867515, SP80-1816, IACSP95-5000
+# clase_maduracion ..... precoz | media | tardia   (segun ficha varietal oficial
+#                        del IAC o RIDESA; NO estimar de memoria)
+# fecha_corte_anterior . AAAA-MM-DD. Determinante de primer orden junto con la
+#                        variedad. Reemplaza la deteccion satelital de corte,
+#                        que es sensible al umbral y a los huecos de nubes.
+# fecha_plantacion ..... AAAA-MM-DD (solo para cana planta)
+# ciclo ................ planta | soca1 | soca2 | soca3 | soca4+
+# madurador_producto ... nombre comercial o principio activo; vacio si no se aplico
+# madurador_fecha ...... AAAA-MM-DD de aplicacion
+# riego ................ secano | riego | riego_con_corte  (corte de riego
+#                        pre-cosecha = drying-off, altera la señal de dosel)
+# observaciones ........ vuelco, floracion, incendio, replante, lo que sea
+#
+# Borrar estas lineas de comentario antes de usar el archivo.

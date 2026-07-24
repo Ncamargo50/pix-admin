@@ -455,30 +455,55 @@ def generar_pdf_lote_v3(meta: dict, png_mapa: Path, pdf_out: Path, total: int):
     story.append(Paragraph(f"<b>Térmica:</b> {j['gdd']}", s_body))
     story.append(Spacer(1, 3))
 
-    # Recomendación
+    # Recomendación — ORDEN DE MUESTREO, no instrucción de cosecha.
+    #
+    # El texto anterior convertía el PERCENTIL del score en una orden absoluta
+    # ("cosechar entre los primeros" / "NO cosechar"). Eso es una CUOTA: con la
+    # hacienda entera inmadura el 20% inferior recibía igual "cosechar", y con
+    # la hacienda entera madura el 20% superior recibía "NO cosechar". El daño
+    # es del 20% del área en ambos sentidos y el sistema no podía avisarlo.
+    #
+    # La decisión de corte la toma el refractómetro (ver madurez_campo.py).
+    # El satélite dice DÓNDE medir primero.
+    story.append(Paragraph("Prioridad de muestreo", s_h2))
     pct = (rank/total)*100 if total else 0
-    story.append(Paragraph("Recomendación operativa", s_h2))
     if pct <= 20:
-        rec = ("<b>Cosechar entre los primeros.</b> Validar con muestreo "
-               "Brix superior/inferior con refractómetro (SASRI PurEst / "
-               "CONSECANA). <b>CMI = (BS/BI)·100 ≥ 85% confirma madurez</b>.")
+        rec = ("<b>Muestrear en el primer grupo.</b> Este lote presenta la "
+               "anomalía de dosel más marcada respecto de su propio histórico, "
+               "por lo que es donde el refractómetro aporta más información. "
+               "La decisión de corte la define la medición de campo, no este "
+               "orden.")
     elif pct <= 50:
-        rec = ("<b>Programar cosecha en próximas 2-4 semanas.</b> "
-               "Considerar muestreo confirmatorio antes de movilizar.")
-    elif pct <= 80:
-        rec = ("<b>Postergar cosecha.</b> Re-evaluar en 3-4 semanas.")
+        rec = ("<b>Muestrear en el segundo grupo.</b> Señal de dosel "
+               "intermedia respecto de su histórico.")
     else:
-        rec = ("<b>NO cosechar.</b> Cultivo en fase vegetativa/pre-maduración.")
+        rec = ("<b>Muestreo de menor prioridad.</b> Sin anomalía de dosel "
+               "destacable respecto de su histórico. Esto <b>no</b> significa "
+               "que el lote esté inmaduro: significa que el satélite no aporta "
+               "evidencia para adelantar su medición.")
     story.append(Paragraph(rec, s_body))
+    story.append(Paragraph(
+        "<b>Criterio de corte (campo):</b> Índice de Maturação "
+        "IM = Brix(ponteiro)/Brix(base). Ponteiro = entrenudo de la última "
+        "hoja cuya vaina se desprende fácilmente; base = 3.º–4.º entrenudo "
+        "sobre el suelo. Umbrales (Stupiello &amp; Germek, vía UNESP/FEIS): "
+        "&lt;0,60 verde · &lt;0,85 en maduración · <b>≥0,90 madura</b> · "
+        "&gt;1,00 declive por inversión de la sacarosa. "
+        "Nota: 0,85 <b>no</b> es «madura», es zona de transición.", s_body))
 
     # Disclaimer
     s_disc = ParagraphStyle("Disc", parent=s_body, fontSize=7.5,
         textColor=GRIS, leading=10, spaceBefore=4)
     story.append(Paragraph(
-        "<i>Score RELATIVO v3: composite de Z-scores temporales NDWI/NDMI/CIRE/PSRI (S2) "
-        "+ VV (S1 SAR) + GDD (ERA5). NO Pol/Brix absoluto. Validación in-situ requerida. "
-        "S1 VV validado empíricamente en hacienda (Spearman r=-0.529 vs S2). "
-        "Refs en metodología del unificado.</i>", s_disc))
+        "<i>Orden de muestreo RELATIVO, derivado de anomalías de dosel respecto del "
+        "histórico de cada lote (Sentinel-2). <b>No estima Pol, Brix ni ATR</b>: no existe "
+        "modelo publicado que lo haga sólo con Sentinel-2, y la sacarosa se acumula en el "
+        "tallo, que el sensor no observa (Inman-Bamber et al., DOI 10.1071/CP11128). "
+        "Índices: NDMI = (B8A−B11)/(B8A+B11), humedad de dosel (Hardisky et al. 1983; "
+        "Wilson &amp; Sader 2002, DOI 10.1016/S0034-4257(01)00318-2) — <b>no</b> es el NDWI de "
+        "Gao, que exige 1,24 µm, banda ausente en Sentinel-2. PSRI = (B4−B2)/B6, senescencia "
+        "(Merzlyak et al. 1999, DOI 10.1034/j.1399-3054.1999.106119.x). "
+        "Contains modified Copernicus Sentinel data.</i>", s_disc))
 
     def _f(canvas, doc_):
         canvas.saveState()
