@@ -292,13 +292,53 @@ def cmd_load_predicciones(csv_path: str, modelo_version: str = "v3_S2_S1"):
 
 
 def _f(v):
+    """Parsea un numero de campo. Acepta coma decimal.
+
+    El tecnico llena las fichas con teclado en espanol y escribe "18,5". Con
+    float() pelado eso lanza y la medicion se descartaba en silencio, sin log:
+    un lote entero podia llegar a la KB con cero mediciones y el script
+    reportaba OK. El JavaScript de la ficha ya normalizaba la coma; el ingest
+    no lo hacia (bug 2026-07).
+    """
     if v is None or (isinstance(v, float) and pd.isna(v)): return None
-    try: return float(v)
+    if isinstance(v, str):
+        v = v.strip().replace(",", ".")
+        if not v: return None
+    try: x = float(v)
     except Exception: return None
+    return x if np.isfinite(x) else None
+
+
+# Rango fisico de una lectura de Brix en jugo de cana con refractometro de
+# campo (escala tipica 0-32). Por debajo de 6 no hay jugo aprovechable; por
+# encima de 30 esta fuera de escala del instrumento. Un valor fuera de esto es
+# error de tipeo o de lectura, no un dato: entraba a la KB sin resistencia y
+# despues alimentaba el Ridge/RF.
+BRIX_MIN, BRIX_MAX = 6.0, 30.0
+
+
+def validar_brix(bs, bi):
+    """Valida un par de lecturas Brix. Devuelve (bs, bi, avisos).
+
+    Descarta valores fuera del rango del instrumento y avisa (sin descartar)
+    cuando BS > BI, que indica que se confundio el apice con la base del tallo
+    — el error de campo mas comun y el que invierte el CMI.
+    """
+    avisos = []
+    if bs is not None and not (BRIX_MIN <= bs <= BRIX_MAX):
+        avisos.append(f"BS={bs} fuera de rango [{BRIX_MIN}-{BRIX_MAX}] — descartado")
+        bs = None
+    if bi is not None and not (BRIX_MIN <= bi <= BRIX_MAX):
+        avisos.append(f"BI={bi} fuera de rango [{BRIX_MIN}-{BRIX_MAX}] — descartado")
+        bi = None
+    if bs is not None and bi is not None and bs > bi:
+        avisos.append(f"BS={bs} > BI={bi} — posible inversion apice/base, se conserva")
+    return bs, bi, avisos
 
 
 def _i(v):
     if v is None or (isinstance(v, float) and pd.isna(v)): return None
+    if isinstance(v, str): v = v.strip().replace(",", ".")
     try: return int(float(v))
     except Exception: return None
 
@@ -364,7 +404,7 @@ def cmd_load_cmi_pdfs(dir_path: str, fecha_muestreo: str = None):
         fecha_muestreo = datetime.now().strftime("%Y-%m-%d")
 
     conn = get_conn(); cur = conn.cursor()
-    n_total = 0; lotes_ok = 0
+    n_total = 0; lotes_ok = 0; n_sospechosas = 0
 
     for pdf in sorted(src.glob("FICHA_DIGITAL_*.pdf")):
         m = re.match(r"FICHA_DIGITAL_(\d+)_(.+)\.pdf$", pdf.name)
@@ -380,6 +420,11 @@ def cmd_load_cmi_pdfs(dir_path: str, fecha_muestreo: str = None):
                 for t in range(1, 11):
                     bs = _f(fields.get(f"P{p}_T{t}_BS"))
                     bi = _f(fields.get(f"P{p}_T{t}_BI"))
+                    if bs is None and bi is None: continue
+                    bs, bi, avisos = validar_brix(bs, bi)
+                    for a in avisos:
+                        log(f"  ! {lote_id} P{p}T{t}: {a}")
+                        n_sospechosas += 1
                     if bs is None and bi is None: continue
                     cmi = (bs/bi*100) if (bs and bi and bi > 0) else None
                     notas = fields.get(f"P{p}_T{t}_NOTAS", "") or ""
@@ -398,6 +443,9 @@ def cmd_load_cmi_pdfs(dir_path: str, fecha_muestreo: str = None):
             log(f"  err {pdf.name}: {e}")
     conn.commit(); conn.close()
     log(f"OK — {n_total} mediciones de {lotes_ok} lotes desde PDFs")
+    if n_sospechosas:
+        log(f"ATENCION: {n_sospechosas} lecturas fuera de rango o inconsistentes "
+            f"(ver lineas con '!'). Revisar antes de entrenar.")
 
 
 # ════════════════════════════════════════════════════════════════════════════

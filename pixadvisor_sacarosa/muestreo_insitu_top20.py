@@ -35,6 +35,8 @@ from shapely.geometry import Point, MultiPoint
 from shapely.ops import transform as shp_transform
 from sklearn.cluster import KMeans
 
+from ruta import ordenar_puntos
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -68,6 +70,22 @@ N_TOP = 20
 N_PUNTOS_POR_LOTE = 5
 N_TALLOS_POR_PUNTO = 10
 BUFFER_INTERNO_M = 30   # alejar puntos del borde
+
+# Porton / punto de entrada a la hacienda como (lat, lon). Si se define, el
+# recorrido de campo arranca por el lote mas cercano a el en vez de por uno
+# arbitrario. Dejar en None si no se conoce.
+PORTON_ENTRADA = None
+
+# Fila de la cabecera de la tabla de muestras en cada hoja de lote.
+# La hoja RESUMEN referencia el promedio del lote, que se calcula a partir de
+# esta fila; si las dos usan constantes distintas, RESUMEN apunta a una celda
+# vacia y el semaforo de decision queda congelado (bug 2026-07).
+ROW_START_TABLA = 14
+
+def _celda_promedio_lote() -> str:
+    """Celda con el CMI promedio del lote dentro de su hoja (columna H)."""
+    fila = ROW_START_TABLA + N_PUNTOS_POR_LOTE * N_TALLOS_POR_PUNTO + 2
+    return f"H{fila}"
 
 VERDE       = HexColor("#1B5E20")
 VERDE_CLARO = HexColor("#4CAF50")
@@ -161,6 +179,20 @@ def generar_puntos_estratificados(gdf_lote: gpd.GeoDataFrame,
         dists = np.sqrt((arr[:,0]-cx)**2 + (arr[:,1]-cy)**2)
         idx = np.argmin(dists)
         puntos_finales.append(Point(arr[idx, 0], arr[idx, 1]))
+
+    # Ordenar por recorrido a pie, no por el orden en que k-means devolvio los
+    # centroides (que es arbitrario). Se arranca por el punto mas cercano al
+    # borde, que es por donde se entra al lote. Asi P1..Pn ES el orden de
+    # caminata y el numero significa algo en el mapa y en la ficha.
+    coords = np.array([[p.x, p.y] for p in puntos_finales])
+    borde = poly.exterior if hasattr(poly, "exterior") else poly.boundary
+    d_borde = [borde.distance(p) for p in puntos_finales]
+    acceso = tuple(coords[int(np.argmin(d_borde))])
+    orden, m_antes, m_despues = ordenar_puntos(coords, acceso=acceso)
+    puntos_finales = [puntos_finales[i] for i in orden]
+    if m_antes > 0:
+        log(f"    ruta interna: {m_antes:.0f} m -> {m_despues:.0f} m "
+            f"({100*(1-m_despues/m_antes):.0f}% menos)")
 
     return gpd.GeoDataFrame(
         {"punto_n": list(range(1, n_puntos+1))},
@@ -471,16 +503,19 @@ def generar_excel_template(top20: pd.DataFrame, puntos_por_lote: dict,
         ws_r.cell(i, 5, str(row["Estado_fenologico_v3"]))
         # CMI lote = referencia a hoja del lote (PROMEDIO de columna F)
         sheet_name = f"{lote_id}"
-        ws_r.cell(i, 6, f"='{sheet_name}'!I{N_PUNTOS_POR_LOTE * N_TALLOS_POR_PUNTO + 4}")
-        # Estado CMI con IF anidado
+        ws_r.cell(i, 6, f"='{sheet_name}'!{_celda_promedio_lote()}")
+        # Estado CMI con IF anidado.
+        # OJO: no usar ISBLANK aqui — F{i} SIEMPRE contiene una formula, asi que
+        # nunca esta vacia y la rama "sin datos" no se dispararia jamas. Sin
+        # mediciones cargadas el AVERAGE devuelve 0, asi que se prueba contra 0.
         cmi_ref = f"F{i}"
         ws_r.cell(i, 7,
-            f'=IF(ISBLANK({cmi_ref}),"sin datos",'
+            f'=IF(N({cmi_ref})=0,"sin datos",'
             f'IF({cmi_ref}>=95,"sobre-maduro",'
             f'IF({cmi_ref}>=85,"cosecha óptima",'
             f'IF({cmi_ref}>=75,"madurando temprano","verde"))))')
         ws_r.cell(i, 8,
-            f'=IF(ISBLANK({cmi_ref}),"esperar muestreo",'
+            f'=IF(N({cmi_ref})=0,"esperar muestreo",'
             f'IF({cmi_ref}>=95,"URGENTE cosechar",'
             f'IF({cmi_ref}>=85,"COSECHAR 7-14d",'
             f'IF({cmi_ref}>=75,"esperar 2-3 sem","esperar 4 sem"))))')
@@ -535,7 +570,7 @@ def generar_excel_template(top20: pd.DataFrame, puntos_por_lote: dict,
             ws.cell(i, 3, f"{p['lon']:.6f}").border = border_thin
 
         # Header tabla muestras
-        row_start = 14
+        row_start = ROW_START_TABLA
         headers = ["Punto","Tallo","BS (°Brix)","BI (°Brix)","CMI tallo",
                     "BS prom punto","BI prom punto","CMI prom punto","Notas"]
         for col, h in enumerate(headers, 1):
@@ -809,6 +844,55 @@ def generar_indice_pdf(top20: pd.DataFrame, mapa_global_png: Path,
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# ORDEN DE VISITA ENTRE LOTES
+# ════════════════════════════════════════════════════════════════════════════
+def ordenar_top20_por_ruta(top20: pd.DataFrame) -> pd.DataFrame:
+    """Reordena los lotes por recorrido geografico y agrega `orden_visita`.
+
+    El ranking satelital es un orden agronomico: geograficamente es aleatorio.
+    Recorrer los 20 lotes en orden de rank medido sobre Hacienda del Senor da
+    81,6 km; el recorrido optimizado da 19,9 km. El rank se conserva intacto en
+    `Rank_v3` (define la prioridad y el nombre de las carpetas); lo que cambia
+    es en que orden se camina.
+
+    Si se conoce el porton de entrada, definir PORTON_ENTRADA como (lat, lon)
+    para que el recorrido arranque ahi en vez de en un lote arbitrario.
+    """
+    centroides, ids_ok = [], []
+    for _, r in top20.iterrows():
+        lid = str(r["lote_id"])
+        try:
+            c = cargar_geom(lid).geometry.iloc[0].centroid
+            centroides.append([c.x, c.y]); ids_ok.append(lid)
+        except Exception as e:
+            log(f"  ! {lid}: sin geometria para ordenar ruta ({e})")
+
+    if len(centroides) < 3:
+        log("  ruta entre lotes: omitida (menos de 3 lotes con geometria)")
+        return top20
+
+    acceso = None
+    if PORTON_ENTRADA is not None:
+        pt = gpd.GeoSeries([Point(PORTON_ENTRADA[1], PORTON_ENTRADA[0])],
+                            crs="EPSG:4326").to_crs(top20.attrs.get("crs", "EPSG:32720"))
+        acceso = (pt.iloc[0].x, pt.iloc[0].y)
+
+    orden, m_antes, m_despues = ordenar_puntos(np.array(centroides), acceso=acceso)
+    log(f"Ruta entre lotes: {m_antes/1000:.1f} km -> {m_despues/1000:.1f} km "
+        f"({100*(1-m_despues/m_antes):.0f}% menos de traslado)")
+
+    ids_ordenados = [ids_ok[i] for i in orden]
+    # Los lotes sin geometria van al final, sin perderse.
+    ids_ordenados += [str(l) for l in top20["lote_id"] if str(l) not in ids_ok]
+    pos = {lid: i for i, lid in enumerate(ids_ordenados)}
+    top20 = top20.copy()
+    top20["_pos"] = top20["lote_id"].astype(str).map(pos)
+    top20 = top20.sort_values("_pos").drop(columns="_pos").reset_index(drop=True)
+    top20["orden_visita"] = range(1, len(top20) + 1)
+    return top20
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ════════════════════════════════════════════════════════════════════════════
 def main():
@@ -820,6 +904,7 @@ def main():
     df = pd.read_csv(CSV_RANK)
     df["lote_id"] = df["lote_id"].astype(str)
     top20 = df.sort_values("Rank_v3").head(N_TOP).reset_index(drop=True)
+    top20 = ordenar_top20_por_ruta(top20)
     log(f"Top {N_TOP} lotes seleccionados:")
     for i, r in top20.iterrows():
         log(f"  #{int(r['Rank_v3']):2d}  {r['lote_id']:14s}  {r['area_ha']:6.2f} ha  Score={r['Priority_score_v3']:+.2f}")
