@@ -218,6 +218,49 @@ tiene.
   (IAC experimental 3-5/m vs sector 12/m — declarar cuál se usa); *Telchin licus* **no tiene NDE**,
   Embrapa lo declara explícitamente.
 
+### Bolivia — el hueco es total, y es una oportunidad
+
+**No existe protocolo oficial boliviano de monitoreo MIP con densidad de muestreo por hectárea.**
+Verificado contra ANAPO, CIAT Santa Cruz, INIAF y SENASAG. Lo único institucional con umbrales
+accesible es la cartilla ANAPO Nº5 de 2011 y la Hoja Divulgativa 38 de 2024.
+
+- **Soya (ANAPO)**: paño de 1 m para gusanos y chinches; 10 m lineales para picudo; 100 plantas para
+  barrenador de brotes; visual con lupa para mosca blanca, ácaros y trips. Semanal.
+  Umbrales: chinches **2 por paño** (grano) / **1 por paño** (semilla); picudo negro 1 adulto/m
+  hasta V3 y 2/m de V3 a V6; barrenador 25-30% de plantas atacadas; gusanos comedores de vainas
+  10% de vainas atacadas; ácaros 10-20 por trifolio. Trips y mosca blanca: **sin umbral**.
+  ⚠️ La cartilla de 2011 imprime *"40 gusanos de hasta 15 cm"* — es errata evidente del original
+  (la fila siguiente dice 1,5 cm). No usar sin contrastar contra el manual 2024.
+- **Densidad de puntos por lote o por hectárea: NO EXISTE en ninguna fuente boliviana.**
+- **Maíz y sorgo en Bolivia: NO EXISTE protocolo oficial.**
+- Los manuales grandes de ANAPO (soya 2024, trigo 2022, girasol 2020) sí tienen capítulos de niveles
+  críticos, pero **son de pago y su contenido no es accesible en línea**. Hay que comprarlos.
+- ⚠️ El INSA publica densidades por superficie (3-5 puntos hasta 20 ha, 7-9 de 21 a 50, 11 de 51 a
+  100) pero es para **ajuste de siniestros de seguro, NO para scouting MIP**. No citarlo como tal.
+
+### Argentina — la mejor referencia de densidad disponible para la región
+
+- **AAPRESID**: *"una estación de muestreo cada 10-15 ha dentro de la unidad de manejo, con un
+  mínimo de 4-5 para lotes menores a 40-50 hectáreas"*, **estaciones fijas georreferenciadas**,
+  frecuencia mínima semanal, cada 3-4 días si se está cerca del umbral. Es la referencia práctica
+  más útil que se encontró para calibrar el K del producto.
+- **INTA Marcos Juárez** publica un boletín mensual con umbrales vigentes (ISSN 2953-3953). Es una
+  **fuente viva** que conviene seguir. Cogollera en maíz: 20% de plantas con daño *y presencia de
+  orugas*, con la advertencia de que ya hay fallas en eventos Bt con Vip3Aa20.
+- **INTA Reconquista tiene tabla completa de umbrales para trigo** y guía de girasol con densidad.
+
+### ⚠️ Respaldo institucional para la regla de que los umbrales no transfieren
+
+INTA Reconquista publicó que los umbrales de defoliación de soja vigentes en Argentina fueron
+establecidos en la zona núcleo, y que en el norte de Santa Fe **"con 33% de defoliación en R1 el
+rendimiento se vio afectado en un 18%"** mientras que en la zona de origen el efecto aparecía recién
+**a partir del 67%**. Conclusión textual: *"los umbrales actualmente vigentes subestiman la reducción
+de rendimiento"* en esas condiciones agroecológicas.
+
+Es decir: **una institución oficial documentó que un umbral absoluto falló al cambiar de región
+dentro del mismo país.** Es el respaldo citable para la regla del proyecto de no usar umbrales
+absolutos transferidos.
+
 ---
 
 ## 8. Lo que NUNCA hay que prometer
