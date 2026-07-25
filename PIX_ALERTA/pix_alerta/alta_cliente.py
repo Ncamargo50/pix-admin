@@ -32,6 +32,9 @@ CULTIVOS = ('soya', 'trigo', 'maiz', 'sorgo', 'girasol', 'cana_de_azucar', 'past
 # Un lote de menos de media hectarea casi siempre es un drenaje o una astilla del
 # dibujo, no una unidad de manejo. Uno de mas de 2.000 ha es un bloque sin dividir.
 AREA_MIN_HA, AREA_MAX_HA = 0.5, 2000.0
+# Minimo de lotes para que la mediana de cohorte describa algo. Es el MIN_LOTES_COHORTE
+# del criterio: por debajo, el motor corre y no emite.
+MIN_LOTES_UTIL = 8
 
 
 def _sin_tildes(s):
@@ -110,6 +113,16 @@ def leer_lotes(ruta, campo_id, epsg_metrico):
     if grandes:
         avisos.append('%d lote(s) de mas de %.0f ha: probablemente sean bloques sin '
                       'dividir.' % (grandes, AREA_MAX_HA))
+    # El criterio compara cada lote contra la MEDIANA DE SU COHORTE. Con pocos lotes esa
+    # mediana no describe nada y el motor no emite: el cliente correria un mes entero
+    # recibiendo entregas vacias. Mejor saberlo ahora que en la tercera semana.
+    if len(g) < MIN_LOTES_UTIL:
+        avisos.append(
+            'SOLO %d lote(s). El criterio compara cada lote contra la mediana de su '
+            'cohorte y necesita al menos %d para que esa mediana signifique algo: con '
+            'menos, la maquina va a correr y NO va a emitir ranking. Para un campo de '
+            'esta escala el producto adecuado es el motor de rasteres, no el ranking '
+            'de lotes.' % (len(g), MIN_LOTES_UTIL))
 
     g = g.to_crs('EPSG:4326')
     g['area_ha'] = areas.round(2).values
