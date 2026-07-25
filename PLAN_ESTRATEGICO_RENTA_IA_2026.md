@@ -48,7 +48,7 @@ Dijiste "cualquier nicho". Error estratégico: en un nicho ajeno competís contr
 | Skills de informes PDF de marca, propuestas ejecutivas | Operativos |
 | Estrategia comercial ya definida: vender a CONSULTORES, no SaaS al productor | `project_renta_recurrente_online.md` |
 | Cobro recurrente definido: Asaas + Pix Automático (BR) / Paddle (intl) | Definido |
-| Clientes reales que validan el servicio (SA, SF, Serro Alto, HDS) | Casos de éxito propios |
+| Clientes reales que validan el servicio (SA, SF, Cerro Alto, HDS) | Casos de éxito propios |
 
 Ya tenés lo que el 99% de los que intentan "AI passive income" no tiene: **un producto que funciona, probado con clientes reales, con delivery ya automatizado.** Solo falta empaquetarlo y venderlo en serie.
 

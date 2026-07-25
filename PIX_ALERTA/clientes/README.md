@@ -14,22 +14,22 @@ Para una hacienda nueva, definiéndola completa:
 
 ```json
 {
-  "clave": "SERRO",
-  "titulo": "Serro Alto Agropecuaria",
+  "clave": "CERRO",
+  "titulo": "Cerro Alto Agropecuaria",
   "activo": true,
   "K": 5,
   "sitios": [
     {
-      "clave": "SERRO_B2",
-      "titulo": "Serro Alto Bloque 2",
-      "lotes_geojson": "../lotes/serro_alto.geojson",
+      "clave": "CERRO_B2",
+      "titulo": "Cerro Alto Bloque 2",
+      "lotes_geojson": "../lotes/cerro_alto.geojson",
       "campo_id": "lote",
       "epsg_metrico": "EPSG:31981",
       "campanas": {"2026/2027": ["2026-10-01", "2027-04-30"]}
     }
   ],
   "entrega": {"cadencia_dias": 10},
-  "marca": {"nombre": "Serro Alto", "color": "#1E40AF"}
+  "marca": {"nombre": "Cerro Alto", "color": "#1E40AF"}
 }
 ```
 
@@ -64,7 +64,7 @@ python -m pix_alerta.correr_todos --hasta 2026-04-30
 ```
 
 ```bash
-python -m pix_alerta.correr_todos --cliente SERRO --hasta 2026-04-30
+python -m pix_alerta.correr_todos --cliente CERRO --hasta 2026-04-30
 ```
 
 Códigos de salida (los que lee el cron): `0` nadie tenía novedad · `10` alguien entregó ·

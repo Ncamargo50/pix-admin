@@ -47,7 +47,7 @@ def hf(canvas, doc):
 story = []
 story.append(Spacer(1, 6))
 story.append(Paragraph('Plan de Muestreo de Suelo por Ambientes — Bloque 14', ss['T']))
-story.append(Paragraph('Hacienda Serro Alto · Campaña Soya 2026/27 · Re-análisis con textura y color de suelo', ss['Sub']))
+story.append(Paragraph('Hacienda Cerro Alto · Campaña Soya 2026/27 · Re-análisis con textura y color de suelo', ss['Sub']))
 story.append(Paragraph('Cliente: %s' % CLIENTE, ss['Cli']))
 
 story.append(Paragraph('¿Qué hicimos y por qué?', ss['H']))

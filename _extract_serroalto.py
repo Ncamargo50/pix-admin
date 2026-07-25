@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Extrae texto de la propuesta Serro Alto v2 a un archivo de texto."""
+"""Extrae texto de la propuesta Cerro Alto v2 a un archivo de texto."""
 import sys
 
 SRC = r"C:\Users\Usuario\Desktop\Propuesta_Pastagem_SerroAlto_v2.pdf"

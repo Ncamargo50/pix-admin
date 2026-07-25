@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Descarga directa del GeoTIFF (color natural optimizado) de Serro Alto al Desktop."""
+"""Descarga directa del GeoTIFF (color natural optimizado) de Cerro Alto al Desktop."""
 import ee, urllib.request, os, zipfile
 ee.Initialize()
 

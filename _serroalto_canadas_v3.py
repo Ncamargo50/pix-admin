@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Serro Alto cañadas v3 (limpio): HAND (drenaje, MERIT) ∩ riparia (NDVI sobre
+"""Cerro Alto cañadas v3 (limpio): HAND (drenaje, MERIT) ∩ riparia (NDVI sobre
 fondo local). Validacion + vectorizado + area util por lote + export GeoJSON."""
 import ee, json, os, urllib.request
 import geopandas as gpd, pandas as pd

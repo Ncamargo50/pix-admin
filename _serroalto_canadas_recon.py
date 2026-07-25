@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Serro Alto lotes: deteccion multi-fuente de canales/canadas.
+"""Cerro Alto lotes: deteccion multi-fuente de canales/canadas.
 PASO 1 = recon: rango real de cada capa (DEM/MERIT/S1/S2) + paneles visuales
 sobre los lotes para ver que senal capta las canadas."""
 import ee, json, os, urllib.request

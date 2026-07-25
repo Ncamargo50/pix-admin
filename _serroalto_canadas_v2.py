@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Serro Alto cañadas v2 — terreno-drenaje (TPI GLO-30 + HAND) corroborado con
+"""Cerro Alto cañadas v2 — terreno-drenaje (TPI GLO-30 + HAND) corroborado con
 vegetacion riparia (NDVI sobre fondo local). Validacion + area util por lote."""
 import ee, json, os, urllib.request
 import geopandas as gpd, pandas as pd

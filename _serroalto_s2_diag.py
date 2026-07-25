@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Diagnostico Sentinel-2 sobre Serro Alto: lista fechas recientes con
+"""Diagnostico Sentinel-2 sobre Cerro Alto: lista fechas recientes con
 cobertura y nubosidad calculadas DENTRO del poligono (mosaico por dia)."""
 import ee
 ee.Initialize()
 
-# Poligono Serro Alto (lon,lat) extraido del KML
+# Poligono Cerro Alto (lon,lat) extraido del KML
 coords = [
     [-59.04149483287776, -18.43723058824241],
     [-59.04011845722908, -18.45517557079797],

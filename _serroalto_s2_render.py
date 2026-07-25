@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Color natural optimizado + realce de Serro Alto (Sentinel-2 SR Harmonized).
+"""Color natural optimizado + realce de Cerro Alto (Sentinel-2 SR Harmonized).
 Genera PNG de alta resolucion (descarga directa) y lanza export GeoTIFF a Drive."""
 import ee, urllib.request, os
 ee.Initialize()

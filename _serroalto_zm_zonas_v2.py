@@ -116,7 +116,7 @@ for zz in (1, 2, 3):
     if len(s): s.plot(ax=ax, color=PAL[zz], edgecolor='white', linewidth=0.2)
 lot.boundary.plot(ax=ax, color='black', linewidth=0.6)
 ax.legend(handles=[mp.Patch(color=PAL[1], label='Baja'), mp.Patch(color=PAL[2], label='Media'), mp.Patch(color=PAL[3], label='Alta')], loc='upper right', fontsize=11)
-ax.set_title('Serro Alto — Zonas de manejo (3 ambientes)\nScore compuesto ponderado 8 var (NDVI/NDRE/estabilidad/TWI/flujo/pendiente/elev/dist-drenaje)', fontsize=10)
+ax.set_title('Cerro Alto — Zonas de manejo (3 ambientes)\nScore compuesto ponderado 8 var (NDVI/NDRE/estabilidad/TWI/flujo/pendiente/elev/dist-drenaje)', fontsize=10)
 ax.set_axis_off(); plt.tight_layout()
 plt.savefig(os.path.join(DIRBASE, 'MAPA_Zonas_Manejo_SerroAlto.png'), dpi=150, bbox_inches='tight')
 print('mapa -> MAPA_Zonas_Manejo_SerroAlto.png'); print('DONE')

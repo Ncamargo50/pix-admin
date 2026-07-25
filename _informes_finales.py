@@ -88,7 +88,7 @@ def lote_pages(mode):
     return out
 
 # ---- Informe Cliente ----
-S = [Spacer(1, 4), Paragraph('Plan de Muestreo de Suelo por Ambientes', T), Paragraph('Hacienda Serro Alto · Campaña Soya 2026/27', SUB), Paragraph('Cliente: %s' % CLIENTE, CLI),
+S = [Spacer(1, 4), Paragraph('Plan de Muestreo de Suelo por Ambientes', T), Paragraph('Hacienda Cerro Alto · Campaña Soya 2026/27', SUB), Paragraph('Cliente: %s' % CLIENTE, CLI),
      Paragraph('¿Qué vamos a hacer?', HH)]
 for t in ['<b>1. Área útil real.</b> Delimitamos la superficie sembrable de cada lote (y sus divisiones por camino/cañada), descontando drenajes no cultivables.',
           '<b>2. Ambientes productivos.</b> Cada lote/división se divide en 3 ambientes (Alta/Media/Baja) con 3 años de satélite + relieve y drenaje.',
@@ -103,7 +103,7 @@ SimpleDocTemplate(o1, pagesize=A4, topMargin=1.7*cm, bottomMargin=1.4*cm, leftMa
 print('Informe Cliente ->', os.path.basename(o1), '%.0f pág' % (len(m)+1))
 
 # ---- Protocolo ----
-S = [Spacer(1, 4), Paragraph('Protocolo de Muestreo de Suelo de Campo', T), Paragraph('Hacienda Serro Alto · Campaña Soya 2026/27', SUB), Paragraph('Cliente: %s' % CLIENTE, CLI),
+S = [Spacer(1, 4), Paragraph('Protocolo de Muestreo de Suelo de Campo', T), Paragraph('Hacienda Cerro Alto · Campaña Soya 2026/27', SUB), Paragraph('Cliente: %s' % CLIENTE, CLI),
      Paragraph('Resumen', HH), tbl_bloque(['Bloque', 'Lotes/div.', 'Muestras princ.', 'Submuestras', 'Área útil (ha)'], 'prot'), Spacer(1, 6),
      Paragraph('Instrucciones de colecta (muestra compuesta por ambiente)', HH)]
 for t in ['<b>1. Profundidad:</b> 0–20 cm. Misma profundidad en todas las submuestras.',

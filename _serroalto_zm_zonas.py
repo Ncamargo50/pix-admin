@@ -120,7 +120,7 @@ for zz in (1, 2, 3):
     if len(s): s.plot(ax=ax, color=PAL[zz], edgecolor='none')
 lot.boundary.plot(ax=ax, color='black', linewidth=0.5)
 ax.legend(handles=[mp.Patch(color=PAL[1], label='Baja'), mp.Patch(color=PAL[2], label='Media'), mp.Patch(color=PAL[3], label='Alta')], loc='upper right', fontsize=11)
-ax.set_title('Serro Alto — Zonas de manejo (3 ambientes) sobre area util\n3 años S2 sin nubes + estabilidad + terreno', fontsize=12)
+ax.set_title('Cerro Alto — Zonas de manejo (3 ambientes) sobre area util\n3 años S2 sin nubes + estabilidad + terreno', fontsize=12)
 ax.set_axis_off(); plt.tight_layout()
 plt.savefig(os.path.join(DIRBASE, 'MAPA_Zonas_Manejo_SerroAlto.png'), dpi=145, bbox_inches='tight')
 print('mapa -> MAPA_Zonas_Manejo_SerroAlto.png')

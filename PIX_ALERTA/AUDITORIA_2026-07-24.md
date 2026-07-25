@@ -249,7 +249,7 @@ métricas sin numerador.
 | **HDS** | **220 lotes con ID estable único**, 4.943 ha, EPSG:4326 |
 | **HDS — serie NDVI** | **3.094 filas = 221 lotes × 14 meses (2025-03 → 2026-04)**. El `lote_id` cruza 220/221 con el maestro. **Única base histórica del proyecto** |
 | HDS — zonas de manejo | ~110 lotes zonificados, CSV + GeoJSON por lote |
-| Serro Alto | 37 lotes base / 66 divisiones, 168 zonas de ambiente por color de suelo. **Cero historia temporal** |
+| Cerro Alto | 37 lotes base / 66 divisiones, 168 zonas de ambiente por color de suelo. **Cero historia temporal** |
 | Alto Tacuarí | 61 + 17 lotes con ID |
 | Santo Antonio / Sao Francisco | **1 perímetro / ninguno.** Las dos haciendas del pipeline en producción no tienen lotes |
 | Campo Verde | 900 ha declaradas, **cero geometrías** |

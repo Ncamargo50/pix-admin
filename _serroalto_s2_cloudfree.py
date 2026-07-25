@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Compuesto SIN NUBES color natural optimizado de Serro Alto.
+"""Compuesto SIN NUBES color natural optimizado de Cerro Alto.
 Mosaico 'pixel valido mas reciente' (1-may..2-jun) + estiramiento + unsharp.
 Salida: PNG quicklook + GeoTIFF 10m (tiles + merge rasterio)."""
 import ee, urllib.request, os, zipfile, tempfile

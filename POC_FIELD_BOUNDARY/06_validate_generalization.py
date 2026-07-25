@@ -1,5 +1,5 @@
 """
-POC Field Boundary - Validation 2: generalizacion sobre Hacienda Serro Alto, Bolivia.
+POC Field Boundary - Validation 2: generalizacion sobre Hacienda Cerro Alto, Bolivia.
 
 Pipeline:
   1. Lee proyecto_serro_alto_prueba.json -> extrae LOTE-01 (681 ha) como nuevo truth.

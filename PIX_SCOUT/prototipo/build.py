@@ -36,9 +36,9 @@ for c in CROPS:
 # ---- example foci (fabricated, referencing real crops + Pixadvisor haciendas) ----
 PATRON_LABEL={'foco':'foco denso','difuso':'difuso homogéneo','borde':'bordes/franjas','relieve':'bajos del relieve'}
 focos=[
- dict(cultivo='trigo',lote='Talhão B14', hacienda='Serro Alto',      sev='muy_alta',score=94,area_ha=6.2, dist_m=180, patron='foco', estadio='Floración', punto='3/8',
+ dict(cultivo='trigo',lote='Talhão B14', hacienda='Cerro Alto',      sev='muy_alta',score=94,area_ha=6.2, dist_m=180, patron='foco', estadio='Floración', punto='3/8',
       resumen='clúster rojo en floración, avanza rápido', mx=228,my=54, coord='-24.9871, -49.8123'),
- dict(cultivo='soya', lote='Bloque 2-L07',hacienda='Serro Alto',      sev='alta',   score=81,area_ha=11.4,dist_m=430, patron='difuso', estadio='Vegetativo', punto='5/12',
+ dict(cultivo='soya', lote='Bloque 2-L07',hacienda='Cerro Alto',      sev='alta',   score=81,area_ha=11.4,dist_m=430, patron='difuso', estadio='Vegetativo', punto='5/12',
       resumen='amarillamiento amplio en la loma seca', mx=96,my=88, coord='-24.9910, -49.8007'),
  dict(cultivo='cana', lote='Lote 41',     hacienda='Hacienda del Señor',sev='alta',  score=77,area_ha=8.9, dist_m=1240,patron='foco', estadio='Vegetativo', punto='2/10',
       resumen='manchones de secamiento y colmos débiles', mx=176,my=104, coord='-17.8402, -63.1789'),

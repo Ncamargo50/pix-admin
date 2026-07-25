@@ -47,7 +47,7 @@ story = []
 nP = (pts.tipo == 'PRINCIPAL').sum(); nS = (pts.tipo == 'SUBMUESTRA').sum()
 story.append(Spacer(1, 6))
 story.append(Paragraph('Plan de Muestreo de Suelo por Ambientes', ss['T']))
-story.append(Paragraph('Hacienda Serro Alto · Campaña Soya 2026/27', ss['Sub']))
+story.append(Paragraph('Hacienda Cerro Alto · Campaña Soya 2026/27', ss['Sub']))
 story.append(Paragraph('Cliente: %s' % CLIENTE, ss['Cli']))
 story.append(Paragraph('¿Qué vamos a hacer?', ss['H']))
 for txt in [

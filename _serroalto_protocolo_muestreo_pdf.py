@@ -44,7 +44,7 @@ def hf(canvas, doc):
 story = []
 nP = (pts.tipo == 'PRINCIPAL').sum(); nS = (pts.tipo == 'SUBMUESTRA').sum()
 story.append(Paragraph('Protocolo de Muestreo de Suelo de Campo', ss['T']))
-story.append(Paragraph('Hacienda Serro Alto · Campaña Soya 2026/27 · Bloques 2, 3 y 14', ss['Sub']))
+story.append(Paragraph('Hacienda Cerro Alto · Campaña Soya 2026/27 · Bloques 2, 3 y 14', ss['Sub']))
 story.append(Paragraph('Objetivo', ss['H']))
 story.append(Paragraph('Guía operativa para la colecta georreferenciada de muestras de suelo por ambiente de manejo. '
     'Cada lote está dividido en 3 ambientes (Baja/Media/Alta); cada ambiente se muestrea con una o más muestras '

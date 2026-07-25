@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""GeoTIFF color natural optimizado de Serro Alto via tiles + merge rasterio."""
+"""GeoTIFF color natural optimizado de Cerro Alto via tiles + merge rasterio."""
 import ee, urllib.request, os, zipfile, tempfile
 import rasterio
 from rasterio.merge import merge

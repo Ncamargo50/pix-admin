@@ -30,7 +30,7 @@ for b, s in div.groupby(div.bloque.astype(int)):
 dren.plot(ax=ax, color='#1565C0', alpha=0.9)
 ax.legend(handles=[mp.Patch(color='#66bd63', label='Bloque 2'), mp.Patch(color='#1a9850', label='Bloque 3'),
                    mp.Patch(color='#a6d96a', label='Bloque 14'), mp.Patch(color='#1565C0', label='Cañada/drenaje')], loc='upper right', fontsize=9)
-ax.set_title('Serro Alto — Área útil por lote/división (verde) y cañadas/drenajes (azul)', fontsize=12)
+ax.set_title('Cerro Alto — Área útil por lote/división (verde) y cañadas/drenajes (azul)', fontsize=12)
 ax.set_axis_off(); plt.tight_layout(); plt.savefig(OVER, dpi=140, bbox_inches='tight'); plt.close()
 
 ss = getSampleStyleSheet()
@@ -62,7 +62,7 @@ def bloque_tbl():
     return t
 
 def intro():
-    s = [Spacer(1, 4), Paragraph('Informe de Área Útil de Siembra', T), Paragraph('Hacienda Serro Alto · Campaña Soya 2026/27 · Bloques 2, 3 y 14', SUB),
+    s = [Spacer(1, 4), Paragraph('Informe de Área Útil de Siembra', T), Paragraph('Hacienda Cerro Alto · Campaña Soya 2026/27 · Bloques 2, 3 y 14', SUB),
          Paragraph('Objetivo', HH), Paragraph('Cuantificar el área sembrable de cada lote y sus divisiones (por camino/cañada), descontando los drenajes no cultivables.', BB),
          Paragraph('Metodología', HH), Paragraph('Drenajes = <b>relevados a mano por el técnico</b> + <b>detección satelital multi-fuente</b> (FABDEM + ruteo hidrológico + vegetación riparia Sentinel-2). '
             'Cada lote dividido por camino o cañada se trata como lote independiente (letra A/B/C).', BB),

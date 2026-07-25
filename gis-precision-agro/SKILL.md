@@ -143,7 +143,7 @@ def farthest_point_sampling(polygon, n_points, seed_point=None):
 
 **Nomenclatura:** `{PREFIJO}-Z{zona}-P{n}` (principal) / `{PREFIJO}-Z{zona}-S{n}` (submuestra)
 
-> ⚠️ **Convención validada (Serro Alto): UN principal por ambiente, y el número de P ES el número de
+> ⚠️ **Convención validada (Cerro Alto): UN principal por ambiente, y el número de P ES el número de
 > ambiente.** Principal `{lote}-B{blk}-P{zona}` (P1=ambiente1, P2=ambiente2, P3=ambiente3), submuestra
 > `{lote}-B{blk}-P{zona}-{NN}` (hereda el ID del principal + correlativo). Así el ID queda ÚNICO sin
 > esfuerzo (la zona va codificada en el número de P) y la trazabilidad muestra↔laboratorio no se rompe.
@@ -172,7 +172,7 @@ bare_count = bare_col.map(bare_mask).select('B4').count()       # QA: nº de fec
 # Confiabilidad: usar solo píxeles bare_count>=4; rellenar huecos con el confiable más cercano.
 ```
 > Restringir a estación seca es CRÍTICO: el suelo húmedo post-cosecha enrojece/oscurece distinto y
-> confunde `redness`/albedo. En Serro Alto (2026) esto subió la correlación redness↔elevación de +0.09
+> confunde `redness`/albedo. En Cerro Alto (2026) esto subió la correlación redness↔elevación de +0.09
 > a +0.28. Validar SIEMPRE el compuesto con un PNG RGB (que no haya parches de cultivo). Ver
 > `feedback_s2_cloudfree_median` y `feedback_verify_layer_ranges`.
 
@@ -188,7 +188,7 @@ bare_count = bare_col.map(bare_mask).select('B4').count()       # QA: nº de fec
 > visible y sale "oscuro", invirtiendo el signo esperado (albedo↔elevación dio −0.38). La MO real y la
 > textura se definen con el **LABORATORIO** de las muestras — no inventar una capa que contradice los datos.
 
-**C. Score compuesto orientado a suelo (ejemplo validado Serro Alto, suma=1.0):**
+**C. Score compuesto orientado a suelo (ejemplo validado Cerro Alto, suma=1.0):**
 ```
 redness 0.36  clay_inv 0.10           -> SUELO/COLOR 0.46  (color = eje que ven los técnicos)
 twi_inv 0.10  elev 0.08  flow_inv 0.06  distdren 0.06 -> DRENAJE/TOPO 0.30 (bajura/altura/agua)

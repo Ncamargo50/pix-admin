@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Contrato de Aceptacion / Prestacion de Servicio de Analisis de Suelo
-Pixadvisor S.R.L. <-> Joao Geraldo (Hacienda Serro Alto). PDF branding Pixadvisor."""
+Pixadvisor S.R.L. <-> Joao Geraldo (Hacienda Cerro Alto). PDF branding Pixadvisor."""
 import os, sys
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 from reportlab.lib.pagesizes import A4
@@ -43,21 +43,21 @@ def hf(canvas, doc):
 
 S = []
 S += [Spacer(1, 0.3*cm), Paragraph('CONTRATO DE PRESTACIÓN DE SERVICIOS DE ANÁLISIS DE SUELO Y AGRICULTURA DE PRECISIÓN', T),
-      Paragraph('(Aceptación de servicio — Hacienda Serro Alto · Campaña Soya 2026/27)', SUBT),
+      Paragraph('(Aceptación de servicio — Hacienda Cerro Alto · Campaña Soya 2026/27)', SUBT),
       HRFlowable(width='100%', thickness=1, color=VERDE2, spaceAfter=8)]
 
 S += [Paragraph('Entre las partes:', B),
  Paragraph('<b>EL PRESTADOR:</b> <b>PIXADVISOR S.R.L.</b>, con domicilio en Santa Cruz de la Sierra, Bolivia, '
    'representada por el Sr. <b>Nilton Luiz Camargo</b> (en adelante, “PIXADVISOR” o “EL PRESTADOR”); y', BL),
  Paragraph('<b>EL CLIENTE:</b> <b>João Geraldo</b>, con C.I./N.I.T. N.º [____________], con domicilio en '
-   '[__________________________], propietario/responsable de la <b>Hacienda Serro Alto</b> (en adelante, “EL CLIENTE”).', BL),
+   '[__________________________], propietario/responsable de la <b>Hacienda Cerro Alto</b> (en adelante, “EL CLIENTE”).', BL),
  Paragraph('Ambas partes, en adelante “LAS PARTES”, acuerdan celebrar el presente contrato de prestación de servicios, '
    'que se regirá por las siguientes cláusulas:', B)]
 
 clauses = [
  ('PRIMERA — OBJETO',
   'EL PRESTADOR se obliga a ejecutar para EL CLIENTE el servicio de <b>análisis de suelo y mapeo de fertilidad por '
-  'ambientes de manejo</b> sobre los lotes de la Hacienda Serro Alto correspondientes a los Bloques 2, 3 y 14, con una '
+  'ambientes de manejo</b> sobre los lotes de la Hacienda Cerro Alto correspondientes a los Bloques 2, 3 y 14, con una '
   '<b>superficie útil de 1.782,8 hectáreas</b> (área de siembra efectiva, con cañadas y drenajes ya descontados, de un '
   'total bruto de 1.871,5 ha), con destino a la campaña de soya 2026/27.'),
  ('SEGUNDA — ALCANCE Y ENTREGABLES',

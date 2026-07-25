@@ -39,7 +39,7 @@ cmap = {'2': '#66bd63', '3': '#1a9850', '14': '#a6d96a'}
 for b, s in glob.groupby('bloque'):
     s.plot(ax=ax, color=cmap.get(str(b), '#a6d96a'), edgecolor='#333', linewidth=0.4)
 can.plot(ax=ax, color='#C0392B', alpha=0.85, edgecolor='none')
-ax.set_title('Serro Alto — Area util (verde) y cañadas/drenajes (rojo)', fontsize=12)
+ax.set_title('Cerro Alto — Area util (verde) y cañadas/drenajes (rojo)', fontsize=12)
 ax.legend(handles=[mp.Patch(color='#66bd63', label='Bloque 2'), mp.Patch(color='#1a9850', label='Bloque 3'),
                    mp.Patch(color='#a6d96a', label='Bloque 14'), mp.Patch(color='#C0392B', label='Cañada/drenaje')],
           loc='upper right', fontsize=9)
@@ -83,7 +83,7 @@ def tbl_bloque():
 def intro_story():
     s = []
     s.append(Paragraph('Informe de Área Útil de Siembra', ss['PixT']))
-    s.append(Paragraph('Hacienda Serro Alto · Campaña Soya 2026/27 · Bloques 2, 3 y 14', ss['PixSub']))
+    s.append(Paragraph('Hacienda Cerro Alto · Campaña Soya 2026/27 · Bloques 2, 3 y 14', ss['PixSub']))
     s.append(Paragraph('Objetivo', ss['PixH']))
     s.append(Paragraph('Cuantificar el área efectivamente sembrable de cada lote descontando los canales y '
         'cañadas de drenaje no cultivables, para planificar la campaña de soya 2026/27.', ss['PixBody']))

@@ -1,9 +1,9 @@
 """
-Reentrena modelo V2 agregando Serro Alto 2 como nueva region de training.
+Reentrena modelo V2 agregando Cerro Alto 2 como nueva region de training.
 
 Necesitamos:
   1. Truth master expandido con SA2 (truth_master_v3.geojson)
-  2. Feature stack para Serro Alto 2 (ya cacheado en s2_cache/v2_features)
+  2. Feature stack para Cerro Alto 2 (ya cacheado en s2_cache/v2_features)
   3. Sample balanceado HDS + SA2
   4. Reentrenar LightGBM
   5. Guardar nuevo modelo lgb_planting_area_v3_2025.joblib
@@ -51,7 +51,7 @@ N_NEG_SA2 = 30000
 
 def main():
     # 1) Agregar SA2 al truth master
-    print(">>> Agregando Serro Alto 2 al truth master")
+    print(">>> Agregando Cerro Alto 2 al truth master")
     base = gpd.read_file(TRUTH_GEO)
     print(f"    Truth original: {len(base)} features ({base['source'].value_counts().to_dict()})")
 

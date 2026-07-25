@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Area Serro Alto (grande): compuesto MEDIANA estacion seca + s2cloudless.
+"""Area Cerro Alto (grande): compuesto MEDIANA estacion seca + s2cloudless.
 Paso 1: solo PNG quicklook para verificar limpieza antes del GeoTIFF."""
 import ee, urllib.request, os
 ee.Initialize()

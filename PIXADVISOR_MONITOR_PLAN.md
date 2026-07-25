@@ -105,7 +105,7 @@ rompa en agosto con imágenes fáciles y no en enero con la campaña corriendo.
 - **Vos:** conseguir el técnico + media jornada de campo
 
 ### Sem. 3–5 (agosto) — Primer cliente que PAGA
-Serro Alto, HDS y consultores que ya te conocen. CAC cero, ingreso en semanas.
+Cerro Alto, HDS y consultores que ya te conocen. CAC cero, ingreso en semanas.
 - Propuesta de 1 página: ahorro Embrapa adelante, no-prometidos por escrito
 - Alta Asaas + Pix Automático (R$ 1,99 fijo, sin recargo por recurrencia)
 - ⚠️ **Al primer cobro: registrar licencia comercial GEE** (plan Limited, sin cuota mínima)

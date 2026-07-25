@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Parchea _propuesta_joao.py (copia del template oficial) con datos reales
-Serro Alto / Joao Geraldo, $15/ha, y condiciones de pago 50/50 VRT."""
+Cerro Alto / Joao Geraldo, $15/ha, y condiciones de pago 50/50 VRT."""
 import re, io
 F = r'D:\PIXADVISOR_AGENT_WORKSPACE\_propuesta_joao.py'
 c = io.open(F, encoding='utf-8').read()

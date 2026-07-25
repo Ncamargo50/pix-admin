@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Area Serro Alto: GeoTIFF 10m del compuesto MEDIANA estacion seca (s2cloudless).
+"""Area Cerro Alto: GeoTIFF 10m del compuesto MEDIANA estacion seca (s2cloudless).
 Tiles getDownloadURL + merge rasterio (mosaicos unidos)."""
 import ee, urllib.request, os, zipfile, tempfile, sys
 import rasterio

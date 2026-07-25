@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Serro Alto: mascara cañadas (NDVI-p10 veg permanente + corroboracion HAND),
+"""Cerro Alto: mascara cañadas (NDVI-p10 veg permanente + corroboracion HAND),
 validacion visual sobre color real, y AREA UTIL por lote (3 umbrales)."""
 import ee, json, os, urllib.request
 import geopandas as gpd, pandas as pd

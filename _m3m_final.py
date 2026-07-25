@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Generador de planes de vuelo DJI Mavic 3M (mapping2d, DJI Pilot 2) para lotes
-Serro Alto. RGB GSD 2.5cm @95m, terrain follow real-time, RTK, sin corte.
+Cerro Alto. RGB GSD 2.5cm @95m, terrain follow real-time, RTK, sin corte.
 Schema WPML verificado: drone 77/sub2, payload 68, ns wpmz/1.0.6."""
 import os, sys, math, zipfile, io
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')

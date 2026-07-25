@@ -660,7 +660,7 @@ async function boot(){
 
 /* Modo demo para capturas (solo con ?demo=; inerte en producción) */
 async function runDemo(screen){
- SESSION={username:'nilton',nombre:'Nilton Camargo',cliente:'Serro Alto',role:'admin'};
+ SESSION={username:'nilton',nombre:'Nilton Camargo',cliente:'Cerro Alto',role:'admin'};
  const F=D.focos;
  const setWiz=o=>{wiz=Object.assign({foco:null,cultivo:'soya',estadio:'Vegetativo',patron:null,host:'no',temporal:'gradual',signo:null,signoCat:null,fork:null,branch:null,step:0,fromBanco:false},o);};
  if(screen==='login'){ gate().hidden=false; showChrome(false); return renderCreateAdmin(); }
@@ -675,7 +675,7 @@ async function runDemo(screen){
   if(screen==='ficha'){ setWiz({foco:F[3],cultivo:F[3].cultivo}); return renderFicha('maiz-cogollero','banco'); }
   if(screen==='validacion'){ setWiz({foco:F[3],cultivo:F[3].cultivo,estadio:'Vegetativo'}); const r=Dx.findFicha('maiz-cogollero'); openValidacion(r.f); const seg=document.querySelector('.segbar[data-g="nde"] .seg[data-v="over"]'); if(seg) seg.click(); return; }
   if(screen==='historial'){ try{await Store.saveValidacion({focoId:'F-2607-P9',cultivo:'Pastura',nombre:'Anegamiento / asfixia radicular',categoria:'abiotico',estadio:'Vegetativo',severidad:'Alta',incidencia:35,coincide:'Sí',coord:'-14.90190, -55.43950',tecnico:'Nilton Camargo',synced:false}); await Store.saveValidacion({focoId:'F-2607-P3',cultivo:'Maíz',nombre:'Gusano cogollero',categoria:'plaga',estadio:'Vegetativo',severidad:'Media',incidencia:22,coincide:'Parcial',coord:'-13.25540, -46.88910',tecnico:'Nilton Camargo',nde:'over',synced:true});}catch(e){} return renderHistorial(); }
-  if(screen==='users'){ try{await Auth.createUser({username:'jose.campo',password:'x123',nombre:'José Pérez',cliente:'Serro Alto',role:'tecnico'}); await Auth.createUser({username:'maria.tec',password:'x123',nombre:'María López',cliente:'São Francisco',role:'tecnico'});}catch(e){} return renderUsers(); }
+  if(screen==='users'){ try{await Auth.createUser({username:'jose.campo',password:'x123',nombre:'José Pérez',cliente:'Cerro Alto',role:'tecnico'}); await Auth.createUser({username:'maria.tec',password:'x123',nombre:'María López',cliente:'São Francisco',role:'tecnico'});}catch(e){} return renderUsers(); }
   if(screen==='banco'){ return renderBancoList('trigo'); }
  }catch(e){ document.getElementById('main').innerHTML='<div class="view"><p>demo error: '+esc(e.message)+'</p></div>'; }
  return renderFocos();
@@ -761,7 +761,7 @@ async function renderUsers(){
    <div id="uerr" class="gerr" style="display:none"></div>
    <div class="fld"><label>Usuario</label><input class="inp" id="nu" placeholder="ej. jose.campo"></div>
    <div class="fld"><label>Nombre del técnico</label><input class="inp" id="nn" placeholder="Nombre y apellido"></div>
-   <div class="fld"><label>Cliente / finca</label><input class="inp" id="ncl" placeholder="ej. Serro Alto"></div>
+   <div class="fld"><label>Cliente / finca</label><input class="inp" id="ncl" placeholder="ej. Cerro Alto"></div>
    <div class="fld"><label>Rol</label><select class="inp" id="nr"><option value="tecnico">Técnico</option><option value="admin">Administrador</option></select></div>
    <div class="fld"><label>Contraseña</label>${pwdField('np','mínimo 6 caracteres')}</div>
    <button class="btn brand big block" id="uadd">${IC.check} Crear usuario</button>
