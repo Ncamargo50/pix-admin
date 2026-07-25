@@ -1,17 +1,75 @@
-PIX SCOUT — RELEASE v1.0.3
+PIX SCOUT — RELEASE v1.0.8
 ==========================================
-Archivo:      pix-scout-v1.0.3.apk   (2.4 MB)
+Archivo:      pix-scout-v1.0.8.apk   (2,3 MB)
 Paquete:      network.pixadvisor.scout
-versionCode:  4     versionName: 1.0.3
-
-NUEVO EN 1.0.3
-- BASE SATELITAL en el mapa (tiles Esri World Imagery, Web Mercator), con caché OFFLINE
-  (Cache API 'pixscout-tiles' — la SW no la borra): tras verla una vez, anda sin señal.
-  Botón satélite/vector en el mapa. Perímetro + focos calzan exacto sobre la imagen.
+versionCode:  8     versionName: 1.0.8
+SHA-256:      649926cb8fab1b45da894d91c2ad63d9a84e5285a05cddd8cfc277ba35c5ca52
 
 minSdk:       26 (Android 8.0)     targetSdk: 34 (Android 14)
 Firma:        APK Signature Scheme v2 — VERIFICADO
-Certificado:  CN=Pixadvisor PIX Scout, O=Pixadvisor SRL, Santa Cruz, BO
+Certificado:  CN=Pixadvisor PIX Scout, OU=Agricultura de Precision, O=Pixadvisor SRL,
+              L=Santa Cruz, ST=Santa Cruz, C=BO
+              SHA-256 fcdd... = 8bb2ffcc010fae5b2be131e74d0a8e049742a94540c7350ca6cb5419d3c05a65
+              MISMO certificado que 1.0.6: se instala ENCIMA de la version instalada.
+
+NUEVO EN 1.0.8 — el umbral MIP pasa a ser un CALCULO, no una opinion
+- `supera_umbral` lo calcula el codigo (js/umbral.js) a partir del conteo, la unidad y el
+  contexto declarado. Antes lo apretaba el tecnico con tres botones.
+- Los 26 umbrales MIP dejaron de ser prosa libre: 14 quedaron como REGLAS COMPUTABLES
+  (data/umbrales.json) y los otros 12 estan DECLARADOS como no computables con su motivo.
+  No se invento ni un numero: cada valor sale literal de su ficha, con fuente y region
+  de calibracion.
+- La unidad de conteo se ELIGE DE UNA LISTA (la del umbral) en vez de escribirse libre:
+  comparar unidades distintas no significa nada.
+- Aparece un selector de estadio/destino cuando el umbral depende de eso. El MISMO 22% de
+  defoliacion en soya da "por debajo" en vegetativo (umbral 30%) y "por encima" en
+  reproductivo (umbral 15%). Si no se declara el estadio, NO se asume: no se calcula.
+- REGLA QUE NO SE ROMPE: con el punto elegido por el satelite el veredicto dice
+  "referencia", NUNCA "supera el umbral MIP". El umbral esta calibrado sobre muestreo
+  REPRESENTATIVO y el tecnico esta parado en el peor sitio del lote: compararlos empuja a
+  sobre-aplicar, que es lo contrario de lo que el MIP ahorra (Embrapa: R$270/ha).
+- Cada veredicto muestra fuente, region de calibracion y advertencias (VERIFICAR_LOCAL).
+
+NUEVO EN 1.0.8 — los focos bajan solos (FOCOS_ENDPOINT)
+- CFG.FOCOS_ENDPOINT estaba declarado pero NINGUN modulo lo leia: cambiar de campo exigia
+  recompilar la APK. Ahora se intenta la red primero y lo que baja queda CACHEADO.
+- Sin señal usa la ULTIMA DESCARGA (no la copia empaquetada, que puede ser de meses atras).
+- La barra de focos declara la fecha de la escena y, si no vino de la red, de donde salio.
+  Navegar con un mapa viejo creyendolo de hoy es peor que no tener mapa.
+- La cache 'pixscout-focos' se agrego a KEEP del service worker: sin eso, cada
+  actualizacion de la app borraba los focos descargados.
+
+NUEVO EN 1.0.8 — backend y despliegue
+- Esquema Supabase listo en PIX_SCOUT/backend/001_scout_validaciones.sql (37 columnas =
+  exactamente las 37 claves que manda la app). RLS APPEND-ONLY: anon solo INSERT, sin
+  select/update/delete, porque la anon key viaja DENTRO del APK y es publica.
+  Falta solo pegar SUPABASE_URL/ANON_KEY en js/config.js. Ver backend/README.md.
+- store.js: `resolution=ignore-duplicates` (antes merge-duplicates, que exigiria permiso
+  de UPDATE y daria 403 en todo reintento). Distingue error PERMANENTE de reintentable e
+  imprime el cuerpo: antes un PGRST204 se veia igual que "no hay señal".
+- FIX de despliegue: los assets ahora van versionados (?v=1.0.8) en index.html y en el
+  precache del SW. Subir solo CACHE no alcanzaba — medido: con CACHE ya en v11 la app
+  seguia ejecutando el data.js anterior porque addAll pedia la MISMA URL.
+
+VERIFICADO EN ESTA ENTREGA
+- Motor de umbrales: 9 casos (incluye estadio que invierte el veredicto, destino
+  grano/semilla, unidad que no coincide, contexto faltante, plaga sin umbral, sin conteo).
+- Focos: las 3 vias (remoto / ultima descarga sin señal / empaquetado).
+- Sincronizacion contra un servidor que imita PostgREST con las mismas policies:
+  2 encoladas -> 2 enviadas -> 0 en cola; reenvio del mismo id = no-op; lectura con anon
+  key = 401; campo inexistente = rebota sin perder el dato.
+- APK: firma v2 valida, mismo certificado que 1.0.6, DEV_MODE y DEMO_FOCOS en false,
+  credenciales vacias, umbral.js y data.js nuevos empaquetados.
+
+PENDIENTE (no lo destraba esta version)
+- Pegar las credenciales de Supabase y correr el SQL.
+- Configurar FOCOS_ENDPOINT apuntando al repo del pipeline.
+- MODO_CIEGO sigue en false: encenderlo para la campaña de validacion de octubre.
+- Planilla de siembra del cliente (bloqueante 1 del plan, depende de un tercero).
+
+==========================================
+HISTORIAL
+==========================================
 
 NUEVO EN 1.0.2 (mapa + auditoría completa)
 - MAPA de anomalías navegable OFFLINE (canvas vectorial, sin tiles): polígonos de

@@ -1,13 +1,27 @@
 /* PIX Scout — Service Worker (offline-first). SUBIR CACHE en cada cambio de assets. */
-const CACHE = 'pixscout-v10';
-const KEEP = ['pixscout-tiles'];   // caché de tiles satelitales: NO borrar en activate (offline)
+const CACHE = 'pixscout-v13';
+// Cachés que NO se borran en activate: son datos de campo, no assets versionados.
+// `pixscout-tiles` = tiles satelitales. `pixscout-focos` = ultimo GeoJSON descargado del
+// pipeline; sin esta entrada, cada actualizacion de la app dejaba al tecnico sin los
+// focos bajados y con la copia empaquetada, que puede ser de hace meses.
+const KEEP = ['pixscout-tiles', 'pixscout-focos'];
+
+/* VERSION DE ASSETS — subir junto con CACHE en cada despliegue.
+   Subir solo CACHE NO alcanza: `addAll` pide los archivos por la MISMA URL, asi que el
+   HTTP cache del navegador puede devolver la copia vieja y la cache nueva queda poblada
+   con codigo viejo. Medido: con CACHE ya en v11, la app seguia ejecutando el data.js
+   anterior. El parametro cambia la URL y obliga a bajar de red.
+   DEBE coincidir con el ?v= de los <script> de index.html. */
+const AV = '1.0.8';
+const V = u => u.indexOf('./js/') === 0 || u === './css/app.css' ? u + '?v=' + AV : u;
+
 const ASSETS = [
   './','./index.html','./manifest.webmanifest',
   './css/app.css',
-  './js/config.js','./js/data.js','./js/geo.js','./js/store.js','./js/auth.js','./js/map.js','./js/geojson.js','./js/diagnosis.js','./js/app.js',
+  './js/config.js','./js/data.js','./js/geo.js','./js/store.js','./js/auth.js','./js/map.js','./js/geojson.js','./js/diagnosis.js','./js/umbral.js','./js/app.js',
   './data/santo_antonio.geojson',   // sin esto, el primer arranque OFFLINE se queda sin focos
   './icons/icon.svg','./icons/icon-maskable.svg','./icons/icon-192.png','./icons/icon-512.png'
-];
+].map(V);
 self.addEventListener('install', e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });

@@ -3,7 +3,7 @@
    Dejar vacío = la app funciona 100% offline y encola las validaciones localmente. */
 window.PIXCONFIG = {
   APP_NAME: 'PIX Scout',
-  APP_VERSION: '1.0.6',
+  APP_VERSION: '1.0.8',
   // Focos de ejemplo (5 haciendas distintas). SOLO para capturas: si el GeoJSON real
   // falla, con esto en true el tecnico navega a otra finca sin enterarse.
   DEMO_FOCOS: false,
@@ -13,10 +13,19 @@ window.PIXCONFIG = {
   MODO_CIEGO: false,
   // Modo desarrollo: habilita atajos ?demo= (capturas). DEBE ir en false en producción.
   DEV_MODE: false,
+  // PEGAR ACA las dos credenciales de Supabase (Project Settings -> API) para encender
+  // el lazo de retorno. Pasos completos y esquema SQL en ../../backend/README.md.
+  // Mientras esten vacias, la app funciona 100% offline y las validaciones se acumulan
+  // en el telefono sin llegar nunca al servidor.
+  // OJO: esta clave queda DENTRO del APK, o sea es publica. La tabla es append-only a
+  // proposito (solo INSERT); leer se hace server-side con la service_role key.
   SUPABASE_URL: '',          // p.ej. 'https://xxxx.supabase.co'
   SUPABASE_ANON_KEY: '',
   VALIDACIONES_TABLE: 'scout_validaciones',
-  // Endpoint del pipeline de anomalías (GeoJSON de focos). Vacío = usar focos bundleados.
+  // Endpoint del pipeline de anomalías (GeoJSON de focos). Vacío = usar focos empaquetados.
+  // Acepta {campo} como marcador; si no lo lleva, se le agrega /<campo>.geojson al final.
+  // Ej: 'https://raw.githubusercontent.com/Ncamargo50/pixadvisor-monitoreo-trigo/main/reports/ultimo'
+  // Lo que baja queda cacheado: si no hay señal, el técnico sale con la última descarga.
   FOCOS_ENDPOINT: '',
   // GeoJSON de anomalías empaquetado a cargar al iniciar (data/<nombre>.geojson). Vacío = focos de ejemplo.
   DEFAULT_FOCOS: 'santo_antonio',
