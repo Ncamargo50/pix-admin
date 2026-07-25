@@ -1,0 +1,55 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Pixadvisor Website (Local Preview)",
+      "runtimeExecutable": "C:/Users/Usuario/AppData/Local/Programs/Python/Python313/python.exe",
+      "runtimeArgs": ["-m", "http.server", "9080", "--directory", "D:/PIXADVISOR_AGENT_WORKSPACE/pixadvisor-website"],
+      "port": 9080
+    },
+    {
+      "name": "pixadvisor-coleta",
+      "runtimeExecutable": "C:/Users/Usuario/AppData/Local/Programs/Python/Python313/python.exe",
+      "runtimeArgs": ["-m", "http.server", "--directory", "D:/PIXADVISOR_AGENT_WORKSPACE/pixadvisor-coleta"],
+      "port": 9091,
+      "autoPort": true
+    },
+    {
+      "name": "pix-admin",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "9100", "--directory", "D:/PIXADVISOR_AGENT_WORKSPACE"],
+      "port": 9100
+    },
+    {
+      "name": "pix-muestreo",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "9200", "--directory", "D:/PIXADVISOR_AGENT_WORKSPACE/pix-muestreo-apk/app/src/main/assets"],
+      "port": 9200
+    },
+    {
+      "name": "pix-monitor",
+      "runtimeExecutable": "C:/Users/Usuario/AppData/Local/Programs/Python/Python313/python.exe",
+      "runtimeArgs": ["D:/PIXADVISOR_AGENT_WORKSPACE/pix-monitor/server.py"],
+      "port": 9102
+    },
+    {
+      "name": "pix-scout-proto",
+      "runtimeExecutable": "C:/Users/Usuario/AppData/Local/Programs/Python/Python313/python.exe",
+      "runtimeArgs": ["-m", "http.server", "9300", "--directory", "D:/PIXADVISOR_AGENT_WORKSPACE/PIX_SCOUT/prototipo"],
+      "port": 9300
+    },
+    {
+      "name": "pix-scout-app",
+      "runtimeExecutable": "C:/Users/Usuario/AppData/Local/Programs/Python/Python313/python.exe",
+      "runtimeArgs": ["-m", "http.server", "8321", "--directory", "D:/PIXADVISOR_AGENT_WORKSPACE/PIX_SCOUT/app"],
+      "port": 8321
+    },
+    {
+      "name": "pix-field-delineation-api",
+      "runtimeExecutable": "C:/Users/Usuario/AppData/Local/Programs/Python/Python313/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8765"],
+      "cwd": "D:/PIXADVISOR_AGENT_WORKSPACE/POC_FIELD_BOUNDARY/api",
+      "port": 8765
+    }
+  ]
+}
