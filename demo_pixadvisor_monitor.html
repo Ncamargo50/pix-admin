@@ -1,0 +1,330 @@
+<title>Pixadvisor Monitor — demostración</title>
+<style>
+  :root{
+    --azul:#1E40AF; --azul-d:#152C7A; --teal:#0D9488; --teal-d:#0A6F66;
+    --lima:#7FD633; --lima-d:#5DBB2E;
+    --ground:#F7F9F9; --surface:#FFFFFF; --sunk:#EDF3F2;
+    --line:#DBE5E3; --line-2:#B7C6C3;
+    --ink:#11201F; --ink-2:#44605C; --ink-3:#6D8783;
+    --rojo:#B4322A; --rojo-bg:#FBE9E7;
+    --ambar:#B4740A; --ambar-bg:#FBF0DC;
+    --verde:#3F7D22; --verde-bg:#EDF7E4;
+    --fig:"Segoe UI Variable Display","Segoe UI Semibold","Segoe UI",system-ui,sans-serif;
+    --txt:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0B1413; --surface:#111D1C; --sunk:#0E1918;
+      --line:#21322F; --line-2:#334845;
+      --ink:#E5EFED; --ink-2:#9DB4B0; --ink-3:#78908C;
+      --azul:#7C9BF5; --teal:#2FBFB0; --teal-d:#56D6C6; --lima:#92CC4A;
+      --rojo:#E8776C; --rojo-bg:#2D1512; --ambar:#DFA33C; --ambar-bg:#2B2110;
+      --verde:#8CC85E; --verde-bg:#182611;
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#F7F9F9; --surface:#FFFFFF; --sunk:#EDF3F2;
+    --line:#DBE5E3; --line-2:#B7C6C3; --ink:#11201F; --ink-2:#44605C; --ink-3:#6D8783;
+    --azul:#1E40AF; --teal:#0D9488; --teal-d:#0A6F66; --lima:#7FD633;
+    --rojo:#B4322A; --rojo-bg:#FBE9E7; --ambar:#B4740A; --ambar-bg:#FBF0DC;
+    --verde:#3F7D22; --verde-bg:#EDF7E4;
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B1413; --surface:#111D1C; --sunk:#0E1918;
+    --line:#21322F; --line-2:#334845; --ink:#E5EFED; --ink-2:#9DB4B0; --ink-3:#78908C;
+    --azul:#7C9BF5; --teal:#2FBFB0; --teal-d:#56D6C6; --lima:#92CC4A;
+    --rojo:#E8776C; --rojo-bg:#2D1512; --ambar:#DFA33C; --ambar-bg:#2B2110;
+    --verde:#8CC85E; --verde-bg:#182611;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--txt);
+       font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:62rem;margin:0 auto;padding:0 1.5rem 5rem}
+
+  /* aviso de demo: primero, sin ambigüedad */
+  .aviso{background:var(--ambar-bg);border-bottom:2px solid var(--ambar);
+         padding:.65rem 1.5rem;font-family:var(--mono);font-size:.72rem;
+         letter-spacing:.06em;text-transform:uppercase;color:var(--ambar);text-align:center}
+
+  header{padding:3rem 0 1.75rem;border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.15em;
+           text-transform:uppercase;color:var(--teal-d);margin:0 0 .7rem}
+  h1{font-family:var(--fig);font-size:clamp(2rem,5vw,2.9rem);line-height:1.05;
+     letter-spacing:-.025em;font-weight:700;margin:0 0 .8rem;text-wrap:balance}
+  .lead{font-size:1.08rem;color:var(--ink-2);margin:0;max-width:44rem}
+
+  .paso{margin-top:3.25rem}
+  .paso-h{display:flex;align-items:baseline;gap:.85rem;margin-bottom:.3rem}
+  .paso-n{font-family:var(--mono);font-size:.72rem;font-weight:600;color:#fff;
+          background:var(--teal);padding:.2rem .5rem;letter-spacing:.06em;flex:none}
+  h2{font-family:var(--fig);font-size:1.42rem;letter-spacing:-.018em;font-weight:700;
+     margin:0;line-height:1.2}
+  .paso-sub{color:var(--ink-3);font-size:.88rem;margin:.15rem 0 1.35rem;max-width:44rem}
+  p{margin:0 0 1rem;max-width:44rem}
+
+  .panel{background:var(--surface);border:1px solid var(--line);overflow:hidden}
+  .panel-t{background:var(--sunk);border-bottom:1px solid var(--line-2);
+           padding:.6rem .9rem;font-family:var(--mono);font-size:.7rem;
+           letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+           display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th{text-align:left;font-family:var(--mono);font-size:.66rem;letter-spacing:.09em;
+     text-transform:uppercase;color:var(--ink-3);font-weight:500;padding:.6rem .9rem;
+     border-bottom:1px solid var(--line-2);white-space:nowrap}
+  td{padding:.62rem .9rem;border-bottom:1px solid var(--line);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .mono{font-family:var(--mono);font-size:.82rem}
+  .tablewrap{overflow-x:auto}
+
+  .chip{display:inline-block;font-family:var(--mono);font-size:.64rem;letter-spacing:.07em;
+        text-transform:uppercase;padding:.15rem .42rem;border:1px solid;line-height:1.35;
+        white-space:nowrap}
+  .c-at{color:var(--rojo);border-color:var(--rojo);background:var(--rojo-bg)}
+  .c-vi{color:var(--ambar);border-color:var(--ambar);background:var(--ambar-bg)}
+  .c-ss{color:var(--verde);border-color:var(--verde);background:var(--verde-bg)}
+
+  /* --- teléfono --- */
+  .fila{display:grid;grid-template-columns:19rem 1fr;gap:2rem;align-items:start}
+  @media(max-width:52rem){.fila{grid-template-columns:1fr}}
+  .tel{background:#0B1413;border:9px solid #26312F;border-radius:26px;overflow:hidden;
+       box-shadow:0 14px 34px rgba(0,0,0,.22);width:19rem;max-width:100%}
+  .tel-bar{background:#0E1A19;color:#8FA9A5;font-family:var(--mono);font-size:.6rem;
+           padding:.32rem .7rem;display:flex;justify-content:space-between}
+  .tel-app{background:#0E1A19;border-bottom:1px solid #21322F;padding:.5rem .7rem;
+           display:flex;align-items:center;gap:.5rem}
+  .tel-logo{width:1.15rem;height:1.15rem;border-radius:50%;flex:none;
+            background:linear-gradient(135deg,#7FD633,#0D9488 55%,#1E40AF)}
+  .tel-logo-t{color:#E5EFED;font-family:var(--fig);font-size:.76rem;font-weight:700}
+  .tel-body{padding:.7rem;min-height:20.5rem}
+  .tel-eyebrow{font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;
+               text-transform:uppercase;color:#5DBB2E;margin-bottom:.15rem}
+  .tel-h{color:#E5EFED;font-family:var(--fig);font-size:.95rem;font-weight:700;margin-bottom:.1rem}
+  .tel-sub{color:#8FA9A5;font-size:.68rem;line-height:1.45;margin-bottom:.6rem}
+  .foco{background:#152322;border-left:3px solid var(--l,#B4322A);padding:.45rem .55rem;
+        margin-bottom:.4rem;cursor:pointer;transition:background .12s}
+  .foco:hover,.foco:focus-visible{background:#1B2C2A;outline:none}
+  .foco-r{display:flex;justify-content:space-between;align-items:baseline;gap:.4rem}
+  .foco-n{color:#E5EFED;font-size:.78rem;font-weight:600}
+  .foco-m{color:#8FA9A5;font-family:var(--mono);font-size:.58rem}
+  .tel-btn{display:block;width:100%;border:0;padding:.55rem;margin-top:.45rem;
+           font-family:var(--txt);font-size:.76rem;font-weight:600;cursor:pointer;
+           border-radius:3px}
+  .b-lima{background:var(--lima-d);color:#08140A}
+  .b-ghost{background:transparent;color:#9DB4B0;border:1px solid #334845}
+  .tel-ok{background:#182611;border:1px solid #3F7D22;color:#8CC85E;padding:.55rem;
+          font-size:.72rem;line-height:1.45;margin-top:.5rem}
+
+  .nota{border-left:3px solid var(--teal);background:var(--sunk);padding:.9rem 1.1rem;
+        font-size:.92rem;color:var(--ink-2)}
+  .nota b{color:var(--ink)}
+
+  .veredicto{border:1px solid var(--ambar);border-left-width:4px;background:var(--ambar-bg);
+             padding:1.15rem 1.3rem;margin-top:1.2rem}
+  .veredicto-t{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;
+               text-transform:uppercase;color:var(--ambar);margin-bottom:.55rem}
+  .veredicto p{margin:0 0 .55rem;max-width:none;font-size:.93rem}
+  .veredicto p:last-child{margin:0}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));gap:1px;
+        background:var(--line);border:1px solid var(--line)}
+  .kpi{background:var(--surface);padding:.85rem .95rem}
+  .kpi-n{font-family:var(--fig);font-size:1.45rem;font-weight:700;letter-spacing:-.02em;
+         font-variant-numeric:tabular-nums;color:var(--teal-d);line-height:1.15}
+  .kpi-l{font-size:.78rem;color:var(--ink-2);line-height:1.35;margin-top:.1rem}
+
+  footer{margin-top:4rem;padding-top:1.4rem;border-top:1px solid var(--line-2);
+         font-size:.84rem;color:var(--ink-3)}
+  footer p{max-width:44rem}
+  code{font-family:var(--mono);font-size:.85em;background:var(--sunk);
+       border:1px solid var(--line);padding:.06em .32em}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="aviso">Demostración · datos inventados · ninguna cifra de campo de esta página es real</div>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Pixadvisor Monitor · cómo funciona</p>
+    <h1>De la imagen satelital a un técnico parado en el lote</h1>
+    <p class="lead">La cadena completa con un campo de ejemplo, <b>Estancia La Primavera</b>, que no existe. Los lotes, los hallazgos y los números son inventados para mostrar el recorrido; el criterio y las salvaguardas son los reales.</p>
+  </header>
+
+  <section class="paso">
+    <div class="paso-h"><span class="paso-n">1</span><h2>El lunes, el ranking</h2></div>
+    <p class="paso-sub">De 184 lotes, el sistema dice a cuáles ir. No a todos: sólo a los que salieron de control.</p>
+
+    <div class="panel">
+      <div class="panel-t"><span>Ranking · escena Sentinel-2 del 12-11-2026</span><span>184 lotes evaluados</span></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>#</th><th>Lote</th><th>Estado</th><th class="num">Área</th><th class="num">Última imagen</th></tr></thead>
+          <tbody>
+            <tr><td class="num">1</td><td class="mono">B2-L07</td><td><span class="chip c-at">Atención</span></td><td class="num">48,2 ha</td><td class="num">hace 1 día</td></tr>
+            <tr><td class="num">2</td><td class="mono">B2-L11</td><td><span class="chip c-at">Atención</span></td><td class="num">31,6 ha</td><td class="num">hace 1 día</td></tr>
+            <tr><td class="num">3</td><td class="mono">B5-L02</td><td><span class="chip c-at">Atención</span></td><td class="num">22,9 ha</td><td class="num">hace 6 días</td></tr>
+            <tr><td class="num">4</td><td class="mono">B7-L14</td><td><span class="chip c-vi">Vigilancia</span></td><td class="num">55,1 ha</td><td class="num">hace 1 día</td></tr>
+            <tr><td class="num">5</td><td class="mono">B3-L09</td><td><span class="chip c-vi">Vigilancia</span></td><td class="num">18,4 ha</td><td class="num">hace 1 día</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p style="margin-top:1rem">Los otros 179 lotes salen como <span class="chip c-ss">Sin señal</span>. Que el sistema pueda decir <b>“no pasa nada”</b> no es un detalle: un criterio que siempre marca algo es una cuota, no una medición.</p>
+
+    <div class="nota" style="margin-top:1rem"><b>Y cuando no hubo imagen limpia, lo dice.</b> Un lote sin observación reciente sale como <span class="chip">Sin dato</span>, no como sano. Arrastrar el último estado sería afirmar algo que nadie miró.</div>
+  </section>
+
+  <section class="paso">
+    <div class="paso-h"><span class="paso-n">2</span><h2>El martes, el técnico sale</h2></div>
+    <p class="paso-sub">Los mismos lotes en el teléfono, sin señal y sin cargar nada. Tocá un lote para seguir.</p>
+
+    <div class="fila">
+      <div class="tel">
+        <div class="tel-bar"><span>07:14</span><span>GPS ±4 m · sin señal</span></div>
+        <div class="tel-app"><span class="tel-logo"></span><span class="tel-logo-t">PIX Scout</span></div>
+        <div class="tel-body" id="pantalla"></div>
+      </div>
+
+      <div>
+        <div id="explica"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="paso">
+    <div class="paso-h"><span class="paso-n">3</span><h2>Al cierre de la campaña, el número</h2></div>
+    <p class="paso-sub">Todo lo que el técnico registró vuelve y mide al sistema. Incluidos los lotes donde no encontró nada.</p>
+
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-n">61 %</div><div class="kpi-l">de los lotes alertados tenía un problema real</div></div>
+      <div class="kpi"><div class="kpi-n">9 %</div><div class="kpi-l">prevalencia del campo (lo que se encuentra yendo al azar)</div></div>
+      <div class="kpi"><div class="kpi-n">6,8×</div><div class="kpi-l">mejor que caminar sin el mapa</div></div>
+      <div class="kpi"><div class="kpi-n">112</div><div class="kpi-l">lotes visitados, <b>48 de ellos en verde</b></div></div>
+    </div>
+
+    <p style="margin-top:1.1rem">Los 48 lotes en verde son la parte incómoda y la que hace que el resto valga. Si el técnico sólo va a los rojos, el sistema <b>siempre</b> parece excelente y nunca se sabe cuántos focos se escaparon. Por eso el muestreo sortea también donde el sistema dijo que no pasaba nada, y guarda con qué probabilidad eligió cada lote.</p>
+
+    <div class="veredicto">
+      <div class="veredicto-t">Lo que el sistema hace si el número no da</div>
+      <p><b>Se niega a concluir.</b> Si no se visitó ningún lote en verde, o si algún estrato tiene menos de 5 observaciones, el informe sale marcado como no concluyente en vez de publicar un porcentaje que no significa nada.</p>
+      <p>Y si la precisión no supera a la prevalencia, lo dice con todas las letras: <em>dirigir el scouting con el mapa no rindió más que ir al azar</em>. Es un resultado válido y hay que reportarlo.</p>
+    </div>
+  </section>
+
+  <section class="paso">
+    <div class="paso-h"><span class="paso-n">4</span><h2>Lo que no hace</h2></div>
+    <p class="paso-sub">Va por escrito en la propuesta, no en la letra chica.</p>
+    <div class="panel">
+      <div class="tablewrap">
+        <table>
+          <tbody>
+            <tr><td style="width:38%"><b>No dice qué plaga es</b></td><td>El satélite ve que un lote se apartó de sus vecinos, no la causa. La confirma el técnico.</td></tr>
+            <tr><td><b>No detecta chinches</b></td><td>Hay evidencia publicada de que no son detectables ni con sensores de proximidad.</td></tr>
+            <tr><td><b>No detecta roya asiática</b></td><td>A escala de lote comercial no está demostrado por nadie.</td></tr>
+            <tr><td><b>No ve el daño antes de que sea visible</b></td><td>Cuando el foco es detectable, ya son cientos de metros cuadrados.</td></tr>
+            <tr><td><b>No promete cadencia fija</b></td><td>Con nubes hay huecos. El máximo medido en la zona va en el contrato como número.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Página de demostración de Pixadvisor Agricultura de Precisión. <b>Estancia La Primavera no existe</b> y todos los lotes, hallazgos y porcentajes de esta página son inventados para ilustrar el recorrido. El criterio, las salvaguardas y los límites declarados sí son los del sistema real.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var FOCOS = [
+    {id:'B2-L07', sev:'#B4322A', chip:'Atención', area:'48,2 ha', pos:'1/5'},
+    {id:'B2-L11', sev:'#B4322A', chip:'Atención', area:'31,6 ha', pos:'2/5'},
+    {id:'B5-L02', sev:'#B4322A', chip:'Atención', area:'22,9 ha', pos:'3/5'},
+    {id:'B7-L14', sev:'#B4740A', chip:'Vigilancia', area:'55,1 ha', pos:'4/5'},
+    {id:'B3-L09', sev:'#B4740A', chip:'Vigilancia', area:'18,4 ha', pos:'5/5'}
+  ];
+  var pantalla = document.getElementById('pantalla');
+  var explica  = document.getElementById('explica');
+  var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); };
+
+  function texto(html){ explica.innerHTML = html; }
+
+  function lista(){
+    var h = '<div class="tel-eyebrow">Focos activos</div>'
+          + '<div class="tel-h">5 lotes para recorrer</div>'
+          + '<div class="tel-sub">Ordenados por prioridad. Escena del 12-11-2026.</div>';
+    FOCOS.forEach(function(f,i){
+      h += '<div class="foco" style="--l:'+f.sev+'" tabindex="0" data-i="'+i+'" role="button">'
+         + '<div class="foco-r"><span class="foco-n">'+esc(f.id)+'</span>'
+         + '<span class="foco-m">'+esc(f.pos)+'</span></div>'
+         + '<div class="foco-m">Estancia La Primavera · '+esc(f.area)+'</div></div>';
+    });
+    pantalla.innerHTML = h;
+    [].forEach.call(pantalla.querySelectorAll('.foco'), function(el){
+      el.onclick = function(){ navegar(+el.dataset.i); };
+      el.onkeydown = function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); navegar(+el.dataset.i);} };
+    });
+    texto('<p><b>Todo esto funciona sin señal.</b> El teléfono trae los lotes descargados y el mapa cacheado; en el campo no hay dónde conectarse.</p>'
+        + '<p>El técnico ve el orden, no el porqué. Durante la campaña de validación la app además <b>oculta el nivel de alerta</b>: si sabe que va a un rojo, encuentra algo. El dato se guarda igual, para poder medir después.</p>');
+  }
+
+  function navegar(i){
+    var f = FOCOS[i];
+    pantalla.innerHTML =
+      '<div class="tel-eyebrow">Navegación</div>'
+      + '<div class="tel-h">'+esc(f.id)+'</div>'
+      + '<div class="tel-sub">Estancia La Primavera · soya · '+esc(f.area)+'<br>A 340 m — seguí la flecha</div>'
+      + '<div style="text-align:center;font-size:3.1rem;color:#5DBB2E;line-height:1;margin:.9rem 0 1rem">&#8599;</div>'
+      + '<button class="tel-btn b-lima" id="b-dx">Diagnosticar aquí</button>'
+      + '<button class="tel-btn b-ghost" id="b-nada">Llegué y no encontré nada</button>'
+      + '<button class="tel-btn b-ghost" id="b-back">Volver a la lista</button>';
+    document.getElementById('b-back').onclick = lista;
+    document.getElementById('b-dx').onclick = function(){ diagnostico(f); };
+    document.getElementById('b-nada').onclick = function(){ nada(f); };
+    texto('<p>La app lleva al lote por GPS y brújula. El lote se llama <code>'+esc(f.id)+'</code>, igual que en el informe: el técnico puede casarlos sin dudar.</p>'
+        + '<p>Desde acá hay dos caminos, y <b>los dos son datos</b>.</p>');
+  }
+
+  function diagnostico(f){
+    pantalla.innerHTML =
+      '<div class="tel-eyebrow">Validación</div>'
+      + '<div class="tel-h">Oruga de las leguminosas</div>'
+      + '<div class="tel-sub">Anticarsia gemmatalis · '+esc(f.id)+'</div>'
+      + '<div style="background:#152322;padding:.5rem .55rem;margin-bottom:.5rem">'
+      + '<div class="foco-m" style="margin-bottom:.3rem">Conteo medido</div>'
+      + '<div style="color:#E5EFED;font-size:.8rem">22 <span class="foco-m">% de defoliación</span></div></div>'
+      + '<div style="background:#152322;padding:.5rem .55rem;margin-bottom:.5rem">'
+      + '<div class="foco-m" style="margin-bottom:.3rem">Estadio del cultivo</div>'
+      + '<div style="color:#E5EFED;font-size:.8rem">Reproductivo</div></div>'
+      + '<div class="tel-ok" style="border-color:#B4740A;color:#DFA33C;background:#2B2110">'
+      + '<b>Por encima de la referencia</b><br>medido 22 vs umbral &ge; 15 % de defoliación'
+      + '<div style="margin-top:.35rem;font-size:.63rem;line-height:1.4;opacity:.9">'
+      + 'Punto elegido por el satélite: es una referencia, no un criterio de aplicación.</div></div>'
+      + '<button class="tel-btn b-ghost" id="b-back">Volver</button>';
+    document.getElementById('b-back').onclick = function(){ navegar(FOCOS.indexOf(f)); };
+    texto('<p><b>El umbral es un cálculo, no un botón.</b> El técnico carga el conteo y la unidad; el veredicto lo saca el código del umbral de Embrapa que corresponda.</p>'
+        + '<p>Ese mismo 22 % daría <em>por debajo</em> en estadio vegetativo, donde el umbral es 30 %. Si el estadio no se declara, no se calcula nada: no se asume.</p>'
+        + '<p>Y como el satélite eligió el punto —el peor del lote— el veredicto dice <b>“referencia”, nunca “supera el umbral MIP”</b>. El umbral está calibrado sobre muestreo representativo; compararlos empujaría a aplicar de más, que es lo contrario del ahorro que el MIP demuestra.</p>');
+  }
+
+  function nada(f){
+    pantalla.innerHTML =
+      '<div class="tel-eyebrow">Registro</div>'
+      + '<div class="tel-h">Sin hallazgo</div>'
+      + '<div class="tel-sub">'+esc(f.id)+' · registrado con GPS y foto</div>'
+      + '<div class="tel-ok">Guardado. <b>Es el dato que permite medir los falsos positivos.</b></div>'
+      + '<div class="foco-m" style="margin-top:.7rem;line-height:1.5">Queda en el teléfono y sube solo cuando haya señal. Nada se pierde por estar sin cobertura.</div>'
+      + '<button class="tel-btn b-ghost" id="b-back" style="margin-top:.6rem">Volver</button>';
+    document.getElementById('b-back').onclick = function(){ navegar(FOCOS.indexOf(f)); };
+    texto('<p><b>Este botón es el más importante de la app</b>, y ninguno de los quince competidores que revisamos lo tiene.</p>'
+        + '<p>Un sistema que sólo registra los aciertos no se puede medir: sin los “fui y no había nada” no hay forma de saber cuántas veces alertó de más. Por eso el registro negativo se guarda con la misma ceremonia que un hallazgo — con foto y coordenada.</p>');
+  }
+
+  lista();
+})();
+</script>
