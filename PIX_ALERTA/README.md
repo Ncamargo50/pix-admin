@@ -14,6 +14,9 @@ Exit codes: `0` nada que entregar · `10` entregable generado · otro = fallo re
 
 **Alta de cliente = un archivo JSON en `clientes/`, cero código.** Ver [clientes/README.md](clientes/README.md).
 
+**Campaña de validación** (cómo se mide si esto sirve): ver [VALIDACION.md](VALIDACION.md).
+Hay que armarla **antes de sembrar**.
+
 ---
 
 ## Qué hace, en una frase
@@ -196,6 +199,9 @@ agrega columnas, no información.
 | `pix_alerta/config.py` | Sitios y parámetros. Agregar una hacienda = una entrada |
 | `pix_alerta/clientes.py` | Capa de clientes: alta por archivo, validación, aislamiento |
 | `pix_alerta/correr_todos.py` | Corrida multi-cliente (lo que va en el cron) |
+| `pix_alerta/muestreo.py` | Diseño del muestreo de validación: estratos con verde, n, ciego |
+| `pix_alerta/validacion.py` | Métricas ponderadas por diseño. Nunca exactitud global |
+| `pix_alerta/disenar_muestra.py` | CLI: dimensiona y sortea la muestra de una campaña |
 | `clientes/` | Un JSON por cliente. Ver su README |
 | `pix_alerta/series.py` | Extracción a tabla por lote y fecha (`reduceRegions`, sin ráster) |
 | `pix_alerta/ranking.py` | El criterio: residuos, EWMA, ranking, control nulo |

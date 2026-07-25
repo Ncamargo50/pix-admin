@@ -1,0 +1,211 @@
+"""Puertas 4.1, 4.2 y 4.4 — el diseño de la campaña de validacion.
+
+La que manda es que el SESGO DE VERIFICACION no pase desapercibido: si el tecnico solo
+va a los rojos, el sistema parece excelente y el numero final no significa nada. Esa
+trampa tiene que hacer ruido sola, sin que nadie se acuerde de mirarla.
+"""
+import numpy as np
+import pandas as pd
+import pytest
+
+from pix_alerta import muestreo as ms
+from pix_alerta import validacion as vl
+
+
+def poblacion(n_at=20, n_vi=40, n_sin=440, semilla=0):
+    """Campo tipico: pocos alertados, muchisimos sin señal."""
+    rng = np.random.default_rng(semilla)
+    filas = []
+    for e, k in (('ATENCION', n_at), ('VIGILANCIA', n_vi), ('SIN SEÑAL', n_sin)):
+        for i in range(k):
+            filas.append(dict(lote_id='%s-%03d' % (e[:2], i), estado=e,
+                              score=float(rng.normal({'ATENCION': 3, 'VIGILANCIA': 1.5}.get(e, 0), 1)),
+                              area_ha=50.0))
+    return pd.DataFrame(filas)
+
+
+def campo(muestra, tasas, semilla=0):
+    """Simula lo que el tecnico encontro, con la tasa real de cada estrato."""
+    rng = np.random.default_rng(semilla)
+    d = muestra.copy()
+    d['hubo_problema'] = [rng.random() < tasas[e] for e in d['estrato']]
+    return d
+
+
+# --- Puerta 4.1: estratos CON VERDE y probabilidades guardadas ----------------
+def test_el_sorteo_incluye_verde():
+    m = ms.sortear(poblacion(), n_por_estrato={'ATENCION': 10, 'VIGILANCIA': 10, 'SIN SEÑAL': 10})
+    assert set(m['estrato']) == set(ms.ESTRATOS)
+
+
+def test_guarda_probabilidad_de_inclusion():
+    """Sin esto el sobremuestreo del rojo sesga toda estimacion poblacional."""
+    m = ms.sortear(poblacion(n_at=20, n_sin=440),
+                   n_por_estrato={'ATENCION': 10, 'VIGILANCIA': 10, 'SIN SEÑAL': 10})
+    at = m[m['estrato'] == 'ATENCION'].iloc[0]
+    si = m[m['estrato'] == 'SIN SEÑAL'].iloc[0]
+    assert at['prob_inclusion'] == pytest.approx(10 / 20)
+    assert si['prob_inclusion'] == pytest.approx(10 / 440)
+    # el rojo esta MUY sobremuestreado, y por eso hace falta el peso
+    assert si['peso_diseño'] > at['peso_diseño'] * 10
+
+
+def test_sin_dato_no_es_un_estrato():
+    """'SIN DATO' es ausencia de observacion, no un veredicto. Mezclarlos seria
+    confundir 'no mire' con 'mire y no habia nada'."""
+    p = poblacion()
+    p.loc[p.index[:5], 'estado'] = 'SIN DATO'
+    m = ms.sortear(p, n_por_estrato={e: 5 for e in ms.ESTRATOS})
+    assert 'SIN DATO' not in set(m['estrato'])
+
+
+def test_el_orden_de_visita_no_revela_el_estrato():
+    """Si el tecnico recorre primero todos los rojos, el orden le canta el estrato."""
+    m = ms.sortear(poblacion(), n_por_estrato={e: 15 for e in ms.ESTRATOS}, semilla=3)
+    primeros = list(m.sort_values('orden_visita')['estrato'].head(15))
+    assert len(set(primeros)) > 1, 'los primeros 15 son todos del mismo estrato'
+
+
+def test_geojson_ciego_no_expone_el_estrato_como_campo_visible(tmp_path):
+    import json
+    m = ms.sortear(poblacion(), n_por_estrato={e: 3 for e in ms.ESTRATOS})
+    geoms = {lid: {'type': 'Point', 'coordinates': [0, 0]} for lid in m['lote_id']}
+    p = tmp_path / 'ciego.geojson'
+    n = ms.a_geojson_ciego(m, geoms, str(p))
+    gj = json.load(open(p, encoding='utf-8'))
+    assert n == len(gj['features'])
+    props = gj['features'][0]['properties']
+    assert props['ciego'] is True
+    assert 'estrato' not in props and 'estado' not in props
+    assert '_estrato_oculto' in props        # viaja, pero con nombre que no se pinta
+
+
+# --- Puerta 4.2: n calculado, no adivinado -----------------------------------
+def test_n_crece_cuando_se_pide_mas_precision():
+    n1 = ms.n_para_proporcion(0.30, semiancho=0.10)
+    n2 = ms.n_para_proporcion(0.30, semiancho=0.05)
+    assert n2 > n1 * 3
+
+
+def test_correccion_por_poblacion_finita():
+    assert ms.n_para_proporcion(0.5, 0.10, N=50) < ms.n_para_proporcion(0.5, 0.10)
+
+
+def test_avisa_cuando_el_IC_es_mas_ancho_que_la_prevalencia():
+    """Estimar 5% con +-10 puntos no distingue 'funciona' de 'no funciona'."""
+    _, ver = ms.dimensionar({e: 200 for e in ms.ESTRATOS}, p_esperada=0.05, semiancho=0.10)
+    assert any('MAS ANCHO' in a for a in ver['avisos'])
+
+
+def test_avisa_cuando_no_alcanza_la_capacidad_del_cliente():
+    """La pregunta real no es 'cuantos', es si el cliente puede pagarlo en el año."""
+    _, ver = ms.dimensionar({e: 500 for e in ms.ESTRATOS}, p_esperada=0.30,
+                            semiancho=0.05, K_por_ronda=10, rondas_disponibles=20)
+    assert ver['alcanza'] is False
+    assert any('NO ALCANZA' in a for a in ver['avisos'])
+
+
+# --- Puerta 4.4: metricas correctas ------------------------------------------
+def test_sin_verde_el_resultado_NO_es_concluyente():
+    """EL TEST QUE IMPORTA. Visitar solo los rojos da precision alta por construccion."""
+    m = ms.sortear(poblacion(), n_por_estrato={'ATENCION': 15, 'VIGILANCIA': 15})
+    v = campo(m, {'ATENCION': 0.8, 'VIGILANCIA': 0.5, 'SIN SEÑAL': 0.05})
+    r = vl.evaluar(v)
+    assert r['concluyente'] is False
+    assert any('VERDE' in a for a in r['avisos'])
+
+
+def test_la_prevalencia_no_se_infla_con_el_sobremuestreo():
+    """Sin pesos de diseño, la prevalencia estimada seria la del rojo, no la del campo."""
+    pob = poblacion(n_at=20, n_vi=40, n_sin=440)
+    m = ms.sortear(pob, n_por_estrato={'ATENCION': 20, 'VIGILANCIA': 20, 'SIN SEÑAL': 40}, semilla=1)
+    tasas = {'ATENCION': 0.80, 'VIGILANCIA': 0.40, 'SIN SEÑAL': 0.05}
+    v = campo(m, tasas, semilla=1)
+    r = vl.evaluar(v)
+    # prevalencia real ponderada por N: (20*.8 + 40*.4 + 440*.05)/500 = 0,0928
+    esperada = (20 * .8 + 40 * .4 + 440 * .05) / 500
+    assert abs(r['prevalencia'] - esperada) < 0.06
+    # el promedio INGENUO de la muestra estaria muy por encima
+    ingenua = v['hubo_problema'].mean()
+    assert ingenua > r['prevalencia'] + 0.15
+
+
+def test_avisa_si_el_mapa_no_rinde_mas_que_ir_al_azar():
+    """Un resultado en contra es un resultado valido y tiene que decirse."""
+    pob = poblacion()
+    m = ms.sortear(pob, n_por_estrato={'ATENCION': 20, 'VIGILANCIA': 20, 'SIN SEÑAL': 40}, semilla=2)
+    v = campo(m, {'ATENCION': 0.10, 'VIGILANCIA': 0.10, 'SIN SEÑAL': 0.10}, semilla=2)
+    r = vl.evaluar(v)
+    assert any('NO supera' in a for a in r['avisos'])
+    assert r['lift'] < 1.2
+
+
+def test_lift_alto_cuando_el_sistema_funciona():
+    pob = poblacion()
+    m = ms.sortear(pob, n_por_estrato={'ATENCION': 20, 'VIGILANCIA': 20, 'SIN SEÑAL': 40}, semilla=4)
+    v = campo(m, {'ATENCION': 0.85, 'VIGILANCIA': 0.45, 'SIN SEÑAL': 0.03}, semilla=4)
+    r = vl.evaluar(v)
+    assert r['lift'] > 3
+    assert r['concluyente'] is True
+
+
+def test_el_CLI_se_niega_a_sortear_sin_verde(tmp_path, capsys):
+    """Bug real encontrado al probar con datos de HDS: `main.py --K` recorta el ranking
+    a los lotes que salen de control, asi que el CSV NO tiene estrato verde. El CLI
+    emitia igual una muestra 100% roja — el sesgo de verificacion que todo esto evita."""
+    from pix_alerta import disenar_muestra as dm
+    recortado = poblacion(n_at=4, n_vi=2, n_sin=0)      # tal cual sale con --K
+    p = tmp_path / 'ranking_cortado.csv'
+    recortado.to_csv(p, index=False)
+    rc = dm.main(['--ranking', str(p), '--sitio', 'HDS', '--salida', str(tmp_path)])
+    assert rc == 1
+    out = capsys.readouterr().out
+    assert 'SIN SEÑAL' in out and 'SESGO DE VERIFICACION' in out
+    assert not list(tmp_path.glob('muestra_*.csv')), 'no debe emitir muestra'
+
+
+def test_el_CLI_sortea_cuando_el_ranking_esta_completo(tmp_path):
+    from pix_alerta import disenar_muestra as dm
+    completo = poblacion(n_at=10, n_vi=7, n_sin=190)
+    p = tmp_path / 'ranking_completo.csv'
+    completo.to_csv(p, index=False)
+    rc = dm.main(['--ranking', str(p), '--prevalencia', '0.30', '--semiancho', '0.10',
+                  '--salida', str(tmp_path)])
+    assert rc == 10
+    m = pd.read_csv(list(tmp_path.glob('muestra_*.csv'))[0])
+    assert set(m['estrato']) == set(ms.ESTRATOS)
+    assert (m['prob_inclusion'] > 0).all()
+
+
+def test_no_existe_exactitud_global():
+    """La Puerta 4.4 dice 'NUNCA exactitud global': no debe haber forma de pedirla."""
+    assert not hasattr(vl, 'exactitud_global')
+    assert not hasattr(vl, 'accuracy')
+
+
+def test_pr_auc_ponderada_no_se_define_con_una_sola_clase():
+    """Devolver 0,5 cuando no hay ambas clases seria inventar un resultado."""
+    pob = poblacion()
+    m = ms.sortear(pob, n_por_estrato={e: 10 for e in ms.ESTRATOS})
+    v = m.copy(); v['hubo_problema'] = False
+    auc, _ = vl.pr_auc(v)
+    assert np.isnan(auc)
+
+
+def test_pr_auc_mejor_que_azar_cuando_el_score_ordena():
+    pob = poblacion()
+    m = ms.sortear(pob, n_por_estrato={'ATENCION': 20, 'VIGILANCIA': 20, 'SIN SEÑAL': 40}, semilla=5)
+    v = campo(m, {'ATENCION': 0.85, 'VIGILANCIA': 0.45, 'SIN SEÑAL': 0.03}, semilla=5)
+    auc, curva = vl.pr_auc(v)
+    assert np.isfinite(auc) and 0 < auc <= 1
+    assert len(curva) == len(v)
+
+
+def test_el_informe_declara_siempre_la_prevalencia():
+    """Una precision sin la prevalencia al lado no se puede interpretar."""
+    pob = poblacion()
+    m = ms.sortear(pob, n_por_estrato={'ATENCION': 20, 'VIGILANCIA': 20, 'SIN SEÑAL': 40}, semilla=6)
+    v = campo(m, {'ATENCION': 0.8, 'VIGILANCIA': 0.4, 'SIN SEÑAL': 0.05}, semilla=6)
+    txt = vl.informe(vl.evaluar(v))
+    assert 'Prevalencia del campo' in txt
+    assert 'exactitud global' in txt          # se declara por que NO esta
