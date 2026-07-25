@@ -88,6 +88,26 @@ def dentro_de_campana(fecha, sitio):
     return False
 
 
+def inicio_de_campana(fecha, sitio):
+    """Fecha de arranque de la campaña que contiene a `fecha`. None si no hay.
+
+    LA VENTANA TIENE QUE EMPEZAR CON LA CAMPAÑA, NO N DIAS ATRAS.
+    Medido en la primera corrida real contra Earth Engine: con la ventana por defecto de
+    150 dias, una corrida al 30-abr arranca el 1-dic — a mitad de campaña, cuando los
+    lotes ya emergieron. El estimador de cohorte necesita ver la RAMA ASCENDENTE del
+    NDVI para ubicar la emergencia, asi que mando **188 de 207 lotes a EST-SIN-CICLO** y
+    el ranking salio con CERO lotes evaluados. Con la serie completa de la campaña, el
+    mismo dia daba 126 lotes y 6 alertados.
+
+    El sitio ya declara sus campañas; no hace falta adivinar el largo de la ventana.
+    """
+    f = str(pd.Timestamp(fecha).date())
+    for ini, fin in (sitio.campanas or {}).values():
+        if ini <= f <= fin:
+            return ini
+    return None
+
+
 def residuos(df, ejes=cfg.EJES, solo_pleno=True):
     """Apartamiento de cada lote respecto de SU PROPIA trayectoria.
 

@@ -168,6 +168,29 @@ def test_dato_viejo_no_es_alerta():
     assert (r['estado'] == 'SIN DATO').all()
 
 
+def test_la_ventana_arranca_con_la_campana():
+    """Lo encontro la primera corrida real contra Earth Engine, no un test sintetico.
+
+    Con la ventana por defecto de 150 dias, una corrida al 30-abr arranca el 1-dic: a
+    mitad de campaña, con los lotes ya emergidos. El estimador de cohorte necesita la
+    RAMA ASCENDENTE del NDVI para ubicar la emergencia, asi que mando 188 de 207 lotes a
+    EST-SIN-CICLO y el ranking salio con CERO lotes. Arrancando con la campaña: 90 sin
+    ciclo y 9 alertados.
+    """
+    class S:
+        campanas = {'2025/2026': ('2025-10-01', '2026-04-30'),
+                    '2024/2025': ('2024-10-01', '2025-04-30')}
+    assert rk.inicio_de_campana('2026-04-30', S()) == '2025-10-01'
+    assert rk.inicio_de_campana('2025-11-15', S()) == '2025-10-01'
+    assert rk.inicio_de_campana('2025-03-01', S()) == '2024-10-01'
+    # fuera de toda campaña no se inventa un inicio: quien llame decide que hacer
+    assert rk.inicio_de_campana('2026-07-15', S()) is None
+
+    class SinCampanas:
+        campanas = {}
+    assert rk.inicio_de_campana('2026-04-30', SinCampanas()) is None
+
+
 def test_serie_corta_no_produce_ranking():
     df = campo_sintetico(n_fechas=2)
     assert rk.ewma(rk.residuos(df)).empty

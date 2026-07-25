@@ -159,7 +159,15 @@ def main(argv=None):
               "deterioro: no se emite ranking." % (a.hasta, sitio.clave, vent))
         return 0
     os.makedirs(a.salida, exist_ok=True)
-    desde = a.desde or str(pd.Timestamp(a.hasta) - pd.Timedelta(days=150))[:10]
+    # La ventana arranca con la CAMPAÑA, no N dias atras: el estimador de cohorte
+    # necesita ver la emergencia. Ver ranking.inicio_de_campana para lo que paso al
+    # cortar a 150 dias (188 de 207 lotes quedaron sin ciclo y el ranking salio vacio).
+    desde = a.desde or rk.inicio_de_campana(a.hasta, sitio)
+    if not desde:
+        desde = str(pd.Timestamp(a.hasta) - pd.Timedelta(days=150))[:10]
+        print(f'[aviso] {sitio.clave} no declara campañas: se usan 150 dias hacia atras. '
+              'Sin ver la emergencia, la cohorte puede salir sin ciclo.')
+    print(f'[ventana] {desde} .. {a.hasta}')
 
     if a.serie:
         df = pd.read_csv(a.serie, parse_dates=['fecha'])
