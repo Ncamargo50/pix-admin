@@ -51,6 +51,11 @@ node_modules/
 *.jpeg
 
 # --- Trabajo intermedio ----------------------------------------------------
+# Worktrees temporales de las sesiones de Claude Code. Estaban versionados como si
+# fueran submodulos (modo 160000): apuntan a commits que cambian solos y ensucian el
+# estado del repo sin aportar nada.
+.claude/worktrees/
+
 _orphan_files/
 _pre_clone_backup/
 salida/
