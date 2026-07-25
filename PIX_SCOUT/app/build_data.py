@@ -29,6 +29,23 @@ for c in CROPS:
 
 clave=json.load(open(os.path.join(DATADIR,'clave_dicotomica.json'),encoding='utf-8'))
 
+# Umbrales MIP como REGLAS COMPUTABLES (no prosa). Sin esto `supera_umbral` es una
+# opinion que el tecnico aprieta a mano. Ver data/umbrales.json y js/umbral.js.
+umbrales=json.load(open(os.path.join(DATADIR,'umbrales.json'),encoding='utf-8'))
+n_comp=sum(1 for v in umbrales['umbrales'].values() if v.get('computable'))
+n_nocomp=len(umbrales['umbrales'])-n_comp
+
+# Puerta: toda ficha con fuente_umbral debe tener entrada en umbrales.json, aunque sea
+# para declarar que NO es computable. Si no, un umbral nuevo entra al banco y queda
+# silenciosamente fuera del calculo.
+_ids_con_umbral={f['id'] for c in cultivos.values() for f in c['fichas'] if f.get('fuente_umbral')}
+_faltan=sorted(_ids_con_umbral-set(umbrales['umbrales']))
+if _faltan:
+    raise SystemExit('ERROR: fichas con fuente_umbral sin entrada en umbrales.json: %s' % ', '.join(_faltan))
+_sobran=sorted(set(umbrales['umbrales'])-_ids_con_umbral)
+if _sobran:
+    raise SystemExit('ERROR: umbrales.json define umbrales de fichas inexistentes: %s' % ', '.join(_sobran))
+
 # Focos de ejemplo (en producción se sincronizan del pipeline de anomalías en la nube).
 PATRON_LABEL={'foco':'foco denso','difuso':'difuso homogéneo','borde':'bordes/franjas','relieve':'bajos del relieve'}
 focos=[
@@ -44,9 +61,11 @@ for f in focos:
     f['cultivo']=CROP_KEY[f['cultivo']]
     f['patronLabel']=PATRON_LABEL[f['patron']]
 
-data={'version':'1.0.0','clave':clave,'cultivos':cultivos,'focos':focos,
-      'stats':{'fichas':n_f,'umbrales':n_umb,'fotos':n_foto,'cultivos':len(cultivos)}}
+data={'version':'1.0.0','clave':clave,'cultivos':cultivos,'focos':focos,'umbrales':umbrales,
+      'stats':{'fichas':n_f,'umbrales':n_umb,'umbrales_computables':n_comp,
+               'fotos':n_foto,'cultivos':len(cultivos)}}
 
 js='/* AUTO-GENERADO por build_data.py — NO editar a mano. */\nwindow.PIXDATA = '+json.dumps(data,ensure_ascii=False)+';\n'
 open(os.path.join(HERE,'js','data.js'),'w',encoding='utf-8').write(js)
-print('OK -> js/data.js | fichas=%d umbrales=%d fotos=%d cultivos=%d focos=%d'%(n_f,n_umb,n_foto,len(cultivos),len(focos)))
+print('OK -> js/data.js | fichas=%d umbrales=%d (computables=%d, declarados no computables=%d) fotos=%d cultivos=%d focos=%d'
+      %(n_f,n_umb,n_comp,n_nocomp,n_foto,len(cultivos),len(focos)))

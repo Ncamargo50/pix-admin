@@ -1,0 +1,274 @@
+{
+  "version": "1.0",
+  "generado": "2026-07-24",
+  "proposito": "Convertir los umbrales MIP de prosa libre a reglas COMPUTABLES, para que 'supera el umbral' sea un calculo y no una opinion del tecnico (Puerta 3.2 de PLAN_A_PRODUCCION).",
+  "reglas_de_curaduria": [
+    "NO se invento ningun numero: cada valor sale literal del campo umbral_accion de su ficha.",
+    "Donde la propia ficha dice VERIFICAR_LOCAL o 'no establecido', computable=false. No se rellena con un numero de otro cultivo ni de otra region.",
+    "Cada regla arrastra su fuente y donde fue calibrada. Un umbral absoluto NO transfiere entre regiones: se muestra siempre con esa advertencia.",
+    "El veredicto NUNCA se presenta como MIP cuando el punto lo eligio el satelite: ver comparable_con_mip en umbral.js."
+  ],
+  "unidades": {
+    "pct_defoliacion": "% de defoliacion",
+    "pct_plantas_dano": "% de plantas con dano",
+    "pct_plantas_infestadas": "% de plantas infestadas",
+    "pct_plantulas_cortadas": "% de plantulas cortadas",
+    "larvas_por_planta": "larvas por planta",
+    "lagartas_grandes_por_metro": "lagartas >1,5 cm por metro (pano de batida)",
+    "orugas_por_100_plantas": "orugas cada 100 plantas",
+    "ninfas_por_metro": "ninfas por metro lineal",
+    "ninfas_por_m2": "ninfas por m2",
+    "adultos_por_m2": "adultos por m2",
+    "chinches_por_m2": "chinches por m2",
+    "percevejos_por_m2": "percevejos por m2",
+    "percevejos_por_pano": "percevejos por pano de batida",
+    "afidos_por_hoja": "afidos por hoja",
+    "pulgones_por_afijo": "pulgones por afijo",
+    "pulgones_por_espiga": "pulgones por espiga",
+    "adultos_por_panicula": "adultos por panicula"
+  },
+
+  "umbrales": {
+
+    "soya-anticarsia": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "pct_defoliacion", "operador": ">=", "valor": 30, "condicion": {"fase": "vegetativo"}},
+        {"unidad": "pct_defoliacion", "operador": ">=", "valor": 15, "condicion": {"fase": "reproductivo"}},
+        {"unidad": "lagartas_grandes_por_metro", "operador": ">=", "valor": 20, "condicion": null}
+      ],
+      "muestreo_minimo": "1 punto cada 10 ha",
+      "fuente": "Embrapa MIP-Soja",
+      "calibrado_en": "Brasil",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia"]
+    },
+
+    "soya-falsa-medidora": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "pct_defoliacion", "operador": ">=", "valor": 30, "condicion": {"fase": "vegetativo"}},
+        {"unidad": "pct_defoliacion", "operador": ">=", "valor": 15, "condicion": {"fase": "reproductivo"}},
+        {"unidad": "lagartas_grandes_por_metro", "operador": ">=", "valor": 20, "condicion": null}
+      ],
+      "muestreo_minimo": "1 punto cada 10 ha",
+      "fuente": "Embrapa MIP-Soja",
+      "calibrado_en": "Brasil",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia", "En reproductivo esta especie predomina en el estrato medio/bajo: muestrear ahi"]
+    },
+
+    "soya-percevejo-marrom": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "percevejos_por_pano", "operador": ">=", "valor": 2, "condicion": {"destino": "grano"}},
+        {"unidad": "percevejos_por_pano", "operador": ">=", "valor": 1, "condicion": {"destino": "semilla"}}
+      ],
+      "fuente": "Embrapa MIP-Soja",
+      "calibrado_en": "Brasil",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia", "El umbral BAJA a 1/pano si el lote es para semilla: confirmar el destino antes de decidir"]
+    },
+
+    "trigo-pulgones": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "pct_plantas_infestadas", "operador": ">=", "valor": 10, "condicion": {"fase": "emergencia_a_afijamiento"}},
+        {"unidad": "pulgones_por_afijo", "operador": ">=", "valor": 10, "condicion": {"fase": "alargamiento_a_emborrachamiento"}},
+        {"unidad": "pulgones_por_espiga", "operador": ">=", "valor": 10, "condicion": {"fase": "espigazon_a_grano_masa"}}
+      ],
+      "fuente": "Embrapa Trigo, Cap. 8 MIP (Pereira et al.)",
+      "calibrado_en": "Brasil (RS)",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia", "La unidad de conteo CAMBIA con el estadio: planta, afijo o espiga"]
+    },
+
+    "trigo-percevejo-barriga-verde": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "percevejos_por_m2", "operador": ">=", "valor": 4, "condicion": {"fase": "vegetativo"}},
+        {"unidad": "percevejos_por_m2", "operador": ">=", "valor": 2, "condicion": {"fase": "reproductivo"}}
+      ],
+      "fuente": "Embrapa Trigo, Documentos 114 (Panizzi et al.)",
+      "calibrado_en": "Brasil (RS)",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia", "Cada percevejo/m2 adicional reduce ~52 kg/ha"]
+    },
+
+    "maiz-cogollero": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "pct_plantas_dano", "operador": ">=", "valor": 20, "condicion": {"fase": "vegetativo"}, "nota": "nota >=3 escala Davis"},
+        {"unidad": "pct_plantas_dano", "operador": ">=", "valor": 10, "condicion": {"fase": "40_a_60_dias"}, "nota": "recomendacion mas exigente"}
+      ],
+      "fuente": "Embrapa Milho e Sorgo Doc 344; IRAC-BR",
+      "calibrado_en": "Brasil",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia", "Hay DISCREPANCIA entre documentos Embrapa sobre el % segun el momento: declarar cual se uso"]
+    },
+
+    "maiz-barriga-verde": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "chinches_por_m2", "operador": ">=", "valor": 0.5, "condicion": null}
+      ],
+      "fuente": "Epagri, Agropecuaria Catarinense (RAC)",
+      "calibrado_en": "Brasil (SC)",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia", "El nivel de dano economico reportado es 0,6-2 chinches/m2 en fase inicial: 0,5 es el nivel de accion, mas exigente"]
+    },
+
+    "sorgo-cogollero": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "pct_plantas_dano", "operador": ">=", "valor": 20, "condicion": null, "nota": "nota >=3 escala Davis"}
+      ],
+      "fuente": "Embrapa Milho e Sorgo (sorgo forrajero)",
+      "calibrado_en": "Brasil",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia"]
+    },
+
+    "sorgo-midge": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "adultos_por_panicula", "operador": ">=", "valor": 1, "condicion": {"fase": "20_a_30_pct_floracion"}}
+      ],
+      "fuente": "UGA CAES B1283",
+      "calibrado_en": "EEUU",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia", "Solo aplica con 20-30% de las paniculas en floracion", "Existe un EIL formal M=C*33.256/(V*F) que depende de precio y rendimiento"]
+    },
+
+    "sorgo-pulgon-amarillo": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "afidos_por_hoja", "operador": ">=", "valor": 40, "condicion": {"material": "hibrido_susceptible"}}
+      ],
+      "fuente": "Gordy et al. 2019 J. Econ. Entomol.; Brewer et al. 2018",
+      "calibrado_en": "EEUU",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia", "Algunos manejos tratan recien a partir de 50 afidos/hoja"]
+    },
+
+    "girasol-oruga-medidora": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "larvas_por_planta", "operador": ">=", "valor": 8, "condicion": null},
+        {"unidad": "pct_defoliacion", "operador": ">=", "valor": 15, "condicion": null, "nota": "con presencia de larvas"}
+      ],
+      "fuente": "AAPRESID",
+      "calibrado_en": "Argentina",
+      "advertencias": [
+        "VERIFICAR_LOCAL en Bolivia",
+        "Embrapa NO publica umbrales oficiales para girasol y lo admite por escrito: este numero es de AAPRESID, no institucional brasileno",
+        "En girasoles vigorosos la referencia sube a 10-15 larvas/planta"
+      ]
+    },
+
+    "girasol-cortadora": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "pct_plantulas_cortadas", "operador": ">=", "valor": 3, "condicion": null},
+        {"unidad": "orugas_por_100_plantas", "operador": ">=", "valor": 3, "condicion": null}
+      ],
+      "fuente": "AAPRESID",
+      "calibrado_en": "Argentina",
+      "advertencias": ["VERIFICAR_LOCAL en Bolivia", "La fuente pide AMBAS condiciones juntas, no una sola"]
+    },
+
+    "pastura-salivazo": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "ninfas_por_m2", "operador": ">=", "valor": 6, "condicion": null},
+        {"unidad": "adultos_por_m2", "operador": ">=", "valor": 20, "condicion": null}
+      ],
+      "fuente": "SEMADESC/Embrapa (aplicacion de Metarhizium)",
+      "calibrado_en": "Brasil (MS)",
+      "advertencias": [
+        "VERIFICAR_LOCAL en Bolivia",
+        "La fuente da un RANGO ancho (6-25 ninfas/m2, 20-30 adultos/m2): se toma el piso, que es el criterio mas conservador",
+        "Frontiers 2022: 10 adultos/m2 ya implica 2-8% de perdida"
+      ]
+    },
+
+    "cana-salivazo": {
+      "computable": true,
+      "reglas": [
+        {"unidad": "ninfas_por_metro", "operador": ">=", "valor": 3, "condicion": null}
+      ],
+      "fuente": "Coopercitrus / Revista Cultivar (Mahanarva fimbriolata)",
+      "calibrado_en": "Brasil",
+      "advertencias": [
+        "VERIFICAR_LOCAL en Bolivia",
+        "ATENCION: existen DOS niveles de dano incompatibles en la literatura (IAC/Bragantia experimental da 3-5/m; STAB/CTC da 12/m con nivel de control 2/m). Aca se usa el de 3/m. NO promediarlos",
+        "Algunas variedades solo se afectan por encima de 16 ninfas/m"
+      ]
+    },
+
+    "cana-broca": {
+      "computable": false,
+      "motivo_no_computable": "El texto fija un objetivo de manejo (mantener la intensidad de infestacion en 1-2%) y una escalera de control biologico, no un nivel de dano economico. Ademas el 3% que circula como NDE proviene de una cartilla de cooperativa que cita 'comunicacion personal', sin experimento publicado que lo respalde.",
+      "fuente": "Gebio; Redalyc",
+      "advertencias": ["Los indices de perdida SI tienen respaldo (CTC): cada 1% de intensidad de infestacion cuesta ~1,14% de TCH y 0,42% de azucar"]
+    },
+
+    "cana-migdolus": {
+      "computable": false,
+      "motivo_no_computable": "La propia fuente aclara que los niveles aun no estan definidos. La referencia orientativa (10% de touceiras con larvas, o media de 2 larvas/touceira) se muestra como texto, no se compara.",
+      "fuente": "AgroAdvance"
+    },
+
+    "girasol-polilla-capitulo": {
+      "computable": false,
+      "motivo_no_computable": "No establecido. La recomendacion es monitorear oviposicion al inicio de floracion, sin cifra de accion.",
+      "fuente": "AAPRESID; SINAVIMO"
+    },
+
+    "girasol-chinches": {
+      "computable": false,
+      "motivo_no_computable": "La ficha declara que la fuente primaria NO fue verificada pagina por pagina. Un umbral sin fuente confirmada no se computa.",
+      "fuente": "udelar/Silveira (no verificada)",
+      "advertencias": ["Cifras reportadas sin confirmar: 3 chinches/capitulo en boton floral, 7 al fin de floracion"]
+    },
+
+    "maiz-cigarrita": {
+      "computable": false,
+      "motivo_no_computable": "Por ser VECTOR de corn stunt no se maneja por umbral poblacional sino con tolerancia cercana a cero en fase temprana. Un umbral numerico aca seria enganoso.",
+      "fuente": "Embrapa"
+    },
+
+    "maiz-pulgon": {
+      "computable": false,
+      "motivo_no_computable": "Embrapa no publica un umbral numerico unico.",
+      "fuente": "Embrapa",
+      "advertencias": ["Mayor cuidado pre-floracion por transmision de virus y melaza en los estigmas"]
+    },
+
+    "sorgo-pulgon-verde": {
+      "computable": false,
+      "motivo_no_computable": "Los umbrales de EEUU varian por tamano de planta y no estan establecidos para Sudamerica.",
+      "fuente": "Michaud et al. 2015 J. IPM"
+    },
+
+    "sorgo-chinches-panicula": {
+      "computable": false,
+      "motivo_no_computable": "No establecido especifico para sorgo en Brasil.",
+      "fuente": "Embrapa Pragas da Panicula (Waquil)"
+    },
+
+    "pastura-cogollero": {
+      "computable": false,
+      "motivo_no_computable": "No hay umbral consolidado para pastura. Los de Embrapa son para maiz y NO son extrapolables.",
+      "fuente": "Embrapa Doc 344 (solo contexto de biologia)"
+    },
+
+    "pastura-curuquere": {
+      "computable": false,
+      "motivo_no_computable": "No establecido en una cifra por m2 verificable.",
+      "fuente": "Incaper/Emcapa"
+    },
+
+    "pastura-coros": {
+      "computable": false,
+      "motivo_no_computable": "Los umbrales publicados por Embrapa son para cereales de invierno, no para pastura.",
+      "fuente": "Embrapa Ageitec"
+    },
+
+    "pastura-hormiga-cortadora": {
+      "computable": false,
+      "motivo_no_computable": "No aplica un umbral por m2: el manejo es por nido/hormiguero.",
+      "fuente": "Epagri"
+    }
+  }
+}

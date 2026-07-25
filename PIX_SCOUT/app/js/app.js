@@ -46,6 +46,9 @@ function linkify(s){return esc(s).replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" t
 function crumb(t){$('#crumb').textContent=t;}
 
 let nav='focos', wiz=null, bancoSel=null, SESSION=null, focosMode='mapa', mapInst=null, mapSubs=[], LOADED_FOCI=null, LOADED_BOUNDARY=null;
+// De donde salieron los focos que el tecnico esta viendo. Se muestra en pantalla:
+// navegar con un mapa viejo creyendolo de hoy es peor que no tener mapa.
+let FOCOS_ORIGEN=null, FOCOS_FECHA=null;
 // P0: NO caer a los focos demo. `D.focos` son 6 puntos de 5 haciendas distintas a
 // mas de 1.000 km entre si; sin GeoJSON el tecnico veia 'focos activos' y la brujula
 // lo mandaba a navegar a otra finca. Sin datos reales, la lista va VACIA y se avisa.
@@ -58,10 +61,58 @@ const CIEGO = !!CFG.MODO_CIEGO;
 const sevTxt = f => CIEGO ? '—' : SEVL[f.sev];
 const sevCls = f => CIEGO ? 'media' : sevC(f.sev);
 const scoreTxt = f => CIEGO ? '·' : f.score;
+/* Descarga el GeoJSON de focos del pipeline y lo deja cacheado para uso offline.
+   CFG.FOCOS_ENDPOINT estaba declarado pero NINGUN modulo lo leia: cambiar de campo
+   exigia recompilar el APK entera. Ahora: si hay endpoint se intenta la red primero,
+   y lo que baja queda guardado; si no hay red se usa lo ultimo bajado, y recien
+   despues el archivo empaquetado. El tecnico nunca se queda sin focos por estar
+   sin señal, y nunca navega con un mapa viejo habiendo uno nuevo disponible. */
+const FOCOS_CACHE='pixscout-focos';
+async function fetchFocosRemoto(name){
+ const base=(window.PIXCONFIG&&PIXCONFIG.FOCOS_ENDPOINT||'').trim();
+ if(!base) return null;
+ const url=base.replace('{campo}', encodeURIComponent(name))
+   + (base.indexOf('{campo}')<0 ? (base.endsWith('/')?'':'/')+encodeURIComponent(name)+'.geojson' : '');
+ const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 20000);
+ try{
+  const r=await fetch(url, {cache:'no-store', signal:ctrl.signal});
+  clearTimeout(to);
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const txt=await r.text();
+  const gj=JSON.parse(txt);                       // parsear ANTES de cachear: no guardar basura
+  if(!gj || !gj.features) throw new Error('respuesta sin features');
+  try{ const c=await caches.open(FOCOS_CACHE);
+       await c.put('focos/'+name, new Response(txt, {headers:{'Content-Type':'application/json'}})); }catch(e){}
+  return gj;
+ }catch(e){
+  clearTimeout(to);
+  if(console&&console.warn) console.warn('focos remotos no disponibles ('+e.message+'): se usa la copia local');
+  return null;
+ }
+}
+async function fetchFocosCacheado(name){
+ try{ const c=await caches.open(FOCOS_CACHE); const r=await c.match('focos/'+name);
+      return r ? await r.json() : null; }catch(e){ return null; }
+}
 async function loadFocosGeojson(name){
- const r=await fetch('data/'+encodeURIComponent(name)+'.geojson', {cache:'no-store'});
- if(!r.ok) throw new Error('No se pudo cargar '+name+'.geojson ('+r.status+')');
- const gj=await r.json();
+ let gj=await fetchFocosRemoto(name);
+ let origen='remoto';
+ if(!gj){ gj=await fetchFocosCacheado(name); origen='descarga previa'; }
+ if(!gj){
+  const r=await fetch('data/'+encodeURIComponent(name)+'.geojson', {cache:'no-store'});
+  if(!r.ok) throw new Error('No se pudo cargar '+name+'.geojson ('+r.status+')');
+  gj=await r.json(); origen='empaquetado en la app';
+ }
+ FOCOS_ORIGEN=origen;
+ // Fecha de la escena que origino estos focos. Es lo que permite al tecnico saber si
+ // esta mirando el mapa de esta semana o el de hace un mes.
+ FOCOS_FECHA=null;
+ try{
+  for(const ft of (gj.features||[])){
+   const d=(ft.properties||{}).fecha_img;
+   if(d && (!FOCOS_FECHA || d>FOCOS_FECHA)) FOCOS_FECHA=d;
+  }
+ }catch(e){}
  LOADED_FOCI=GeoLoad.fociFromGeoJSON(gj, {hacienda:'Santo Antonio', cultivo:'trigo', cultivoLabel:'Trigo', estadio:'Vegetativo', idPrefix:'SA'});
  if(!LOADED_FOCI.length) throw new Error('El GeoJSON no tiene polígonos válidos.');
  // Perímetro del lote: primero del MISMO geojson (features de perímetro); si no, de <name>_boundary.geojson.
@@ -88,7 +139,7 @@ function renderFocos(){
  M.innerHTML=`<div class="fmodebar">
    <button class="fmode ${m==='mapa'?'on':''}" data-m="mapa">${IC.pin} Mapa</button>
    <button class="fmode ${m==='lista'?'on':''}" data-m="lista">${IC.list} Lista</button>
-   <span class="fcount">${FOCOS_ERROR ? 'SIN DATOS DE FOCOS' : activeFoci().length+' focos activos'}${LOADED_FOCI?' · GeoJSON':''}</span></div>
+   <span class="fcount">${FOCOS_ERROR ? 'SIN DATOS DE FOCOS' : activeFoci().length+' focos activos'}${LOADED_FOCI&&FOCOS_FECHA?' · escena '+esc(FOCOS_FECHA):(LOADED_FOCI?' · GeoJSON':'')}${LOADED_FOCI&&FOCOS_ORIGEN&&FOCOS_ORIGEN!=='remoto'?' · '+esc(FOCOS_ORIGEN):''}</span></div>
   <div id="fbody" style="flex:1;min-height:0;position:relative;overflow:${m==='mapa'?'hidden':'auto'}"></div>`;
  M.querySelectorAll('.fmode').forEach(b=>b.onclick=()=>{ focosMode=b.dataset.m; renderFocos(); });
  m==='mapa' ? buildMap($('#fbody')) : buildList($('#fbody'));
@@ -380,7 +431,30 @@ function openValidacion(f, cultivoFicha){
  // lote (Embrapa 6-10 puntos por lote; AAPRESID 1 estacion cada 10-15 ha). Este
  // conteo se toma parado DENTRO del foco, o sea en el peor sitio: compararlo con
  // el umbral sobreestima la infestacion y empuja a aplicar de mas.
- const nde=isPlaga?`<div class="field"><div class="lbl" style="margin-bottom:6px">Nivel de acción (MIP)</div><div class="ndebox"><div class="ndh">${esc(f.umbral_accion||'Sin umbral definido — VERIFICAR_LOCAL')}</div><div class="sub" style="font-size:10.5px;padding:0 9px 6px">⚠ Este conteo es <b>dirigido</b> (estás parado en el foco). El umbral MIP se define sobre muestreo <b>representativo</b> del lote: <b>no decidas la aplicación con este número</b> — confirmá en las estaciones fijas.</div><div class="segbar" data-g="nde" style="padding:9px;gap:6px"><div class="seg" data-v="under">Por debajo</div><div class="seg" data-v="at">En el umbral</div><div class="seg" data-v="over">Lo supera</div></div><div id="ndeOut"></div></div></div>`:'';
+ // El umbral deja de ser una opinion: si la ficha tiene reglas computables, el
+ // veredicto lo CALCULA umbral.js a partir del conteo, la unidad y el contexto
+ // declarado. El control de 3 botones solo sobrevive donde NO hay umbral establecido,
+ // y ahi queda rotulado como criterio del tecnico, que es lo que realmente es.
+ const uUnidades = (window.Umbral && isPlaga) ? Umbral.unidadesDe(f.id) : [];
+ const uComputable = uUnidades.length > 0;
+ // claves de contexto que las reglas de ESTA ficha necesitan (fase / destino / material)
+ const uCtxKeys = [];
+ if(uComputable){
+  const tab=((window.PIXDATA&&PIXDATA.umbrales&&PIXDATA.umbrales.umbrales)||{})[f.id]||{};
+  (tab.reglas||[]).forEach(r=>Object.keys(r.condicion||{}).forEach(k=>{ if(uCtxKeys.indexOf(k)<0) uCtxKeys.push(k); }));
+ }
+ const CTX_LABEL={fase:'Estadio del cultivo',destino:'Destino del lote',material:'Material genético'};
+ function ctxOpciones(k){
+  const tab=((window.PIXDATA&&PIXDATA.umbrales&&PIXDATA.umbrales.umbrales)||{})[f.id]||{};
+  const vals=[]; (tab.reglas||[]).forEach(r=>{ const v=(r.condicion||{})[k]; if(v && vals.indexOf(v)<0) vals.push(v); });
+  return vals;
+ }
+ const ctxHtml = uCtxKeys.map(k=>`<div style="padding:0 9px 8px"><div class="lbl" style="margin-bottom:5px;font-size:11px">${esc(CTX_LABEL[k]||k)}</div><select id="ctx-${esc(k)}" style="width:100%"><option value="">— elegir —</option>${ctxOpciones(k).map(v=>`<option value="${esc(v)}">${esc(String(v).replace(/_/g,' '))}</option>`).join('')}</select></div>`).join('');
+ const nde = !isPlaga ? '' : `<div class="field"><div class="lbl" style="margin-bottom:6px">Nivel de acción (MIP)</div><div class="ndebox"><div class="ndh">${esc(f.umbral_accion||'Sin umbral definido — VERIFICAR_LOCAL')}</div>`
+  + `<div class="sub" style="font-size:10.5px;padding:0 9px 6px">⚠ Este conteo es <b>dirigido</b> (estás parado en el foco). El umbral MIP se define sobre muestreo <b>representativo</b> del lote: <b>no decidas la aplicación con este número</b> — confirmá en las estaciones fijas.</div>`
+  + (uComputable ? ctxHtml
+     : `<div class="sub" style="font-size:10.5px;padding:0 9px 6px"><b>Sin umbral computable para esta plaga.</b> Lo de abajo es tu criterio, no un cálculo.</div><div class="segbar" data-g="nde" style="padding:9px;gap:6px"><div class="seg" data-v="under">Por debajo</div><div class="seg" data-v="at">En el umbral</div><div class="seg" data-v="over">Lo supera</div></div>`)
+  + `<div id="ndeOut"></div></div></div>`;
  const wrap=document.createElement('div'); wrap.className='scrim';
  wrap.innerHTML=`<div class="sheet"><div class="grab"></div>
   <div><div class="eyebrow" style="margin-bottom:6px">Captura de validación</div><h2 class="vh" style="font-size:17px">${esc(f.nombre_comun)}</h2><div class="sub">${esc(f.nombre_cientifico)} · ${esc(est)}</div></div>
@@ -391,8 +465,12 @@ function openValidacion(f, cultivoFicha){
   <div class="field"><div class="lbl" style="margin-bottom:6px">¿Coincide con el aviso del satélite?</div><div class="segbar" data-g="coin">${['Sí','Parcial','No'].map(x=>`<div class="seg ${x==='Sí'?'on':''}" data-v="${x}">${x}</div>`).join('')}</div></div>
   <div class="field"><div class="lbl" style="margin-bottom:6px">Conteo medido <span class="sub" style="font-weight:400">— la unidad del protocolo MIP (nº/m, nº/planta, % de plantas)</span></div>
    <div style="display:flex;gap:8px"><input type="text" inputmode="decimal" id="cnt" placeholder="valor" style="flex:1">
-    <input type="text" id="cntu" placeholder="unidad (ej. lagartas/m)" style="flex:2"></div>
-   <div class="sub" style="font-size:10.5px;margin-top:4px">Sin el conteo, el umbral MIP no se puede recalcular: queda como opinión, no como medición.</div></div>
+    ${uComputable
+      ? `<select id="cntu" style="flex:2"><option value="">— unidad —</option>${uUnidades.map(u=>`<option value="${esc(u.clave)}">${esc(u.label)}</option>`).join('')}</select>`
+      : `<input type="text" id="cntu" placeholder="unidad (ej. lagartas/m)" style="flex:2">`}</div>
+   <div class="sub" style="font-size:10.5px;margin-top:4px">${uComputable
+      ? 'La unidad se elige de la lista porque el umbral está definido en esa unidad: comparar unidades distintas no significa nada.'
+      : 'Sin el conteo, el umbral MIP no se puede recalcular: queda como opinión, no como medición.'}</div></div>
   <div class="field"><div class="lbl" style="margin-bottom:6px">Observación (opcional)</div><textarea id="obsv" rows="2" placeholder="Distribución, bordadura, reincidencia…"></textarea></div>
   <div class="field"><div class="lbl" style="margin-bottom:6px">Foto georreferenciada <span class="req">*</span></div><div id="shotArea"></div></div>
   <input type="file" accept="image/*" capture="environment" id="fileIn" style="display:none">
@@ -421,6 +499,41 @@ function openValidacion(f, cultivoFicha){
    if(v==='over'){s.classList.add('crit');out.innerHTML=`<div class="ndverdict over">${IC.alert} Supera el nivel de acción → intervención justificada (MIP primero)</div>`;}
    else if(v==='at'){s.classList.add('alta');out.innerHTML=`<div class="ndverdict at">${IC.clock} En el umbral → re-monitorear en 2–3 días</div>`;}
    else{s.classList.add('baja');out.innerHTML=`<div class="ndverdict under">${IC.check} Por debajo → no tratar, seguir monitoreando</div>`;}}});});
+ // --- veredicto CALCULADO del umbral (reemplaza la opinion cuando hay reglas) ---
+ st.umbral=null;
+ function ctxActual(){
+  const c={tipo_muestreo:'dirigido_satelital'};
+  uCtxKeys.forEach(k=>{ const el=wrap.querySelector('#ctx-'+k); if(el&&el.value) c[k]=el.value; });
+  return c;
+ }
+ function recalcUmbral(){
+  if(!uComputable) return;
+  const out=wrap.querySelector('#ndeOut'); if(!out) return;
+  const raw=(wrap.querySelector('#cnt').value||'').trim().replace(',','.');
+  const uni=(wrap.querySelector('#cntu').value||'').trim();
+  const v=Umbral.evaluar(f.id, (raw!==''&&isFinite(+raw))?+raw:null, uni||null, ctxActual());
+  st.umbral=v;
+  // El color NO se decide por 'supera' a secas: con muestreo dirigido nunca se pinta
+  // como una orden de aplicar, porque el numero no es comparable con el MIP.
+  const cls = v.estado==='supera' ? 'over'
+            : v.estado==='referencia_supera' ? 'at'
+            : (v.estado==='por_debajo'||v.estado==='referencia_por_debajo') ? 'under' : '';
+  const ico = v.estado==='supera' ? IC.alert : (v.calculado? (cls==='under'?IC.check:IC.clock) : IC.alert);
+  let txt=esc(Umbral.resumen(v));
+  if(v.calculado && v.regla){
+   txt += ' <span style="opacity:.85">(medido '+esc(raw)+' vs umbral '+esc(v.regla.operador)+' '+esc(String(v.regla.valor))+' '+esc(v.regla.unidad_label)+')</span>';
+  }
+  const detalle = [v.motivo].concat(v.advertencias||[]).filter(Boolean)
+    .map(a=>'<div style="font-size:10.5px;opacity:.9;margin-top:3px">· '+esc(a)+'</div>').join('');
+  const fuente = v.fuente ? '<div style="font-size:10px;opacity:.75;margin-top:4px">Fuente: '+esc(v.fuente)+(v.calibrado_en?' · calibrado en '+esc(v.calibrado_en):'')+'</div>' : '';
+  out.innerHTML = '<div class="ndverdict '+cls+'">'+(ico||'')+' '+txt+'</div><div style="padding:0 9px 9px">'+detalle+fuente+'</div>';
+ }
+ if(uComputable){
+  wrap.querySelector('#cnt').addEventListener('input', recalcUmbral);
+  wrap.querySelector('#cntu').addEventListener('change', recalcUmbral);
+  uCtxKeys.forEach(k=>{ const el=wrap.querySelector('#ctx-'+k); if(el) el.addEventListener('change', recalcUmbral); });
+  recalcUmbral();
+ }
  const pct=wrap.querySelector('#pct'),pv=wrap.querySelector('#pv');pct.oninput=()=>{pv.textContent=pct.value+'%';st.inc=+pct.value;};
  function close(){stopCam();wrap.remove();}
  wrap.querySelector('#v-c').onclick=close;
@@ -451,6 +564,17 @@ function openValidacion(f, cultivoFicha){
    // con el, y marcarlo es lo que evita que el producto empuje a sobre-aplicar.
    tipo_muestreo:'dirigido_satelital',
    coincide:st.coin,nde:st.nde,coord,acc,gps_real:gpsFix,foto:st.photo,
+   // `supera_umbral` ahora es un CALCULO, no el boton que aprieta el tecnico (Puerta 3.2).
+   // Vale null cuando no se pudo calcular, y `umbral_estado` dice por que. Nunca se
+   // rellena por descarte: no poder calcular no es "no supera".
+   supera_umbral: st.umbral ? st.umbral.supera_umbral : null,
+   umbral_estado: st.umbral ? st.umbral.estado : null,
+   umbral_calculado: st.umbral ? !!st.umbral.calculado : false,
+   // Con el punto elegido por el satelite el conteo NO es comparable con el MIP.
+   // Sin esta bandera, un analisis mezclaria conteos dirigidos con representativos
+   // y concluiria que hace falta aplicar mas de lo que hace falta.
+   umbral_comparable_mip: st.umbral ? !!st.umbral.comparable_con_mip : false,
+   umbral_regla: (st.umbral && st.umbral.regla) ? JSON.stringify(st.umbral.regla) : null,
    tecnico:(SESSION?(SESSION.nombre||SESSION.username):'campo'),cliente:(SESSION?SESSION.cliente:'')};
   try{ await Store.saveValidacion(v); }catch(e){}
   close();
