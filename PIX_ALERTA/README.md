@@ -3,12 +3,16 @@
 Ranking de lotes por prioridad de scouting. Dice **a qué lotes ir hoy**, no qué plaga hay.
 
 ```bash
+python -m pix_alerta.correr_todos --hasta 2026-04-30      # todos los clientes activos
 python -m pix_alerta.main --sitio HDS --hasta 2026-04-30 --K 10 --control-nulo
 python -m pytest tests/ -q          # las puertas de aceptacion
 ```
 
-Salida: `ranking_<sitio>_<fecha>.csv` y `lotes_<sitio>_<fecha>.geojson` para la app de campo.
+Salida: `<salida>/<cliente>/ranking_<sitio>_<fecha>.csv` y `lotes_<sitio>_<fecha>.geojson`
+para la app de campo.
 Exit codes: `0` nada que entregar · `10` entregable generado · otro = fallo real.
+
+**Alta de cliente = un archivo JSON en `clientes/`, cero código.** Ver [clientes/README.md](clientes/README.md).
 
 ---
 
@@ -144,6 +148,27 @@ agrega columnas, no información.
 | `test_dato_viejo_no_es_alerta` | No se arrastra un estado sin observación reciente |
 | `test_serie_corta_no_produce_ranking` | Sin serie no se inventa un resultado |
 | `test_cohorte_chica_se_descarta` | Sin cohorte la referencia no significa nada |
+| `test_cohorte_estimada_no_se_rotula_declarada` | El entregable no afirma fechas de siembra que no existen |
+
+`tests/test_clientes.py` — puertas de la capa multi-cliente:
+
+| Test | Qué garantiza |
+|---|---|
+| `test_alta_de_cliente_es_un_archivo` | Dar de alta un cliente no requiere editar `.py` |
+| `test_rutas_relativas_al_archivo_del_cliente` | Un cliente es una carpeta portable |
+| `test_cada_cliente_escribe_en_su_carpeta` | Aislamiento por construcción |
+| `test_clave_de_cliente_repetida_es_error` | Dos clientes no comparten carpeta de salida |
+| `test_clave_de_sitio_con_guion_bajo_se_lee_bien` | El chequeo de aislamiento no da falsas alarmas |
+| `test_detecta_entregable_de_otro_cliente` | Se verifica leyendo las carpetas, no por confianza |
+| `test_cliente_ilegible_no_se_saltea_en_silencio` | Un cliente roto no queda sin informe calladamente |
+| `test_un_sitio_que_falla_no_frena_a_los_demas` | Un GeoJSON roto no deja a todos sin entrega |
+| `test_typo_en_campo_de_sitio_es_error` | `epsg` en vez de `epsg_metrico` no pasa callado |
+| `test_sitios_ref_inexistente_es_error` | No se referencia un sitio que no existe |
+| `test_cliente_sin_sitios_es_error` | — |
+| `test_K_invalido_es_error` | K es la capacidad real de scouting |
+| `test_inactivo_no_corre` | Se puede desactivar un cliente sin borrarlo |
+| `test_sitio_de_cliente_no_pisa_uno_ya_definido` | No se resuelve por orden de lectura |
+| `test_cliente_HDS_del_repo_carga` | El cliente real declarado carga y reusa su sitio |
 
 ---
 
@@ -169,6 +194,9 @@ agrega columnas, no información.
 | | |
 |---|---|
 | `pix_alerta/config.py` | Sitios y parámetros. Agregar una hacienda = una entrada |
+| `pix_alerta/clientes.py` | Capa de clientes: alta por archivo, validación, aislamiento |
+| `pix_alerta/correr_todos.py` | Corrida multi-cliente (lo que va en el cron) |
+| `clientes/` | Un JSON por cliente. Ver su README |
 | `pix_alerta/series.py` | Extracción a tabla por lote y fecha (`reduceRegions`, sin ráster) |
 | `pix_alerta/ranking.py` | El criterio: residuos, EWMA, ranking, control nulo |
 | `pix_alerta/main.py` | Orquestador con contrato de exit codes |

@@ -1,0 +1,16 @@
+{
+  "clave": "HDS",
+  "titulo": "Hacienda del Señor",
+  "activo": true,
+  "K": 10,
+  "sitios_ref": ["HDS"],
+  "entrega": {
+    "cadencia_dias": 10,
+    "hueco_maximo_declarado_dias": 66
+  },
+  "marca": {
+    "nombre": "Pixadvisor",
+    "color": "#0D9488"
+  },
+  "nota": "Unico sitio con base historica completa (20.700 filas, 207 lotes, campaña 2025/26). K=10 es provisorio: el cliente todavia no lo declaro por escrito (Puerta 0.2)."
+}
