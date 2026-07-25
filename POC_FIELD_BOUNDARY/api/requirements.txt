@@ -1,0 +1,16 @@
+fastapi==0.133.1
+uvicorn[standard]==0.41.0
+python-multipart==0.0.20
+pydantic==2.12.5
+ultralytics==8.4.45
+rasterio==1.5.0
+geopandas==1.1.3
+shapely==2.1.2
+scikit-image
+scipy==1.17.1
+earthengine-api
+geemap
+pyarrow
+requests
+pillow
+matplotlib

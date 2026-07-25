@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+  pix-field-api:
+    build: ./api
+    container_name: pixadvisor-field-api
+    ports:
+      - "8765:8765"
+    volumes:
+      # Persistir modelos descargados + DB SQLite + cache S2 fuera del contenedor
+      - ./output:/app/output
+      # Credenciales GEE (montar la carpeta del host con earthengine credentials)
+      - ${USERPROFILE}/.config/earthengine:/root/.config/earthengine:ro
+    environment:
+      # PIXADVISOR_API_KEY: descomentar para activar auth
+      # - PIXADVISOR_API_KEY=tu-clave-secreta-aqui
+      - EE_PROJECT=ee-gisagronomico
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

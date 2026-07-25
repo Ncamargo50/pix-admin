@@ -1,0 +1,50 @@
+
+/* ====================================================================
+   PIX MUESTREO PRO DESIGN v3 - Maximum Visual Impact
+   ==================================================================== */
+
+.header-status-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 12px 4px 8px; background: rgba(255,255,255,0.06);
+  border-radius: 20px; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); border: 1px solid rgba(255,255,255,0.08);
+}
+
+.app-header {
+  background: linear-gradient(180deg, #1e3148 0%, var(--dark-2) 100%) !important;
+  border-bottom: none !important;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.4), 0 1px 0 rgba(127,214,51,0.3) !important;
+}
+.app-header .logo img {
+  height: 48px !important; width: 48px !important; border-radius: 12px !important;
+  border: 2px solid rgba(127,214,51,0.3) !important;
+  box-shadow: 0 0 20px rgba(127,214,51,0.25) !important;
+}
+.app-header .logo h1 { font-size: 20px !important; font-weight: 800 !important; letter-spacing: 0.8px !important; }
+
+.bottom-nav {
+  background: rgba(15,27,45,0.85) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  border-top: 1px solid rgba(127,214,51,0.15) !important;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.3); padding: 4px 0; padding-bottom: calc(4px + var(--safe-bottom));
+}
+.nav-item { position: relative; padding: 10px 16px !important; font-weight: 600 !important; }
+.nav-item svg { width: 26px !important; height: 26px !important; margin-bottom: 4px !important; transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+.nav-item.active { color: var(--teal) !important; transform: translateY(-2px); }
+.nav-item.active::before {
+  content: ''; position: absolute; top: 0; left: 20%; right: 20%; height: 3px;
+  background: var(--gradient); border-radius: 0 0 3px 3px; box-shadow: 0 2px 8px rgba(127,214,51,0.4);
+}
+.nav-item.active svg { transform: scale(1.15); filter: drop-shadow(0 0 6px rgba(127,214,51,0.5)) !important; }
+
+.card {
+  background: linear-gradient(145deg, rgba(26,42,64,0.9), rgba(15,27,45,0.9)) !important;
+  border: 1px solid rgba(127,214,51,0.08) !important; border-radius: 16px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+  padding: 18px !important;
+}
+.card:active { transform: scale(0.97) !important; border-color: rgba(127,214,51,0.3) !important; }
+.card-title { font-size: 17px !important; font-weight: 700 !important; }
+.card-badge { padding: 5px 12px !important; border-radius: 20px !important; font-size: 11px !important; font-weight: 700 !important; text-transform: uppercase; }
+
+.fab-btn { width: 56px !important; height: 56px !important; border-radius: 16px !important; box-shadow: 0 4px 16px rgba(0,0,0,0.35) !important; }

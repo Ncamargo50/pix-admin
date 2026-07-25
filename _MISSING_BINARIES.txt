@@ -1,0 +1,5 @@
+# Binary files referenced in transcripts but NOT restored
+# (PNG/PDF/APK/etc. — these need to be recovered from another source)
+
+D:\PIXADVISOR_AGENT_WORKSPACE\Autorizacion_MDO_Agro_Pixadvisor.pdf
+D:\PIXADVISOR_AGENT_WORKSPACE\MDO_Autorizacion_Original.pdf

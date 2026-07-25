@@ -21,6 +21,17 @@ local.properties
 *.aab
 build/
 .gradle/
+# Pesos de modelos ML: se DESCARGAN, no se escriben. Son ~620 MB entre SAM (358 MB),
+# FTW (120 MB) y Delineate Anything (119 MB). En el historial quedarian para siempre y
+# cada clon del repo costaria esa descarga.
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.joblib
+*.h5
+*.safetensors
+
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -33,6 +44,11 @@ node_modules/
 *.jp2
 *.hdf
 *.nc
+# PDFs: son ENTREGABLES que los scripts regeneran, y algunos llevan datos de clientes
+# (autorizaciones firmadas) o material de terceros. Una vez en el historial no salen mas.
+# Si alguno hay que versionar, agregarlo con: git add -f <archivo>
+*.pdf
+
 *.zip
 *.7z
 
@@ -55,6 +71,10 @@ node_modules/
 # fueran submodulos (modo 160000): apuntan a commits que cambian solos y ensucian el
 # estado del repo sin aportar nada.
 .claude/worktrees/
+
+# Carpetas *_build: son la SALIDA de los scripts _build_*.py que si estan versionados.
+# Solo _tacuari_build son ~40 MB de PNG de validacion, todos regenerables.
+_*_build/
 
 _orphan_files/
 _pre_clone_backup/

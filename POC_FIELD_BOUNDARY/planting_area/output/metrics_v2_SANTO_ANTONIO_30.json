@@ -1,0 +1,13 @@
+{
+  "iou": 0.248,
+  "f1": 0.398,
+  "precision": 0.809,
+  "recall": 0.264,
+  "truth_ha": 137.05,
+  "pred_ha": 44.66,
+  "over_ha": 8.52,
+  "miss_ha": 100.91,
+  "aoi": "SANTO_ANTONIO",
+  "threshold": 0.3,
+  "model": "v2"
+}

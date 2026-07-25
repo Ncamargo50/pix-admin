@@ -1,0 +1,13 @@
+{
+  "iou": 0.872,
+  "f1": 0.932,
+  "precision": 0.876,
+  "recall": 0.994,
+  "truth_ha": 3485.8,
+  "pred_ha": 3954.48,
+  "over_ha": 488.67,
+  "miss_ha": 19.98,
+  "aoi": "HDS",
+  "threshold": 0.5,
+  "model": "v2"
+}

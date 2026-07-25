@@ -1,0 +1,173 @@
+{
+  "year": 2025,
+  "n_features": 28,
+  "n_train": 80000,
+  "n_test": 20000,
+  "test_auc": 0.9933520800000002,
+  "classification_report": {
+    "0.0": {
+      "precision": 0.9564224736946595,
+      "recall": 0.9635,
+      "f1-score": 0.9599481916907443,
+      "support": 10000.0
+    },
+    "1.0": {
+      "precision": 0.963227886359057,
+      "recall": 0.9561,
+      "f1-score": 0.9596507076181873,
+      "support": 10000.0
+    },
+    "accuracy": 0.9598,
+    "macro avg": {
+      "precision": 0.9598251800268582,
+      "recall": 0.9598,
+      "f1-score": 0.9597994496544657,
+      "support": 20000.0
+    },
+    "weighted avg": {
+      "precision": 0.9598251800268582,
+      "recall": 0.9598,
+      "f1-score": 0.959799449654466,
+      "support": 20000.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      9635,
+      365
+    ],
+    [
+      439,
+      9561
+    ]
+  ],
+  "feature_importance": [
+    {
+      "name": "B11_Q4",
+      "importance_gain": 70063.31990933418
+    },
+    {
+      "name": "B11_Q2",
+      "importance_gain": 64784.71361523867
+    },
+    {
+      "name": "NDWI_Q3",
+      "importance_gain": 51999.637585520744
+    },
+    {
+      "name": "B11_Q3",
+      "importance_gain": 51323.931727826595
+    },
+    {
+      "name": "elevation",
+      "importance_gain": 50581.38766902685
+    },
+    {
+      "name": "NDBI_Q4",
+      "importance_gain": 46792.79509460926
+    },
+    {
+      "name": "B11_Q1",
+      "importance_gain": 45948.85964471102
+    },
+    {
+      "name": "NDVI_Q2",
+      "importance_gain": 45424.46632653475
+    },
+    {
+      "name": "NDBI_Q1",
+      "importance_gain": 41545.137067615986
+    },
+    {
+      "name": "NDWI_Q2",
+      "importance_gain": 41506.2010948658
+    },
+    {
+      "name": "slope",
+      "importance_gain": 40097.77727341652
+    },
+    {
+      "name": "NDWI_Q4",
+      "importance_gain": 36593.73709350824
+    },
+    {
+      "name": "NDVI_Q3",
+      "importance_gain": 36551.52199321985
+    },
+    {
+      "name": "NDVI_Q1",
+      "importance_gain": 35335.848759293556
+    },
+    {
+      "name": "NDBI_Q2",
+      "importance_gain": 32356.042640179396
+    },
+    {
+      "name": "BSI_Q4",
+      "importance_gain": 30250.84854966402
+    },
+    {
+      "name": "NDVI_Q4",
+      "importance_gain": 30135.488385736942
+    },
+    {
+      "name": "NDBI_Q3",
+      "importance_gain": 29924.236268162727
+    },
+    {
+      "name": "ndvi_local_mean_3x3",
+      "importance_gain": 26337.57334393263
+    },
+    {
+      "name": "ndvi_local_std_3x3",
+      "importance_gain": 25554.327865839005
+    },
+    {
+      "name": "NDWI_Q1",
+      "importance_gain": 25247.034908652306
+    },
+    {
+      "name": "BSI_Q3",
+      "importance_gain": 21387.661728441715
+    },
+    {
+      "name": "ndvi_mean_yr",
+      "importance_gain": 17711.628379166126
+    },
+    {
+      "name": "BSI_Q1",
+      "importance_gain": 15612.231019973755
+    },
+    {
+      "name": "ndvi_range_yr",
+      "importance_gain": 13713.630327105522
+    },
+    {
+      "name": "BSI_Q2",
+      "importance_gain": 9610.747971117496
+    },
+    {
+      "name": "ndvi_std_yr",
+      "importance_gain": 8747.85954529047
+    },
+    {
+      "name": "ndvi_amplitude_yr",
+      "importance_gain": 1205.9467097520828
+    }
+  ],
+  "best_iteration": 500,
+  "params": {
+    "objective": "binary",
+    "learning_rate": 0.05,
+    "num_leaves": 127,
+    "max_depth": -1,
+    "min_data_in_leaf": 20,
+    "feature_fraction": 0.85,
+    "bagging_fraction": 0.85,
+    "bagging_freq": 5,
+    "lambda_l2": 0.1,
+    "verbose": -1,
+    "n_jobs": -1,
+    "seed": 42
+  }
+}

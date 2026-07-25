@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Cadastro de Lotes — Pixadvisor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<style>
+:root{
+  --teal:#7FD633; --teal-dark:#6BBF2A; --blue:#00A4CC;
+  --dark:#0F1B2D; --dark-2:#1a2a40; --dark-3:#243447;
+  --text:#FFFFFF; --text-muted:#94A3B8; --text-dim:#64748b;
+  --border:rgba(255,255,255,0.08);
+  --gold:#f59e0b; --red:#ef4444;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:'Inter',system-ui,sans-serif;background:var(--dark);color:var(--text);font-size:13px;overflow:hidden}
+.layout{display:grid;grid-template-columns:300px 1fr 320px;height:100vh}
+@media (max-width:1100px){.layout{grid-template-columns:280px 1fr 280px}}
+@media (max-width:920px){.layout{grid-template-columns:1fr;grid-template-rows:auto 55vh auto;height:auto;min-height:100vh;overflow:auto}body{overflow:auto}}
+
+aside{padding:14px;background:var(--dark-2);overflow-y:auto;border-right:1px solid var(--border);min-width:0}
+aside.right{border-right:0;border-left:1px solid var(--border)}
+aside h2{margin:0 0 8px;font-size:11px;text-transform:uppercase;color:var(--teal);letter-spacing:.7px;font-weight:700;padding-bottom:6px;border-bottom:1px solid var(--border)}
+aside section{padding:10px 0;border-bottom:1px solid var(--border)}
+aside section:last-child{border-bottom:0}
+
+.step-num{display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;background:var(--teal);color:#000;border-radius:50%;font-size:11px;font-weight:800;margin-right:6px}
+label{display:block;margin:6px 0 2px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px;font-weight:600}
+input,select{width:100%;padding:7px 9px;background:var(--dark);border:1px solid var(--border);color:var(--text);border-radius:5px;font-family:inherit;font-size:13px;outline:none;transition:border-color .15s}
+input:focus,select:focus{border-color:var(--teal)}
+button{padding:9px 12px;background:var(--teal);color:#000;border:0;border-radius:5px;font-weight:700;cursor:pointer;font-size:13px;transition:all .15s}
+button:hover:not(:disabled){background:var(--teal-dark)}
+button:disabled{opacity:.35;cursor:not-allowed}
+button.full{width:100%}
+button.muted{background:var(--dark-3);color:var(--text)}
+button.muted:hover:not(:disabled){background:#374b60}
+button.gold{background:var(--gold);color:#000}
+button.danger{background:var(--red);color:#fff}
+button.tiny{padding:4px 8px;font-size:11px;font-weight:600}
+
+.row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+
+#map{height:100%;background:#000}
+#log{font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--dark);border:1px solid var(--border);color:#9eb;padding:7px;border-radius:5px;height:90px;overflow-y:auto;white-space:pre-wrap;line-height:1.5}
+
+.metric{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
+.metric strong{color:var(--teal)}
+.help{font-size:10px;color:var(--text-dim);margin:4px 0 0;line-height:1.4}
+
+.tag{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700}
+.tag-accepted{background:rgba(127,214,51,.18);color:var(--teal);border:1px solid rgba(127,214,51,.4)}
+.tag-pending{background:rgba(245,158,11,.18);color:var(--gold);border:1px solid rgba(245,158,11,.4)}
+
+.lot-item{background:var(--dark);border:1px solid var(--border);border-radius:5px;padding:8px;margin-bottom:5px;transition:border-color .15s;cursor:pointer}
+.lot-item:hover{border-color:var(--teal)}
+.lot-item.selected{border-color:var(--teal);background:rgba(127,214,51,.06)}
+.lot-item.accepted{border-color:rgba(127,214,51,.4);background:rgba(127,214,51,.04)}
+.lot-item .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.lot-item .head strong{font-size:12px}
+.lot-item .actions{display:flex;gap:3px;margin-top:6px}
+
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--teal);border-top-color:transparent;border-radius:50%;animation:s 1s linear infinite;vertical-align:middle}
+@keyframes s{to{transform:rotate(360deg)}}
+
+.empty{color:var(--text-dim);text-align:center;padding:14px;font-size:11px;font-style:italic}
+
+aside::-webkit-scrollbar,#log::-webkit-scrollbar{width:6px}
+aside::-webkit-scrollbar-thumb,#log::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:3px}
+.leaflet-control-attribution{background:rgba(15,27,45,0.85)!important;color:var(--text-muted)!important}
+.leaflet-control-attribution a{color:var(--blue)!important}
+
+.search-box{display:flex;gap:4px}
+.search-box input{flex:1}
+
+details summary{cursor:pointer;color:var(--teal);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+details[open] summary{margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <aside>
+    <h2>Pixadvisor — Cadastro</h2>
+
+    <section>
+      <strong style="color:#cde;font-size:12px"><span class="step-num">1</span>Cliente / Finca</strong>
+      <label>Cliente</label>
+      <div class="row">
+        <select id="clientSel"><option value="">— elegir —</option></select>
+        <button id="newClientBtn" class="muted" type="button">+ Nuevo</button>
+      </div>
+      <label>Finca</label>
+      <div class="row">
+        <select id="farmSel" disabled><option value="">— elegir —</option></select>
+        <button id="newFarmBtn" class="muted" type="button" disabled>+ Nueva</button>
+      </div>
+    </section>
+
+    <section>
+      <strong style="color:#cde;font-size:12px"><span class="step-num">2</span>Buscar zona</strong>
+      <label>Buscar lugar (Nominatim)</label>
+      <div class="search-box">
+        <input id="searchInput" placeholder="Ej: San Julián Bolivia" />
+        <button id="searchBtn" class="muted" type="button">🔍</button>
+      </div>
+      <p class="help">Navegá libre con scroll/drag. Acercá hasta ver los lotes con detalle.</p>
+    </section>
+
+    <section>
+      <strong style="color:#cde;font-size:12px"><span class="step-num">3</span>Área a detectar</strong>
+      <button id="drawBboxBtn" class="full muted" type="button">📐 Dibujar área (rectángulo)</button>
+      <button id="drawPolyBtn" class="full muted" style="margin-top:5px" type="button">✏️ Dibujar polígono libre</button>
+      <button id="useViewBtn" class="full muted" style="margin-top:5px" type="button">🗺️ Usar vista actual del mapa</button>
+      <div class="help" id="bboxStatus" style="color:#cde;margin-top:6px"></div>
+    </section>
+
+    <section>
+      <strong style="color:#cde;font-size:12px"><span class="step-num">4</span>Detectar lotes</strong>
+      <label>Zoom imagen Esri</label>
+      <select id="samZoom">
+        <option value="16">16 — ~2.5 m/px (rápido, áreas grandes)</option>
+        <option value="17" selected>17 — ~1.2 m/px (recomendado)</option>
+        <option value="18">18 — ~0.6 m/px (alto detalle, lento)</option>
+        <option value="19">19 — ~0.3 m/px (máximo, muy lento)</option>
+      </select>
+      <details style="margin-top:8px">
+        <summary>⚙️ Ajustes finos SAM</summary>
+        <div class="row" style="margin-top:6px">
+          <div><label>Pts/lado</label><input id="samPoints" type="number" value="24" min="16" max="64" /></div>
+          <div><label>IoU thr</label><input id="samIou" type="number" step="0.02" value="0.82" /></div>
+        </div>
+        <div class="row">
+          <div><label>Stability</label><input id="samStab" type="number" step="0.02" value="0.86" /></div>
+          <div><label>Simplify m</label><input id="samSimplify" type="number" step="0.5" value="2.0" /></div>
+        </div>
+        <div class="row">
+          <div><label>Min ha</label><input id="samMinHa" type="number" step="0.5" value="1.0" /></div>
+          <div><label>Max ha</label><input id="samMaxHa" type="number" step="10" value="500" /></div>
+        </div>
+      </details>
+      <button id="detectBtn" class="full" style="margin-top:8px;background:var(--teal)" disabled>🎯 Detectar lotes (FTW PRUE)</button>
+
+      <details style="margin-top:6px;background:var(--dark);padding:6px 8px;border-radius:4px;border:1px solid var(--border)">
+        <summary>📥 Descargar imágenes</summary>
+        <p class="help">Esri (alta resolución, color natural):</p>
+        <div class="row" style="margin-top:4px">
+          <button id="dlTifBtn" class="muted tiny" disabled>📥 Esri GeoTIFF</button>
+          <button id="dlPngBtn" class="muted tiny" disabled>📥 Esri PNG</button>
+        </div>
+        <p class="help" style="margin-top:8px">Sentinel-2 (color natural mejorado, multi-temporal):</p>
+        <div class="row">
+          <div><label>Desde</label><input id="s2Start" type="date" value="2026-01-01" /></div>
+          <div><label>Hasta</label><input id="s2End" type="date" value="2026-04-15" /></div>
+        </div>
+        <div class="row">
+          <div><label>Mejora</label><select id="s2Enh"><option value="natural" selected>Natural</option><option value="agro">Agro (cultivos)</option><option value="urban">Urbano</option><option value="true_color">True color</option></select></div>
+          <div><label>Resolución</label><select id="s2Scale"><option value="10" selected>10m</option><option value="20">20m</option></select></div>
+        </div>
+        <div class="row" style="margin-top:4px">
+          <button id="dlS2TifBtn" class="muted tiny" disabled>📥 S2 GeoTIFF</button>
+          <button id="dlS2PngBtn" class="muted tiny" disabled>📥 S2 PNG</button>
+        </div>
+      </details>
+      <button id="clearBtn" class="muted full" style="margin-top:5px" disabled>🗑️ Limpiar resultado</button>
+    </section>
+
+    <section>
+      <h2 style="margin-top:0">Log</h2>
+      <div id="log"></div>
+    </section>
+  </aside>
+
+  <div id="map"></div>
+
+  <aside class="right">
+    <h2>Lotes detectados</h2>
+    <div id="resumen" class="empty">— sin detección —</div>
+    <hr style="border:0;border-top:1px solid var(--border);margin:8px 0">
+    <div id="lotsList" class="empty">Detectá lotes para ver la lista.</div>
+    <hr style="border:0;border-top:1px solid var(--border);margin:10px 0">
+    <h2 style="margin-top:0">Cadastrar lote seleccionado</h2>
+    <input id="lotName" placeholder="Nombre lote (LT-01)" />
+    <input id="lotCrop" placeholder="Cultivo (Soja, Caña, ...)" style="margin-top:5px" />
+    <button id="saveLotBtn" class="full gold" style="margin-top:6px" disabled>💾 Guardar lote en DB</button>
+    <hr style="border:0;border-top:1px solid var(--border);margin:10px 0">
+    <h2 style="margin-top:0">Lotes guardados (finca actual)</h2>
+    <div id="savedList" class="empty">— ninguno —</div>
+    <button id="exportBtn" class="full muted" style="margin-top:6px" disabled>⬇ Exportar GeoJSON finca</button>
+  </aside>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+const API = window.PIX_FIELD_API_URL || location.origin;
+const API_KEY = window.PIX_FIELD_API_KEY || null;
+
+const log = m => { const el=document.getElementById('log'); el.textContent += `${new Date().toISOString().slice(11,19)} ${m}\n`; el.scrollTop=el.scrollHeight; };
+
+const state = { clientId:null, farmId:null, bboxLayer:null, drawnPolygon:null, drawMode:null,
+                lots:[], selectedLotIdx:null, savedLots:[] };
+
+// Map con base satélite Google + capa Esri opcional
+const map = L.map('map').setView([-17.5, -63.0], 6);
+const baseGoogle = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {maxZoom:21, subdomains:['mt0','mt1','mt2','mt3'], attribution:'Google Sat'}).addTo(map);
+const baseEsri = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'Esri'});
+const baseHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {maxZoom:21, subdomains:['mt0','mt1','mt2','mt3'], attribution:'Google Hybrid'});
+L.control.layers({'Google Sat':baseGoogle, 'Esri Imagery':baseEsri, 'Google Hybrid':baseHybrid}, null, {collapsed:true}).addTo(map);
+
+const drawn = new L.FeatureGroup().addTo(map);
+const lotsLayer = new L.FeatureGroup().addTo(map);
+const savedLayer = new L.FeatureGroup().addTo(map);
+const drawCtl = new L.Control.Draw({
+  edit:{featureGroup:drawn},
+  draw:{rectangle:{shapeOptions:{color:'#42a5f5',weight:2,dashArray:'4,2'}},
+        polygon:{allowIntersection:false,showArea:true,shapeOptions:{color:'#ffeb3b',weight:3,fillOpacity:0.05}},
+        circle:false,marker:false,polyline:false,circlemarker:false}
+});
+map.addControl(drawCtl);
+window.addEventListener('resize',()=>setTimeout(()=>map.invalidateSize(),100));
+new ResizeObserver(()=>map.invalidateSize()).observe(document.getElementById('map'));
+
+map.on(L.Draw.Event.CREATED, e => {
+  drawn.clearLayers(); drawn.addLayer(e.layer);
+  state.bboxLayer = e.layer;
+  state.drawnPolygon = e.layer.toGeoJSON();
+  document.getElementById('detectBtn').disabled = false;
+  document.getElementById('dlTifBtn').disabled = false;
+  document.getElementById('dlPngBtn').disabled = false;
+  document.getElementById('dlS2TifBtn').disabled = false;
+  document.getElementById('dlS2PngBtn').disabled = false;
+  const b = e.layer.getBounds();
+  const w=b.getWest(),s=b.getSouth(),e2=b.getEast(),n=b.getNorth();
+  const m_per_deg_lat=110574, m_per_deg_lon=111320*Math.cos(((s+n)/2)*Math.PI/180);
+  const ha = Math.abs((e2-w)*m_per_deg_lon * (n-s)*m_per_deg_lat) / 10000;
+  document.getElementById('bboxStatus').innerHTML = `✓ Área: ~<strong>${ha.toFixed(1)} ha</strong> (${((e2-w)*m_per_deg_lon).toFixed(0)}×${((n-s)*m_per_deg_lat).toFixed(0)} m)`;
+  state.drawMode = null;
+});
+
+// API helper
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers:{'Content-Type':'application/json'} };
+  if (API_KEY) opts.headers['X-API-Key']=API_KEY;
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API+path, opts);
+  if (!r.ok) throw new Error(`${method} ${path}: ${r.status} ${(await r.text()).slice(0,200)}`);
+  return r.json();
+}
+
+// ---------- Step 1: Clients/Farms ----------
+async function refreshClients(selId=null) {
+  const cs = await api('/clients');
+  const sel = document.getElementById('clientSel');
+  sel.innerHTML='<option value="">— elegir —</option>'+cs.map(c=>`<option value="${c.id}">${c.name} (${c.n_lots} lotes)</option>`).join('');
+  if (selId) sel.value=selId;
+}
+async function refreshFarms(clientId, selId=null) {
+  const fs=document.getElementById('farmSel'), bt=document.getElementById('newFarmBtn');
+  if (!clientId) { fs.disabled=true; bt.disabled=true; fs.innerHTML='<option>— elegir cliente primero —</option>'; return; }
+  const farms = await api(`/farms?client_id=${clientId}`);
+  fs.disabled=false; bt.disabled=false;
+  fs.innerHTML='<option value="">— elegir —</option>'+farms.map(f=>`<option value="${f.id}">${f.name} (${f.n_lots} lotes)</option>`).join('');
+  if (selId) fs.value=selId;
+}
+document.getElementById('clientSel').onchange=async e=>{state.clientId=e.target.value?+e.target.value:null;state.farmId=null;await refreshFarms(state.clientId);refreshSavedLots();};
+document.getElementById('farmSel').onchange=e=>{state.farmId=e.target.value?+e.target.value:null;refreshSavedLots();};
+document.getElementById('newClientBtn').onclick=async()=>{const n=prompt('Nombre cliente:');if(!n)return;const r=await api('/clients','POST',{name:n});await refreshClients(r.id);state.clientId=r.id;await refreshFarms(r.id);};
+document.getElementById('newFarmBtn').onclick=async()=>{if(!state.clientId)return alert('Cliente primero');const n=prompt('Nombre finca:');if(!n)return;const c=prompt('País (BO/BR/AR opc):','')||null;const r=await api('/farms','POST',{client_id:state.clientId,name:n,country:c});await refreshFarms(state.clientId,r.id);state.farmId=r.id;refreshSavedLots();};
+
+// ---------- Step 2: Search ----------
+document.getElementById('searchBtn').onclick = doSearch;
+document.getElementById('searchInput').addEventListener('keydown', e=>{if(e.key==='Enter')doSearch();});
+async function doSearch(){
+  const q=document.getElementById('searchInput').value.trim();
+  if(!q)return;
+  log(`Buscando "${q}"...`);
+  const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`,{headers:{'User-Agent':'Pixadvisor'}});
+  const data=await r.json();
+  if(!data.length){alert('No se encontró');return;}
+  const {lat,lon,boundingbox}=data[0];
+  if(boundingbox){map.fitBounds([[+boundingbox[0],+boundingbox[2]],[+boundingbox[1],+boundingbox[3]]]);}
+  else{map.setView([+lat,+lon],14);}
+  log(`✓ Centrado en ${data[0].display_name.slice(0,60)}`);
+}
+
+// ---------- Step 3: Drawing modes ----------
+document.getElementById('drawBboxBtn').onclick=()=>{state.drawMode='bbox';drawn.clearLayers();new L.Draw.Rectangle(map, drawCtl.options.draw.rectangle).enable();log('Click + arrastrá para dibujar el rectángulo de área a detectar.');};
+document.getElementById('drawPolyBtn').onclick=()=>{state.drawMode='polygon';drawn.clearLayers();new L.Draw.Polygon(map, drawCtl.options.draw.polygon).enable();log('Click vértices, doble-click para cerrar polígono.');};
+document.getElementById('useViewBtn').onclick=()=>{const b=map.getBounds();const sw=b.getSouthWest(), ne=b.getNorthEast();drawn.clearLayers();const rect=L.rectangle([[sw.lat,sw.lng],[ne.lat,ne.lng]],{color:'#42a5f5',weight:2,dashArray:'4,2'}).addTo(drawn);state.bboxLayer=rect;state.drawnPolygon=rect.toGeoJSON();document.getElementById('detectBtn').disabled=false;document.getElementById('dlTifBtn').disabled=false;document.getElementById('dlPngBtn').disabled=false;document.getElementById('dlS2TifBtn').disabled=false;document.getElementById('dlS2PngBtn').disabled=false;const ha=Math.abs((ne.lng-sw.lng)*111320*Math.cos((sw.lat+ne.lat)/2*Math.PI/180)*(ne.lat-sw.lat)*110574)/10000;document.getElementById('bboxStatus').innerHTML=`✓ Vista actual: ~<strong>${ha.toFixed(1)} ha</strong>`;};
+
+async function downloadSatelliteImage(format) {
+  if (!state.bboxLayer) return alert('Dibujá área primero');
+  const b = state.bboxLayer.getBounds();
+  const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+  const zoom = +document.getElementById('samZoom').value;
+  const btn = document.getElementById(format==='tif'?'dlTifBtn':'dlPngBtn');
+  btn.disabled=true; const oldText=btn.innerText; btn.innerHTML='<span class="spin"></span>';
+  log(`Descargando imagen satélite ${format.toUpperCase()} zoom=${zoom}...`);
+  try {
+    const opts = {method:'POST', headers:{'Content-Type':'application/json'}};
+    if (API_KEY) opts.headers['X-API-Key']=API_KEY;
+    opts.body = JSON.stringify({bbox, zoom, source:'esri', format});
+    const r = await fetch(API+'/download_highres_image', opts);
+    if (!r.ok) throw new Error('HTTP '+r.status+': '+await r.text());
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url;
+    const fn = `satellite_z${zoom}_${bbox.map(n=>n.toFixed(4)).join('_')}.${format}`;
+    a.download = fn;
+    a.click();
+    URL.revokeObjectURL(url);
+    log(`✓ Descargado ${fn} (${(blob.size/1024/1024).toFixed(1)} MB)`);
+  } catch(e){ alert(e.message); log('ERR dl: '+e.message); }
+  finally { btn.disabled=false; btn.innerHTML=oldText; }
+}
+document.getElementById('dlTifBtn').onclick = () => downloadSatelliteImage('tif');
+document.getElementById('dlPngBtn').onclick = () => downloadSatelliteImage('png');
+
+async function downloadS2Image(format) {
+  if (!state.bboxLayer) return alert('Dibujá área primero');
+  const b = state.bboxLayer.getBounds();
+  const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+  const start = document.getElementById('s2Start').value;
+  const end = document.getElementById('s2End').value;
+  const enhancement = document.getElementById('s2Enh').value;
+  const scale_m = +document.getElementById('s2Scale').value;
+  const btn = document.getElementById(format==='tif'?'dlS2TifBtn':'dlS2PngBtn');
+  btn.disabled=true; const oldText=btn.innerText; btn.innerHTML='<span class="spin"></span>';
+  log(`Descargando Sentinel-2 ${format.toUpperCase()} ${enhancement} ${scale_m}m ${start}→${end}...`);
+  try {
+    const opts = {method:'POST', headers:{'Content-Type':'application/json'}};
+    if (API_KEY) opts.headers['X-API-Key']=API_KEY;
+    opts.body = JSON.stringify({bbox, start, end, scale_m, enhancement, format, cloud_pct:30});
+    const r = await fetch(API+'/download_sentinel2_image', opts);
+    if (!r.ok) throw new Error('HTTP '+r.status+': '+await r.text());
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url;
+    a.download = `sentinel2_${enhancement}_${scale_m}m_${start}_${end}.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    const scenes = r.headers.get('X-S2-Scenes') || '?';
+    log(`✓ S2 descargado (${(blob.size/1024/1024).toFixed(1)} MB, ${scenes} escenas)`);
+  } catch(e){ alert(e.message); log('ERR S2 dl: '+e.message); }
+  finally { btn.disabled=false; btn.innerHTML=oldText; }
+}
+document.getElementById('dlS2TifBtn').onclick = () => downloadS2Image('tif');
+document.getElementById('dlS2PngBtn').onclick = () => downloadS2Image('png');
+
+// ---------- Step 4: SAM detection ----------
+document.getElementById('detectBtn').onclick = async () => {
+  if (!state.bboxLayer) return alert('Dibujá área primero');
+  const b = state.bboxLayer.getBounds();
+  const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+  const btn=document.getElementById('detectBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> FTW PRUE inferiendo (~10-20s)...';
+  const t0=Date.now();
+  try {
+    const body = {
+      bbox,
+      win_a_start: '2025-01-01', win_a_end: '2025-03-31',
+      win_b_start: '2025-07-01', win_b_end: '2025-09-30',
+      scale_m: 10, cloud_pct: 30,
+      extent_thresh: 0.30, boundary_thresh: 0.50,
+      marker_erode_iters: 1, marker_min_area_px: 50,
+      min_area_ha: Math.max(1.0, +document.getElementById('samMinHa').value),
+      max_area_ha: +document.getElementById('samMaxHa').value,
+      simplify_m: 4.0, smooth_iters: 2,
+      tile_size: 256, overlap: 64,
+    };
+    log(`POST /detect_lots_ftw scale=10m winA=Q1 winB=Q3`);
+    const r = await api('/detect_lots_ftw','POST',body);
+    const dt = ((Date.now()-t0)/1000).toFixed(1);
+    log(`✓ FTW PRUE ${dt}s — ${r.metadata.n_polygons} lotes (${r.metadata.timings.n_instances_raw} instances raw)`);
+    state.lots = r.features.map((f,i)=>({...f, idx:i, accepted:false}));
+    state.selectedLotIdx = null;
+    drawLots();
+    renderLotsList();
+    renderResumen(r.metadata);
+    document.getElementById('clearBtn').disabled = false;
+  } catch(e){ alert('Error: '+e.message); log('ERR: '+e.message); }
+  finally{ btn.disabled=false; btn.innerHTML='🎯 Detectar lotes (FTW PRUE)'; }
+};
+
+document.getElementById('clearBtn').onclick = () => {
+  state.lots=[]; state.selectedLotIdx=null;
+  lotsLayer.clearLayers();
+  document.getElementById('lotsList').className='empty';
+  document.getElementById('lotsList').innerHTML='Detectá lotes para ver la lista.';
+  document.getElementById('resumen').className='empty';
+  document.getElementById('resumen').innerHTML='— sin detección —';
+  document.getElementById('saveLotBtn').disabled=true;
+};
+
+const lotColor = i => `hsl(${(i*137.508)%360},70%,55%)`;
+
+function drawLots() {
+  lotsLayer.clearLayers();
+  state.lots.forEach((f,i)=>{
+    const c = lotColor(i);
+    const layer = L.geoJSON(f, {style:{color:'#fff', weight:1.5, fillColor:c, fillOpacity: f.accepted ? 0.75 : 0.5}});
+    layer.bindTooltip(`<strong>Lote #${i+1}</strong><br>${f.properties.area_ha} ha`, {sticky:true, direction:'top'});
+    layer.on('click', () => selectLot(i));
+    layer.addTo(lotsLayer);
+    f._layer = layer;
+  });
+  if (lotsLayer.getLayers().length) map.fitBounds(lotsLayer.getBounds(), {padding:[30,30]});
+}
+
+function selectLot(idx) {
+  state.selectedLotIdx = idx;
+  document.getElementById('saveLotBtn').disabled = false;
+  // Highlight
+  state.lots.forEach((f,i)=>{
+    if (f._layer) {
+      const c = lotColor(i);
+      f._layer.setStyle({color: i===idx?'#ffeb3b':'#fff', weight: i===idx?3:1.5, fillColor:c, fillOpacity: f.accepted?0.75:(i===idx?0.6:0.5)});
+    }
+  });
+  renderLotsList();
+}
+
+function renderLotsList() {
+  const list = document.getElementById('lotsList');
+  if (!state.lots.length) { list.className='empty'; list.innerHTML='Detectá lotes para ver la lista.'; return; }
+  list.className='';
+  list.innerHTML = state.lots.map((f,i)=>{
+    const sel = i===state.selectedLotIdx;
+    const acc = f.accepted;
+    return `<div class="lot-item ${sel?'selected':''} ${acc?'accepted':''}" onclick="selectLot(${i})" style="border-left:4px solid ${lotColor(i)}">
+      <div class="head"><strong>Lote #${i+1}</strong>
+        <span class="tag ${acc?'tag-accepted':'tag-pending'}">${f.properties.area_ha} ha ${acc?'✓':''}</span>
+      </div>
+      <div class="actions">
+        <button class="tiny muted" onclick="event.stopPropagation();zoomLot(${i})">🔍</button>
+        <button class="tiny muted" onclick="event.stopPropagation();editLot(${i})">✎</button>
+        <button class="tiny danger" onclick="event.stopPropagation();rejectLot(${i})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+window.selectLot = selectLot;
+window.zoomLot = idx => { const f=state.lots[idx]; if(f._layer) map.fitBounds(f._layer.getBounds(), {padding:[40,40], maxZoom:18}); };
+window.rejectLot = idx => { state.lots.splice(idx,1); state.selectedLotIdx=null; drawLots(); renderLotsList(); document.getElementById('saveLotBtn').disabled=true; };
+window.editLot = idx => {
+  const f=state.lots[idx]; if(!f._layer) return;
+  // Convertir a polígono editable
+  const coords = f.geometry.coordinates[0].map(c=>[c[1],c[0]]);
+  lotsLayer.removeLayer(f._layer);
+  const editPoly = L.polygon(coords, {color:'#ffeb3b',weight:3,fillOpacity:0.15}).addTo(lotsLayer);
+  editPoly.editing.enable();
+  f._layer = editPoly;
+  editPoly.on('edit', () => {
+    const ll = editPoly.getLatLngs()[0];
+    const newCoords = ll.map(p=>[p.lng,p.lat]); newCoords.push(newCoords[0]);
+    state.lots[idx].geometry = {type:'Polygon', coordinates:[newCoords]};
+    log(`Lote #${idx+1}: ${ll.length} vértices editados`);
+  });
+  log(`Editando #${idx+1} — arrastrá vértices, click derecho para borrar`);
+};
+
+function renderResumen(md) {
+  document.getElementById('resumen').className='';
+  document.getElementById('resumen').innerHTML = `
+    <div class="metric"><span>Lotes detectados</span><strong>${md.n_polygons}</strong></div>
+    <div class="metric"><span>Área total</span><strong>${md.total_area_ha} ha</strong></div>
+    <div class="metric"><span>Resolución imagen</span><strong>${md.imagery.m_per_pixel} m/px</strong></div>
+    <div class="metric"><span>Tiempo SAM</span><strong>${md.timings.sam_inference}s</strong></div>
+  `;
+}
+
+// ---------- Save lot ----------
+document.getElementById('saveLotBtn').onclick = async () => {
+  if (state.selectedLotIdx === null) return alert('Seleccioná un lote primero (click sobre uno)');
+  if (!state.farmId) return alert('Elegí finca primero');
+  const f = state.lots[state.selectedLotIdx];
+  const name = document.getElementById('lotName').value.trim();
+  if (!name) return alert('Falta nombre del lote');
+  const crop = document.getElementById('lotCrop').value.trim() || null;
+  const body = {
+    farm_id: state.farmId, name, crop,
+    geometry: {type:'FeatureCollection', features:[{type:'Feature', geometry: f.geometry, properties:{}}]},
+    area_ha: f.properties.area_ha, source: 'SAM_HIGHRES',
+    quality_tag: 'OPERATOR_VERIFIED', quality_score: 100,
+  };
+  try {
+    const r = await api('/lots','POST',body);
+    log(`✓ Lote "${name}" guardado (id=${r.id}, ${f.properties.area_ha} ha)`);
+    f.accepted = true;
+    document.getElementById('lotName').value=''; document.getElementById('lotCrop').value='';
+    drawLots(); renderLotsList(); refreshSavedLots();
+  } catch(e){ alert(e.message); log('ERR save: '+e.message); }
+};
+
+async function refreshSavedLots() {
+  const list = document.getElementById('savedList'), exportBtn=document.getElementById('exportBtn');
+  if (!state.farmId) { list.className='empty'; list.innerHTML='— elegí finca —'; exportBtn.disabled=true; savedLayer.clearLayers(); return; }
+  const lots = await api(`/lots?farm_id=${state.farmId}`);
+  state.savedLots = lots;
+  savedLayer.clearLayers();
+  if (!lots.length) { list.className='empty'; list.innerHTML='— ninguno —'; exportBtn.disabled=true; return; }
+  list.className='';
+  list.innerHTML = lots.map(l=>`<div class="lot-item accepted" onclick="zoomSaved(${l.id})">
+    <div class="head"><strong>${l.name}</strong><span class="tag tag-accepted">${l.area_ha} ha</span></div>
+    <div style="font-size:10px;color:#789">${l.crop||''} · v${l.version}</div>
+  </div>`).join('');
+  exportBtn.disabled=false;
+  lots.forEach(l=>{ if(l.geometry) L.geoJSON(l.geometry,{style:{color:'#a5d6a7',weight:2,fillColor:'#1b5e20',fillOpacity:0.30,dashArray:'4,3'}}).bindTooltip(`💾 ${l.name}`).addTo(savedLayer); });
+}
+window.zoomSaved = id => { const l=state.savedLots.find(x=>x.id===id); if(!l||!l.geometry)return; map.fitBounds(L.geoJSON(l.geometry).getBounds(),{padding:[30,30],maxZoom:17}); };
+document.getElementById('exportBtn').onclick = () => state.farmId && window.open(`${API}/farms/${state.farmId}/export.geojson`,'_blank');
+
+// Init
+(async()=>{ try{ await refreshClients(); log('Listo. Elegí cliente+finca y buscá la zona.'); } catch(e){ log('init: '+e.message); } })();
+</script>
+</body>
+</html>

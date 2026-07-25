@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Pixadvisor Field Delineation - Demo Client</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<style>
+:root { --pix: #2e7d32; --pix2:#1b5e20; --bg:#0f1419; --fg:#e8eef2; --card:#1a2129; }
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg)}
+header{padding:12px 20px;background:linear-gradient(90deg,var(--pix2),var(--pix));display:flex;align-items:center;gap:14px}
+header h1{margin:0;font-size:18px;font-weight:600}
+.layout{display:grid;grid-template-columns:380px 1fr;height:calc(100vh - 50px)}
+aside{padding:16px;background:var(--card);overflow-y:auto;border-right:1px solid #2a3138}
+aside h2{margin:0 0 8px;font-size:14px;text-transform:uppercase;color:#9eb;letter-spacing:.5px}
+aside section{padding:12px 0;border-bottom:1px solid #2a3138}
+label{display:block;margin:8px 0 3px;font-size:12px;color:#9aa}
+input,select{width:100%;padding:7px 10px;background:#0c1014;border:1px solid #2a3138;color:var(--fg);border-radius:5px;font-family:inherit}
+button{width:100%;padding:10px;background:var(--pix);color:#fff;border:0;border-radius:5px;font-weight:600;cursor:pointer;margin-top:10px}
+button:hover{background:var(--pix2)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#map{height:100%}
+#log{font-family:monospace;font-size:11px;background:#0c1014;padding:8px;border-radius:5px;height:160px;overflow-y:auto;white-space:pre-wrap}
+.metric{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted #2a3138;font-size:12px}
+.metric strong{color:#9eb}
+.help{font-size:11px;color:#789;margin-top:4px}
+</style>
+</head>
+<body>
+<header>
+  <strong style="font-size:22px">🌾</strong>
+  <h1>Pixadvisor — Field Delineation Demo</h1>
+  <span style="margin-left:auto;font-size:11px;color:#9eb">DA-S Sentinel-2 GEE</span>
+</header>
+
+<div class="layout">
+  <aside>
+    <section>
+      <h2>1. AOI</h2>
+      <p class="help">Dibujá un rectángulo sobre el mapa o escribí bbox manual.</p>
+      <label>BBOX (W, S, E, N)</label>
+      <input id="bbox" placeholder="-50.663,-23.501,-50.654,-23.473" />
+      <div class="row">
+        <button id="presetSA" type="button" style="background:#455">Santo Antonio</button>
+        <button id="presetSC" type="button" style="background:#455">Serro Alto</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Periodo Sentinel-2</h2>
+      <div class="row">
+        <div><label>Desde</label><input id="start" type="date" value="2026-01-01" /></div>
+        <div><label>Hasta</label><input id="end" type="date" value="2026-02-25" /></div>
+      </div>
+      <label>Max nubes (%)</label>
+      <input id="cloud" type="number" value="30" min="0" max="100" />
+    </section>
+
+    <section>
+      <h2>3. Modelo</h2>
+      <label>Tamaño</label>
+      <select id="model">
+        <option value="small">small (16.8 MB) — recomendado</option>
+        <option value="large">large (125 MB) — conservador</option>
+      </select>
+      <label>Confianza</label>
+      <input id="conf" type="number" step="0.01" value="0.05" />
+      <label>Area mínima (ha)</label>
+      <input id="minha" type="number" step="0.1" value="0.3" />
+    </section>
+
+    <section>
+      <button id="run">▶ Detectar lotes</button>
+      <button id="clear" style="background:#933;margin-top:5px">Limpiar resultados</button>
+    </section>
+
+    <section>
+      <h2>Resultado</h2>
+      <div id="metrics"></div>
+    </section>
+
+    <section>
+      <h2>Log</h2>
+      <div id="log"></div>
+    </section>
+  </aside>
+
+  <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+const API = location.origin;  // misma origen que sirve este HTML
+const log = (m) => { const el = document.getElementById('log'); el.textContent += `${new Date().toISOString().slice(11,19)}  ${m}\n`; el.scrollTop = el.scrollHeight; };
+
+const map = L.map('map').setView([-23.487, -50.658], 13);
+L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+  maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'], attribution:'Google Satellite'
+}).addTo(map);
+
+const drawn = new L.FeatureGroup().addTo(map);
+const results = new L.FeatureGroup().addTo(map);
+map.addControl(new L.Control.Draw({
+  edit: { featureGroup: drawn },
+  draw: { rectangle: true, polygon: false, circle: false, marker: false, polyline: false, circlemarker: false }
+}));
+map.on(L.Draw.Event.CREATED, e => {
+  drawn.clearLayers();
+  drawn.addLayer(e.layer);
+  const b = e.layer.getBounds();
+  document.getElementById('bbox').value = `${b.getWest().toFixed(6)},${b.getSouth().toFixed(6)},${b.getEast().toFixed(6)},${b.getNorth().toFixed(6)}`;
+});
+
+document.getElementById('presetSA').onclick = () => {
+  document.getElementById('bbox').value = '-50.663,-23.501,-50.654,-23.473';
+  map.setView([-23.487, -50.658], 14);
+};
+document.getElementById('presetSC').onclick = () => {
+  document.getElementById('bbox').value = '-59.062,-18.351,-59.018,-18.330';
+  map.setView([-18.34, -59.04], 14);
+};
+
+document.getElementById('clear').onclick = () => {
+  results.clearLayers();
+  drawn.clearLayers();
+  document.getElementById('metrics').innerHTML = '';
+};
+
+document.getElementById('run').onclick = async () => {
+  const btn = document.getElementById('run');
+  btn.disabled = true; btn.textContent = '⏳ Procesando...';
+  try {
+    const bbox = document.getElementById('bbox').value.split(',').map(Number);
+    if (bbox.length !== 4 || bbox.some(isNaN)) throw new Error('BBOX inválido');
+    const body = {
+      bbox,
+      start: document.getElementById('start').value,
+      end:   document.getElementById('end').value,
+      cloud_pct: +document.getElementById('cloud').value,
+      model:    document.getElementById('model').value,
+      conf:     +document.getElementById('conf').value,
+      min_area_ha: +document.getElementById('minha').value,
+    };
+    log(`POST /delineate model=${body.model} bbox=${bbox.map(x=>x.toFixed(3)).join(',')}`);
+    const t0 = Date.now();
+    const r = await fetch(API + '/delineate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    const fc = await r.json();
+    const dt = ((Date.now()-t0)/1000).toFixed(1);
+    log(`OK ${fc.features.length} polys en ${dt}s — fetch:${fc.metadata.elapsed_seconds.s2_fetch}s infer:${fc.metadata.elapsed_seconds.inference}s`);
+
+    results.clearLayers();
+    L.geoJSON(fc, {
+      style: { color: '#06f', weight: 1.5, fillColor:'#0cf', fillOpacity:0.25 },
+      onEachFeature: (f, l) => l.bindTooltip(`${f.properties.area_ha} ha`)
+    }).addTo(results);
+    if (results.getLayers().length) map.fitBounds(results.getBounds());
+
+    const m = document.getElementById('metrics');
+    const md = fc.metadata;
+    m.innerHTML = `
+      <div class="metric"><span>Polígonos</span><strong>${md.n_polygons}</strong></div>
+      <div class="metric"><span>Área total</span><strong>${md.total_area_ha} ha</strong></div>
+      <div class="metric"><span>Modelo</span><strong>${md.model}</strong></div>
+      <div class="metric"><span>S2 fetch</span><strong>${md.elapsed_seconds.s2_fetch}s</strong></div>
+      <div class="metric"><span>Inference</span><strong>${md.elapsed_seconds.inference}s</strong></div>
+      <div class="metric"><span>S2 escenas</span><strong>${md.imagery?.n_scenes ?? '?'}</strong></div>
+      <hr style="border-color:#2a3138" />
+      <button onclick='downloadGeoJSON(${JSON.stringify(JSON.stringify(fc))})' style="background:#345;margin:0">⬇ Descargar GeoJSON</button>
+    `;
+  } catch (e) {
+    log('ERR: ' + e.message);
+    alert(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '▶ Detectar lotes';
+  }
+};
+
+function downloadGeoJSON(s){
+  const blob = new Blob([s], {type:'application/geo+json'});
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: `pixadvisor_lotes_${Date.now()}.geojson`
+  });
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+fetch(API+'/health').then(r=>r.json()).then(j => log(`Health: ${JSON.stringify(j)}`));
+</script>
+</body>
+</html>

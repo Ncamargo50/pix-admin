@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","features":[],"metadata":{"timings":{"s2_download":3.88,"inference":0.39,"tta":false,"watershed":0.0,"n_instances_raw":0},"n_polygons":0,"imagery":{"shape":[390,335],"scale_m":10,"n_scenes":[9,30]}}}

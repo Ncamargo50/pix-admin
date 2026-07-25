@@ -1,0 +1,20 @@
+Santo Antonio AOI - BBOX para herramientas externas
+AREA REAL (truth): 137.05 ha en 1 feature(s)
+
+FORMATO 1 (WGS84 lat/lon, sin buffer):
+  W=-50.661896
+  S=-23.499977
+  E=-50.655055
+  N=-23.474171
+
+FORMATO 2 (con buffer 165m, recomendado para FTW Explorer):
+  W=-50.663396
+  S=-23.501477
+  E=-50.653555
+  N=-23.472671
+
+FORMATO 3 (Sentinel Hub, geojson polygon):
+  [[-50.66339603893997,-23.501476563383076],[-50.65355464675906,-23.501476563383076],[-50.65355464675906,-23.472671119968865],[-50.66339603893997,-23.472671119968865],[-50.66339603893997,-23.501476563383076]]
+
+FORMATO 4 (Google Maps URL para inspeccion visual):
+  https://www.google.com/maps/@-23.487074,-50.658475,15z/data=!3m1!1e3

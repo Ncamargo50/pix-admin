@@ -1,0 +1,88 @@
+{
+  "year": 2025,
+  "n_train": 48000,
+  "n_test": 12000,
+  "classification_report": {
+    "0.0": {
+      "precision": 0.8376136544903493,
+      "recall": 0.8751666666666666,
+      "f1-score": 0.8559784823539001,
+      "support": 6000.0
+    },
+    "1.0": {
+      "precision": 0.869307276217065,
+      "recall": 0.8303333333333334,
+      "f1-score": 0.8493734549484272,
+      "support": 6000.0
+    },
+    "accuracy": 0.85275,
+    "macro avg": {
+      "precision": 0.8534604653537072,
+      "recall": 0.85275,
+      "f1-score": 0.8526759686511636,
+      "support": 12000.0
+    },
+    "weighted avg": {
+      "precision": 0.8534604653537071,
+      "recall": 0.85275,
+      "f1-score": 0.8526759686511635,
+      "support": 12000.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      5251,
+      749
+    ],
+    [
+      1018,
+      4982
+    ]
+  ],
+  "feature_importance": [
+    {
+      "name": "ndvi_Q3",
+      "importance": 0.15899943627543145
+    },
+    {
+      "name": "ndvi_Q2",
+      "importance": 0.147890897273588
+    },
+    {
+      "name": "ndvi_Q4",
+      "importance": 0.1423472179052745
+    },
+    {
+      "name": "ndvi_Q1",
+      "importance": 0.13726132943023386
+    },
+    {
+      "name": "ndvi_mean",
+      "importance": 0.11251053127457857
+    },
+    {
+      "name": "elevation",
+      "importance": 0.08279516836398897
+    },
+    {
+      "name": "ndvi_std",
+      "importance": 0.0674215822802005
+    },
+    {
+      "name": "ndvi_range",
+      "importance": 0.052904873936803626
+    },
+    {
+      "name": "ndvi_amplitude",
+      "importance": 0.049673801910169166
+    },
+    {
+      "name": "slope",
+      "importance": 0.04819516134973143
+    }
+  ],
+  "rf_params": {
+    "n_estimators": 200,
+    "max_depth": 25
+  }
+}

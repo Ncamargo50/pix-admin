@@ -1,0 +1,11 @@
+{
+  "iou": 0.702,
+  "precision": 0.836,
+  "recall": 0.814,
+  "f1": 0.825,
+  "truth_ha": 3485.8,
+  "predicted_ha": 3395.2,
+  "intersect_ha": 2838.35,
+  "over_detection_ha": 556.84,
+  "missed_ha": 647.44
+}

@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Pixadvisor — Cadastro de Lotes (PRO)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<style>
+:root{--pix:#2e7d32;--pix2:#1b5e20;--bg:#0f1419;--fg:#e8eef2;--card:#1a2129;--mute:#6a7480;--gold:#ffb547;--red:#ef5350;--blue:#42a5f5}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg);font-size:13px}
+header{padding:10px 16px;background:linear-gradient(90deg,var(--pix2),var(--pix));display:flex;align-items:center;gap:14px}
+header h1{margin:0;font-size:16px;font-weight:600}
+header .ver{margin-left:auto;font-size:11px;color:#cfe;background:rgba(0,0,0,.2);padding:3px 8px;border-radius:3px}
+.layout{display:grid;grid-template-columns:minmax(280px,360px) minmax(400px,1fr) minmax(280px,340px);height:calc(100vh - 44px)}
+@media (max-width: 1400px){.layout{grid-template-columns:300px 1fr 290px}}
+@media (max-width: 1180px){.layout{grid-template-columns:280px 1fr 270px}}
+@media (max-width: 980px){
+  .layout{grid-template-columns:1fr;grid-template-rows:auto 60vh auto;height:auto;min-height:calc(100vh - 44px)}
+  aside{max-height:none;border-right:0;border-bottom:1px solid #2a3138}
+  aside.right{border-left:0;border-top:1px solid #2a3138}
+  #map{min-height:400px}
+}
+aside{padding:12px;background:var(--card);overflow-y:auto;border-right:1px solid #2a3138;min-width:0}
+aside.right{border-right:0;border-left:1px solid #2a3138}
+aside h2{margin:6px 0 6px;font-size:11px;text-transform:uppercase;color:#9eb;letter-spacing:.6px;font-weight:700}
+aside section{padding:10px 0;border-bottom:1px solid #2a3138}
+.steps{display:flex;gap:4px;margin-bottom:10px}
+.step{flex:1;text-align:center;padding:5px 4px;background:#0c1014;color:#9aa;border-radius:3px;font-size:10px;font-weight:700}
+.step.active{background:var(--pix);color:#fff}
+.step.done{background:#1b5e20;color:#a5d6a7}
+label{display:block;margin:6px 0 2px;font-size:11px;color:#9aa;text-transform:uppercase;letter-spacing:.3px}
+input,select,textarea{width:100%;padding:6px 8px;background:#0c1014;border:1px solid #2a3138;color:var(--fg);border-radius:4px;font-family:inherit;font-size:13px}
+button{padding:8px 12px;background:var(--pix);color:#fff;border:0;border-radius:4px;font-weight:600;cursor:pointer;font-size:13px}
+button:hover{background:var(--pix2)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.full{width:100%}
+button.muted{background:#34404a}
+button.muted:hover{background:#3f4d59}
+button.danger{background:#933}
+button.gold{background:#a87a14}
+button.tiny{padding:3px 6px;font-size:11px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+#map{height:100%}
+#log{font-family:monospace;font-size:10px;background:#0c1014;padding:6px;border-radius:4px;height:130px;overflow-y:auto;white-space:pre-wrap;line-height:1.4}
+.metric{display:flex;justify-content:space-between;padding:3px 0;font-size:12px;border-bottom:1px dotted #2a3138}
+.metric strong{color:#9eb}
+.help{font-size:10px;color:#789;margin:3px 0;line-height:1.5}
+.tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:.3px}
+.tag-yellow{background:#a87a14;color:#ffe082}
+.tag-green{background:#1b5e20;color:#a5d6a7}
+.tag-blue{background:#0d47a1;color:#90caf9}
+.poly-card{background:#0c1014;border:1px solid #2a3138;border-radius:5px;padding:8px;margin-bottom:6px}
+.poly-card .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.poly-card .props{font-size:11px;color:#9aa;line-height:1.5}
+.poly-card .actions{display:flex;gap:4px;margin-top:6px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--pix);border-top-color:transparent;border-radius:50%;animation:s 1s linear infinite;vertical-align:middle}
+@keyframes s{to{transform:rotate(360deg)}}
+.tabs{display:flex;gap:2px;margin-bottom:6px}
+.tab{flex:1;text-align:center;padding:5px;background:#0c1014;border-radius:3px;cursor:pointer;font-size:11px;color:#9aa}
+.tab.active{background:var(--pix);color:#fff}
+.lot-saved{background:#0a1810;border:1px solid #1b5e20;border-radius:4px;padding:6px 8px;margin-bottom:4px;font-size:11px;display:flex;justify-content:space-between}
+.lot-saved strong{color:#a5d6a7}
+.empty{color:#789;text-align:center;padding:14px;font-size:11px;font-style:italic}
+hr{border:0;border-top:1px solid #2a3138;margin:8px 0}
+.upload-zone{border:2px dashed #34404a;border-radius:6px;padding:18px;text-align:center;color:#9aa;cursor:pointer;transition:all .15s}
+.upload-zone:hover{border-color:var(--pix);background:#0a140f}
+.upload-zone.drag{border-color:var(--pix);background:#0d1c12}
+.upload-zone strong{display:block;color:#cde;margin-bottom:4px}
+.legend{display:flex;align-items:center;gap:6px;font-size:11px;margin:3px 0}
+.legend i{display:inline-block;width:18px;height:3px}
+</style>
+</head>
+<body>
+<header>
+  <strong style="font-size:20px">🌾</strong>
+  <h1>Pixadvisor — Cadastro Boundary Refinement</h1>
+  <span class="ver">Hybrid: operator + AI</span>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="steps">
+      <div class="step active" id="s1">1. Cliente</div>
+      <div class="step" id="s2">2. Perímetro</div>
+      <div class="step" id="s3">3. Refinar</div>
+      <div class="step" id="s4">4. Guardar</div>
+    </div>
+
+    <section>
+      <h2>1. Cliente / Finca</h2>
+      <label>Cliente</label>
+      <div class="row">
+        <select id="clientSel"><option value="">— elegir —</option></select>
+        <button id="newClientBtn" class="muted" type="button">+ Nuevo</button>
+      </div>
+      <label>Finca</label>
+      <div class="row">
+        <select id="farmSel" disabled><option value="">— elegir —</option></select>
+        <button id="newFarmBtn" class="muted" type="button" disabled>+ Nueva</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Perímetro de referencia</h2>
+      <p class="help">El operador APORTA el perímetro real. La AI lo refina (snap a edges) y detecta sub-talhões dentro.</p>
+
+      <div class="upload-zone" id="upZone">
+        <strong>📂 Subir archivo</strong>
+        <span style="font-size:10px">.geojson · .kml · .kmz · .zip(shp)</span>
+        <input type="file" id="upFile" accept=".geojson,.json,.kml,.kmz,.zip,.shp" style="display:none" />
+      </div>
+
+      <div class="row" style="margin-top:6px">
+        <button id="drawPolyBtn" class="muted" type="button">✏️ Dibujar a mano</button>
+        <button id="loadTruthBtn" class="gold" type="button">📌 Truth demo</button>
+      </div>
+      <hr style="margin:10px 0"/>
+      <strong style="font-size:11px;color:#9eb;display:block;margin-bottom:4px">¿Sin perímetro? Auto-detectar desde imagen</strong>
+      <p class="help">Dibujá una bbox sobre la zona del cliente (con la herramienta del mapa) — el sistema detecta áreas productivas y vos elegís cuál es el lote.</p>
+      <label>BBOX para auto-detect (W,S,E,N)</label>
+      <input id="autoBbox" placeholder="-50.665,-23.502,-50.652,-23.471" />
+      <div class="row" style="margin-top:4px">
+        <button id="drawBboxBtn" class="muted" type="button">📐 Dibujar bbox</button>
+        <button id="autoDetectBtn" type="button">🔎 Auto-detectar</button>
+      </div>
+      <div class="help" id="perimStatus" style="margin-top:6px;color:#cfe"></div>
+    </section>
+
+    <section>
+      <h2>3. Periodo Sentinel-2</h2>
+      <div class="row">
+        <div><label>Desde</label><input id="start" type="date" value="2026-01-01" /></div>
+        <div><label>Hasta</label><input id="end" type="date" value="2026-04-15" /></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. Parámetros refinement</h2>
+      <div class="row3">
+        <div><label>Snap (m)</label><input id="snap" type="number" value="12" /></div>
+        <div><label>Densif. (m)</label><input id="densify" type="number" value="5" /></div>
+        <div><label>Smooth iter</label><input id="smooth" type="number" value="2" /></div>
+      </div>
+      <div class="row">
+        <div><label>NDVI útil</label><input id="ndvi" type="number" step="0.05" value="0.30" /></div>
+        <div><label>Periodos</label><input id="nperiods" type="number" value="3" /></div>
+      </div>
+      <label style="margin-top:6px"><input type="checkbox" id="detectSub" checked style="width:auto;margin-right:6px" /> Detectar sub-talhões con AI</label>
+      <label><input type="checkbox" id="showSub" style="width:auto;margin-right:6px" onchange="renderRefinedOnMap()" /> Mostrar sub-talhões en mapa</label>
+    </section>
+
+    <section>
+      <button id="runRefine" class="full" disabled>▶ Refinar perímetro + detectar sub-talhões</button>
+      <button id="clear" class="muted full" style="margin-top:6px">Limpiar</button>
+    </section>
+
+    <section>
+      <h2>Log</h2>
+      <div id="log"></div>
+    </section>
+  </aside>
+
+  <div id="map"></div>
+
+  <aside class="right">
+    <div class="tabs">
+      <div class="tab active" data-tab="result">Resultado</div>
+      <div class="tab" data-tab="saved">Lotes guardados</div>
+    </div>
+
+    <section id="tab-result">
+      <h2>Refinement</h2>
+      <div id="summary"><div class="empty">Cargá un perímetro y click "Refinar".</div></div>
+      <div id="legend"></div>
+      <hr/>
+      <h2>Sub-talhões detectados</h2>
+      <div id="subList"><div class="empty">—</div></div>
+      <hr/>
+      <h2>Guardar como lote</h2>
+      <div class="row">
+        <input id="lotName" placeholder="Nombre lote (LT-01)" />
+        <input id="lotCrop" placeholder="Cultivo" />
+      </div>
+      <button id="saveLotBtn" class="full gold" style="margin-top:6px" disabled>💾 Guardar lote (perímetro refinado)</button>
+    </section>
+
+    <section id="tab-saved" style="display:none">
+      <h2>Lotes guardados (finca actual)</h2>
+      <div id="lotsList"><div class="empty">Elegí una finca.</div></div>
+      <button id="exportBtn" class="full muted" disabled style="margin-top:8px">⬇ Exportar finca (GeoJSON)</button>
+    </section>
+  </aside>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+const API = location.origin;
+const log = m => { const el = document.getElementById('log'); el.textContent += `${new Date().toISOString().slice(11,19)} ${m}\n`; el.scrollTop = el.scrollHeight; };
+
+// ---------------- State ---------------- //
+const state = {
+  clientId:null, farmId:null,
+  perimInput: null,    // GeoJSON Feature/FeatureCollection del operador
+  perimRefined: null,  // GeoJSON Feature del refinado
+  productiveArea: null,
+  nonproductiveArea: null,
+  subTalhoes: [],      // FeatureCollection
+  autoCandidates: [],  // candidatos del auto-detect
+  summary: null,
+  saved: [],
+};
+
+// ---------------- Map ---------------- //
+const map = L.map('map').setView([-23.487, -50.658], 14);
+const baseSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+  maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'], attribution:'Google Satellite'
+}).addTo(map);
+const baseHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+  maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3'], attribution:'Google Hybrid'
+});
+const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution:'© OpenStreetMap'
+});
+L.control.layers({'Google Satellite':baseSat, 'Google Hybrid':baseHybrid, 'OSM':baseOSM}, null, {collapsed:true}).addTo(map);
+
+// Re-renderizar el mapa cuando la ventana cambie de tamaño
+window.addEventListener('resize', () => setTimeout(() => map.invalidateSize(), 100));
+// Tambien cuando hay cambios en sidebars/colapsos
+new ResizeObserver(() => map.invalidateSize()).observe(document.getElementById('map'));
+const drawn = new L.FeatureGroup().addTo(map);
+const perimInputLayer = new L.FeatureGroup().addTo(map);
+const perimRefinedLayer = new L.FeatureGroup().addTo(map);
+const productiveLayer = new L.FeatureGroup().addTo(map);
+const nonproductiveLayer = new L.FeatureGroup().addTo(map);
+const subLayer = new L.FeatureGroup().addTo(map);
+const savedLayer = new L.FeatureGroup().addTo(map);
+
+const drawCtl = new L.Control.Draw({
+  edit: { featureGroup: drawn },
+  draw: { rectangle: { shapeOptions:{color:'#42a5f5', weight:2, dashArray:'4,2'} },
+          polygon: { allowIntersection:false, showArea:true,
+                     shapeOptions:{color:'#ffeb3b', weight:3, fillOpacity:0.05} },
+          circle:false, marker:false, polyline:false, circlemarker:false }
+});
+map.addControl(drawCtl);
+
+let drawMode = null; // 'perimeter' | 'autoBbox'
+
+map.on(L.Draw.Event.CREATED, e => {
+  drawn.clearLayers();
+  drawn.addLayer(e.layer);
+  if (e.layerType === 'rectangle' && drawMode === 'autoBbox') {
+    const b = e.layer.getBounds();
+    document.getElementById('autoBbox').value = `${b.getWest().toFixed(6)},${b.getSouth().toFixed(6)},${b.getEast().toFixed(6)},${b.getNorth().toFixed(6)}`;
+    log(`BBOX auto-detect: ${document.getElementById('autoBbox').value}`);
+  } else {
+    const gj = e.layer.toGeoJSON();
+    setPerimeter(gj, drawMode==='perimeter' ? 'DRAW' : 'BBOX');
+  }
+  drawMode = null;
+});
+
+// ---------------- Helpers ---------------- //
+function setPerimeter(geojson, sourceLabel) {
+  // Aceptar Feature, FeatureCollection o Polygon
+  let fc;
+  if (geojson.type === 'FeatureCollection') fc = geojson;
+  else if (geojson.type === 'Feature') fc = { type:'FeatureCollection', features:[geojson] };
+  else fc = { type:'FeatureCollection', features:[{ type:'Feature', geometry:geojson, properties:{} }] };
+
+  state.perimInput = fc;
+  state.perimRefined = null;
+  state.subTalhoes = [];
+  state.summary = null;
+
+  perimInputLayer.clearLayers();
+  perimRefinedLayer.clearLayers();
+  subLayer.clearLayers();
+
+  L.geoJSON(fc, {
+    style: { color:'#ffeb3b', weight: 3, fillColor:'#ffeb3b', fillOpacity: 0.10, dashArray: '6,3' }
+  }).bindTooltip(`Perímetro INPUT (${sourceLabel})`, {sticky:true}).addTo(perimInputLayer);
+  map.fitBounds(perimInputLayer.getBounds(), {padding:[40,40]});
+
+  const ha = computeAreaHa(fc);
+  document.getElementById('perimStatus').innerHTML = `✓ Perímetro cargado (${sourceLabel}, ~${ha} ha) — listo para refinar.`;
+  document.getElementById('runRefine').disabled = false;
+  setStep(2);
+  log(`Perímetro cargado: ${sourceLabel}, ~${ha} ha`);
+}
+
+function computeAreaHa(fc) {
+  // Shoelace planar con conversion lat/lon -> metros usando latitud media del poligono
+  const ringsAll = [];
+  fc.features.forEach(f => {
+    const g = f.geometry;
+    if (g.type === 'Polygon') ringsAll.push(g.coordinates[0]);
+    else if (g.type === 'MultiPolygon') g.coordinates.forEach(p => ringsAll.push(p[0]));
+  });
+  let total = 0;
+  for (const ring of ringsAll) {
+    if (!ring || ring.length < 4) continue;
+    const lat0 = ring.reduce((a, c) => a + c[1], 0) / ring.length;
+    const M_LAT = 110574;
+    const M_LON = 111320 * Math.cos(lat0 * Math.PI/180);
+    const m = ring.map(([x,y]) => [x * M_LON, y * M_LAT]);
+    let s = 0;
+    for (let i = 0; i < m.length - 1; i++) {
+      s += m[i][0] * m[i+1][1] - m[i+1][0] * m[i][1];
+    }
+    total += Math.abs(s) / 2;
+  }
+  return (total / 10000).toFixed(2);
+}
+
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers:{'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  if (!r.ok) throw new Error(`${method} ${path}: HTTP ${r.status} ${(await r.text()).slice(0,200)}`);
+  return r.json();
+}
+
+function setStep(n) {
+  for (let i=1;i<=4;i++) {
+    const e = document.getElementById('s'+i);
+    e.classList.toggle('active', i===n);
+    e.classList.toggle('done', i<n);
+  }
+}
+
+// ---------------- Clients / Farms ---------------- //
+async function refreshClients(selectId=null) {
+  const cs = await api('/clients');
+  const sel = document.getElementById('clientSel');
+  sel.innerHTML = '<option value="">— elegir —</option>' +
+    cs.map(c => `<option value="${c.id}">${c.name} (${c.n_farms} fincas, ${c.total_ha.toFixed(1)} ha)</option>`).join('');
+  if (selectId) sel.value = selectId;
+}
+
+async function refreshFarms(clientId, selectId=null) {
+  const fSel = document.getElementById('farmSel'); const fBtn = document.getElementById('newFarmBtn');
+  if (!clientId) { fSel.disabled=true; fBtn.disabled=true; fSel.innerHTML='<option value="">— elegir cliente —</option>'; return; }
+  const fs = await api(`/farms?client_id=${clientId}`);
+  fSel.disabled=false; fBtn.disabled=false;
+  fSel.innerHTML='<option value="">— elegir —</option>' +
+    fs.map(f => `<option value="${f.id}">${f.name} (${f.n_lots} lotes, ${f.total_ha.toFixed(1)} ha)</option>`).join('');
+  if (selectId) fSel.value = selectId;
+}
+
+document.getElementById('clientSel').onchange = async (e) => {
+  state.clientId = e.target.value ? +e.target.value : null;
+  state.farmId = null;
+  await refreshFarms(state.clientId);
+  refreshSavedLots();
+  setStep(state.clientId?2:1);
+};
+
+document.getElementById('farmSel').onchange = (e) => {
+  state.farmId = e.target.value ? +e.target.value : null;
+  refreshSavedLots();
+  if (state.farmId) setStep(2);
+};
+
+document.getElementById('newClientBtn').onclick = async () => {
+  const name = prompt('Nombre del cliente:');
+  if (!name) return;
+  const r = await api('/clients', 'POST', { name });
+  await refreshClients(r.id);
+  state.clientId = r.id; await refreshFarms(r.id);
+};
+
+document.getElementById('newFarmBtn').onclick = async () => {
+  if (!state.clientId) return alert('Cliente primero');
+  const name = prompt('Nombre de la finca:');
+  if (!name) return;
+  const country = prompt('País (BO/BR/AR, opcional):','') || null;
+  const r = await api('/farms','POST', { client_id: state.clientId, name, country });
+  await refreshFarms(state.clientId, r.id);
+  state.farmId = r.id; refreshSavedLots();
+};
+
+// ---------------- Upload perimeter ---------------- //
+const upZone = document.getElementById('upZone');
+const upFile = document.getElementById('upFile');
+upZone.onclick = () => upFile.click();
+upZone.ondragover = e => { e.preventDefault(); upZone.classList.add('drag'); };
+upZone.ondragleave = () => upZone.classList.remove('drag');
+upZone.ondrop = e => { e.preventDefault(); upZone.classList.remove('drag'); if (e.dataTransfer.files[0]) handleUpload(e.dataTransfer.files[0]); };
+upFile.onchange = e => { if (e.target.files[0]) handleUpload(e.target.files[0]); };
+
+async function handleUpload(file) {
+  log(`Subiendo ${file.name} (${(file.size/1024).toFixed(1)} KB)...`);
+  const fd = new FormData(); fd.append('file', file);
+  try {
+    const r = await fetch(API + '/upload_perimeter', { method:'POST', body: fd });
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    const fc = await r.json();
+    setPerimeter(fc, file.name);
+  } catch (e) { log('ERR upload: '+e.message); alert('Upload falló: '+e.message); }
+}
+
+// ---------------- Draw / Truth shortcuts ---------------- //
+document.getElementById('drawPolyBtn').onclick = () => {
+  drawMode = 'perimeter';
+  new L.Draw.Polygon(map, drawCtl.options.draw.polygon).enable();
+  log('Modo dibujo perímetro: click vertices, doble click para cerrar.');
+};
+document.getElementById('loadTruthBtn').onclick = async () => {
+  try {
+    const fc = await api('/truth/santo_antonio.geojson');
+    setPerimeter(fc, 'truth Santo Antonio (137 ha)');
+  } catch(e) { log('ERR truth: '+e.message); }
+};
+
+document.getElementById('drawBboxBtn').onclick = () => {
+  drawMode = 'autoBbox';
+  new L.Draw.Rectangle(map, drawCtl.options.draw.rectangle).enable();
+  log('Modo dibujo bbox: click + drag para rectángulo.');
+};
+
+document.getElementById('autoDetectBtn').onclick = async () => {
+  const bbox = document.getElementById('autoBbox').value.split(',').map(Number);
+  if (bbox.length !== 4 || bbox.some(isNaN)) return alert('BBOX inválido');
+  const btn = document.getElementById('autoDetectBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  log(`POST /detect_productive_perimeters bbox=${bbox.map(n=>n.toFixed(3)).join(',')}`);
+  try {
+    const body = {
+      bbox, start: document.getElementById('start').value, end: document.getElementById('end').value,
+      ndvi_threshold: +document.getElementById('ndvi').value,
+      min_area_ha: 3.0,
+    };
+    const r = await api('/detect_productive_perimeters', 'POST', body);
+    log(`✓ ${r.metadata.n_candidates} candidatos detectados (${r.metadata.total_productive_ha} ha total) en ${r.metadata.timings.total}s`);
+    showAutoCandidates(r);
+  } catch(e) { log('ERR: '+e.message); alert(e.message); }
+  finally { btn.disabled = false; btn.innerHTML = '🔎 Auto-detectar'; }
+};
+
+function showAutoCandidates(fc) {
+  // Renderiza los candidatos en el mapa con colores distintos y los lista en el panel derecho
+  perimInputLayer.clearLayers();
+  perimRefinedLayer.clearLayers();
+  productiveLayer.clearLayers();
+  nonproductiveLayer.clearLayers();
+  subLayer.clearLayers();
+  state.autoCandidates = fc.features;
+
+  const colors = ['#43a047','#1e88e5','#fdd835','#fb8c00','#8e24aa','#00acc1','#7cb342'];
+  const layers = [];
+  fc.features.forEach((f, i) => {
+    const col = colors[i % colors.length];
+    const layer = L.geoJSON(f, {
+      style: { color: col, weight: 2, fillColor: col, fillOpacity: 0.35 }
+    }).bindTooltip(`Candidato #${f.properties.id+1}: ${f.properties.area_ha} ha`, {sticky:true});
+    layer.on('click', () => useAutoCandidate(i));
+    layer.addTo(perimInputLayer);
+    layers.push(layer);
+  });
+  if (layers.length) {
+    const bounds = L.featureGroup(layers).getBounds();
+    map.fitBounds(bounds, {padding:[40,40]});
+  }
+
+  // Mostrar lista de candidatos en panel derecho (tab Resultado)
+  const html = `
+    <h2 style="color:#cde">Candidatos auto-detectados (${fc.features.length})</h2>
+    <p class="help">Click sobre el candidato del MAPA o de esta lista para usarlo como perímetro de tu cliente.</p>
+    ${fc.features.map((f, i) => {
+      const p = f.properties;
+      const col = colors[i % colors.length];
+      return `<div class="poly-card" style="border-left:4px solid ${col}" onclick="useAutoCandidate(${i})">
+        <div class="head"><strong>Candidato #${p.id+1}</strong>
+          <span class="tag" style="background:${col};color:#fff">${p.area_ha} ha</span></div>
+        <div class="props">NDVI: ${p.mean_ndvi} ± ${p.std_ndvi} · ${p.pixel_count} pixels</div>
+        <div class="actions"><button class="tiny gold full">📌 Usar este como perímetro</button></div>
+      </div>`;
+    }).join('')}
+  `;
+  document.getElementById('summary').innerHTML = html;
+  document.querySelector('.tab[data-tab="result"]').click();
+}
+
+window.useAutoCandidate = (idx) => {
+  const f = state.autoCandidates[idx];
+  if (!f) return;
+  const fc = { type: 'FeatureCollection', features: [f] };
+  setPerimeter(fc, `auto-detect candidato #${idx+1} (${f.properties.area_ha} ha)`);
+  log(`✓ Usando candidato #${idx+1} (${f.properties.area_ha} ha) como perímetro. Click "Refinar" para sub-talhões + área útil precisa.`);
+};
+
+// ---------------- Run /refine_boundary ---------------- //
+document.getElementById('runRefine').onclick = async () => {
+  if (!state.perimInput) return alert('Cargá perímetro primero');
+  const btn = document.getElementById('runRefine');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Refinando + detectando sub-talhões...';
+  setStep(3);
+  try {
+    const body = {
+      perimeter: state.perimInput,
+      start: document.getElementById('start').value,
+      end:   document.getElementById('end').value,
+      snap_m: +document.getElementById('snap').value,
+      densify_m: +document.getElementById('densify').value,
+      smooth_iters: +document.getElementById('smooth').value,
+      ndvi_threshold: +document.getElementById('ndvi').value,
+      n_periods: +document.getElementById('nperiods').value,
+      detect_sub_talhoes: document.getElementById('detectSub').checked,
+    };
+    log(`POST /refine_boundary snap=${body.snap_m}m sub=${body.detect_sub_talhoes}`);
+    const t0 = Date.now();
+    const r = await api('/refine_boundary', 'POST', body);
+    const dt = ((Date.now()-t0)/1000).toFixed(1);
+    log(`✓ refinamiento OK ${dt}s — input ${r.summary.perimeter_input_ha} ha → refined ${r.summary.perimeter_refined_ha} ha · útil ${r.summary.useful_area_ha} ha · ${r.summary.n_sub_talhoes} sub-talhões`);
+    state.perimRefined = r.perimeter_refined;
+    state.productiveArea = r.productive_area;
+    state.nonproductiveArea = r.nonproductive_area;
+    state.subTalhoes = r.sub_talhoes;
+    state.summary = r.summary;
+    renderRefinedOnMap();
+    renderSummary();
+    setStep(4);
+    document.getElementById('saveLotBtn').disabled = false;
+  } catch (e) { log('ERR: '+e.message); alert(e.message); }
+  finally { btn.disabled = false; btn.innerHTML = '▶ Refinar perímetro + detectar sub-talhões'; }
+};
+
+document.getElementById('clear').onclick = () => {
+  state.perimInput=null; state.perimRefined=null; state.productiveArea=null; state.nonproductiveArea=null; state.subTalhoes=[]; state.summary=null;
+  perimInputLayer.clearLayers(); perimRefinedLayer.clearLayers(); productiveLayer.clearLayers(); nonproductiveLayer.clearLayers(); subLayer.clearLayers();
+  drawn.clearLayers();
+  document.getElementById('summary').innerHTML='<div class="empty">Cargá un perímetro y click "Refinar".</div>';
+  document.getElementById('subList').innerHTML='<div class="empty">—</div>';
+  document.getElementById('legend').innerHTML='';
+  document.getElementById('runRefine').disabled = true;
+  document.getElementById('saveLotBtn').disabled = true;
+  document.getElementById('perimStatus').innerHTML='';
+  setStep(state.farmId?2:1);
+};
+
+// ---------------- Render refined ---------------- //
+function renderRefinedOnMap() {
+  perimRefinedLayer.clearLayers();
+  productiveLayer.clearLayers();
+  nonproductiveLayer.clearLayers();
+  subLayer.clearLayers();
+
+  // 1) Perimetro refinado: solo BORDE (sin fill) para que no oculte el contenido
+  if (state.perimRefined) {
+    L.geoJSON(state.perimRefined, {
+      style: { color:'#ffeb3b', weight: 3, fillOpacity: 0, dashArray: '0' }
+    }).bindTooltip(`Perímetro REFINADO ${state.summary.perimeter_refined_ha} ha`, {sticky:true}).addTo(perimRefinedLayer);
+  }
+
+  // 2) AREA PRODUCTIVA = verde solido (esto es lo que el usuario quiere ver)
+  if (state.productiveArea) {
+    L.geoJSON(state.productiveArea, {
+      style: { color:'#2e7d32', weight: 1, fillColor:'#43a047', fillOpacity: 0.55 }
+    }).bindTooltip(`✅ Área productiva (NDVI &gt; ${document.getElementById('ndvi').value}) — ${state.summary.useful_area_ha} ha`, {sticky:true}).addTo(productiveLayer);
+  }
+
+  // 3) AREA NO PRODUCTIVA = naranja translucido (visualizar gaps)
+  if (state.nonproductiveArea) {
+    L.geoJSON(state.nonproductiveArea, {
+      style: { color:'#d84315', weight: 1, fillColor:'#ff7043', fillOpacity: 0.30, dashArray: '3,3' }
+    }).bindTooltip(`⚠️ NO productivo (suelo desnudo / camino / agua) — ${(state.summary.perimeter_refined_ha - (state.summary.useful_area_ha||0)).toFixed(2)} ha`, {sticky:true}).addTo(nonproductiveLayer);
+  }
+
+  // 4) Sub-talhones (oculto por defecto, toggle desde sidebar)
+  if (state.subTalhoes && state.subTalhoes.features && document.getElementById('showSub')?.checked) {
+    state.subTalhoes.features.forEach((f, i) => {
+      L.geoJSON(f, {
+        style: { color:'#42a5f5', weight: 1.5, fillColor:'#42a5f5', fillOpacity: 0.10, dashArray:'2,3' }
+      }).bindTooltip(`Sub-talhão AI #${i+1}: ${f.properties.area_ha} ha`, {sticky:true}).addTo(subLayer);
+    });
+  }
+
+  if (perimRefinedLayer.getLayers().length)
+    map.fitBounds(perimRefinedLayer.getBounds(), {padding:[30,30]});
+}
+
+function renderSummary() {
+  const s = state.summary;
+  if (!s) return;
+  document.getElementById('summary').innerHTML = `
+    <div class="metric"><span>Perímetro INPUT</span><strong>${s.perimeter_input_ha} ha</strong></div>
+    <div class="metric"><span>Perímetro REFINADO</span><strong>${s.perimeter_refined_ha} ha</strong></div>
+    <div class="metric"><span>Área útil (NDVI &gt; ${document.getElementById('ndvi').value})</span><strong>${s.useful_area_ha ?? '?'} ha (${s.useful_pct ?? '?'}%)</strong></div>
+    <div class="metric"><span>NDVI medio</span><strong>${s.mean_ndvi ?? '?'} ± ${s.std_ndvi ?? '?'}</strong></div>
+    <div class="metric"><span>Sub-talhões</span><strong>${s.n_sub_talhoes}</strong></div>
+  `;
+  document.getElementById('legend').innerHTML = `
+    <div class="legend"><i style="background:#ffeb3b"></i> Perímetro registrado (borde)</div>
+    <div class="legend"><i style="background:#43a047;opacity:.55"></i> ÁREA ÚTIL DE PLANTIO (NDVI &gt; ${document.getElementById('ndvi').value})</div>
+    <div class="legend"><i style="background:#ff7043;opacity:.30"></i> Suelo desnudo / camino / agua (no plantio)</div>
+    <div class="legend"><i style="background:#42a5f5;opacity:.20"></i> Sub-talhão AI (toggle, opcional)</div>
+  `;
+  // Lista de sub-talhões
+  const subList = document.getElementById('subList');
+  if (!s.n_sub_talhoes) {
+    subList.innerHTML = '<div class="empty">Sin sub-talhões detectados.</div>';
+  } else {
+    subList.innerHTML = state.subTalhoes.features.map((f, i) => `
+      <div class="poly-card">
+        <div class="head"><strong>Sub-talhão #${i+1}</strong>
+          <span class="tag ${f.properties.clipped?'tag-yellow':'tag-blue'}">${f.properties.clipped?'CLIPPED':'INSIDE'}</span>
+        </div>
+        <div class="props"><strong>Área:</strong> ${f.properties.area_ha} ha · <strong>${(f.properties.inside_pct*100).toFixed(0)}% dentro</strong></div>
+      </div>`).join('');
+  }
+}
+
+// ---------------- Save lot ---------------- //
+document.getElementById('saveLotBtn').onclick = async () => {
+  if (!state.farmId) return alert('Elegí finca primero');
+  if (!state.perimRefined) return alert('Refiná primero');
+  const name = (document.getElementById('lotName').value || '').trim();
+  const crop = (document.getElementById('lotCrop').value || '').trim();
+  if (!name) { alert('Falta nombre del lote'); return; }
+  const body = {
+    farm_id: state.farmId, name, crop: crop || null,
+    geometry: { type:'FeatureCollection', features:[{
+      type:'Feature', geometry: state.perimRefined, properties:{}
+    }] },
+    area_ha: state.summary.perimeter_refined_ha,
+    useful_area_ha: state.summary.useful_area_ha,
+    useful_pct: state.summary.useful_pct,
+    mean_ndvi: state.summary.mean_ndvi,
+    std_ndvi: state.summary.std_ndvi,
+    quality_tag: 'OPERATOR_VERIFIED',
+    quality_score: 100,
+    source: 'BOUNDARY_REFINEMENT',
+    s2_period_start: document.getElementById('start').value,
+    s2_period_end: document.getElementById('end').value,
+  };
+  try {
+    const r = await api('/lots','POST', body);
+    log(`✓ Lote "${name}" guardado (id=${r.id}, ${state.summary.perimeter_refined_ha} ha)`);
+    document.getElementById('lotName').value=''; document.getElementById('lotCrop').value='';
+    refreshSavedLots();
+    setStep(4);
+  } catch (e) { log('ERR save: '+e.message); alert(e.message); }
+};
+
+// ---------------- Saved lots ---------------- //
+async function refreshSavedLots() {
+  const list = document.getElementById('lotsList');
+  const exportBtn = document.getElementById('exportBtn');
+  if (!state.farmId) {
+    list.innerHTML = '<div class="empty">Elegí una finca.</div>'; exportBtn.disabled = true; savedLayer.clearLayers(); return;
+  }
+  const lots = await api(`/lots?farm_id=${state.farmId}`);
+  state.saved = lots;
+  if (!lots.length) {
+    list.innerHTML = '<div class="empty">Sin lotes guardados.</div>'; exportBtn.disabled = true; savedLayer.clearLayers(); return;
+  }
+  list.innerHTML = lots.map(l => `
+    <div class="lot-saved">
+      <div><strong>${l.name}</strong> ${l.crop?'· '+l.crop:''}<br/>
+        <span style="color:#789;font-size:10px">${l.area_ha} ha · útil ${l.useful_area_ha ?? '?'} ha · v${l.version}</span></div>
+      <button class="tiny muted" onclick="zoomSaved(${l.id})">🔍</button>
+    </div>`).join('');
+  exportBtn.disabled = false;
+  savedLayer.clearLayers();
+  lots.forEach(l => {
+    if (!l.geometry) return;
+    L.geoJSON(l.geometry, {
+      style:{ color:'#a5d6a7', weight:2, fillColor:'#1b5e20', fillOpacity:0.30, dashArray:'4,3'}
+    }).bindTooltip(`💾 ${l.name} (${l.area_ha} ha)`, {sticky:true}).addTo(savedLayer);
+  });
+}
+
+window.zoomSaved = id => {
+  const l = state.saved.find(x => x.id===id);
+  if (!l || !l.geometry) return;
+  const layer = L.geoJSON(l.geometry);
+  map.fitBounds(layer.getBounds(), {padding:[30,30], maxZoom:17});
+};
+
+document.getElementById('exportBtn').onclick = () => {
+  if (!state.farmId) return;
+  window.open(`${API}/farms/${state.farmId}/export.geojson`, '_blank');
+};
+
+// ---------------- Tabs ---------------- //
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x===t));
+  document.getElementById('tab-result').style.display = t.dataset.tab==='result'?'':'none';
+  document.getElementById('tab-saved').style.display = t.dataset.tab==='saved'?'':'none';
+});
+
+// ---------------- Init ---------------- //
+(async () => {
+  try { await refreshClients(); log('Listo. Elegí cliente + finca, después subí el perímetro.'); }
+  catch(e) { log('init: '+e.message); }
+})();
+</script>
+</body>
+</html>
