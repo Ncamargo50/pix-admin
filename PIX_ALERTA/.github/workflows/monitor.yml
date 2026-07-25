@@ -1,0 +1,100 @@
+name: pixadvisor-monitor
+
+# La maquina. Corre sola, con la PC del usuario apagada.
+# El horario esta en UTC: Bolivia y Brasil son UTC-3/-4, asi que 11:20 UTC ~ 07:20 local.
+on:
+  schedule:
+    - cron: '20 11 * * *'
+  workflow_dispatch:
+    inputs:
+      cliente:
+        description: 'Correr solo este cliente (vacio = todos los activos)'
+        required: false
+      hasta:
+        description: 'Fecha de corte YYYY-MM-DD (vacio = hoy)'
+        required: false
+
+concurrency:
+  group: pixadvisor-monitor
+  cancel-in-progress: false        # dos corridas a la vez se pisarian los entregables
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      # La credencial se escribe en el temporal del runner, NUNCA en el repo.
+      - name: Escribir credencial de Earth Engine
+        run: printf '%s' "$GEE_SA_JSON" > "$RUNNER_TEMP/gee_sa.json"
+        env:
+          GEE_SA_JSON: ${{ secrets.GEE_SA_JSON }}
+
+      - name: Correr el monitoreo de todos los clientes
+        env:
+          GEE_SA_KEY: ${{ runner.temp }}/gee_sa.json
+        run: |
+          set +e
+          ARGS="--salida entregas"
+          if [ -n "${{ github.event.inputs.cliente }}" ]; then ARGS="$ARGS --cliente ${{ github.event.inputs.cliente }}"; fi
+          if [ -n "${{ github.event.inputs.hasta }}" ];   then ARGS="$ARGS --hasta ${{ github.event.inputs.hasta }}"; fi
+          python -m pix_alerta.correr_todos $ARGS 2>&1 | tee corrida.log
+          echo "RC=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+
+      # `ultimo/` es lo que descarga la APK: una ruta ESTABLE por cliente, para que el
+      # telefono no tenga que saber la fecha de la ultima corrida.
+      - name: Publicar la ultima entrega de cada cliente
+        if: env.RC == '10'
+        run: python scripts/publicar_ultimo.py entregas
+
+      - name: Commitear entregables
+        # Tambien con RC=0: el no-op deja rastro de que se miro y no habia nada nuevo.
+        if: env.RC == '10' || env.RC == '0'
+        run: |
+          git config user.name  "pixadvisor-monitor[bot]"
+          git config user.email "monitor@pixadvisor.local"
+          git add entregas
+          git commit -m "Monitoreo — $(date -u +%Y-%m-%d)" || echo "sin cambios"
+          git push
+
+      - name: Avisar por WhatsApp
+        # Solo cuando hay algo que mirar. Un aviso diario que casi siempre dice "nada"
+        # se deja de leer, y el dia que importa tampoco se lee.
+        if: env.RC == '10' && env.WHATSAPP_PHONE != ''
+        env:
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+        run: |
+          RESUMEN=$(grep -E '^\s+[A-Z0-9_]+\s' corrida.log | tail -8 | tr '\n' ' ')
+          MSG="Pixadvisor Monitor $(date -u +%d-%m): $RESUMEN | https://github.com/${{ github.repository }}/tree/main/entregas"
+          curl -s -G "https://api.callmebot.com/whatsapp.php" \
+            --data-urlencode "phone=$WHATSAPP_PHONE" \
+            --data-urlencode "text=$MSG" \
+            --data-urlencode "apikey=$CALLMEBOT_APIKEY" || echo "aviso no enviado"
+
+      - name: Guardar entregables como artifact
+        if: env.RC == '10'
+        uses: actions/upload-artifact@v4
+        with:
+          name: entregas
+          path: entregas/**
+          retention-days: 90
+
+      # Que un fallo se VEA. Sin esto, el job sale verde y un cliente deja de recibir
+      # su informe sin que nadie se entere hasta que reclama.
+      - name: Fallar si la corrida fallo
+        if: env.RC != '10' && env.RC != '0'
+        run: |
+          echo "La corrida termino con RC=$RC"
+          tail -40 corrida.log
+          exit 1

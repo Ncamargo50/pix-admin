@@ -199,6 +199,10 @@ def main(argv=None):
               'serie insuficiente, producto no emitido')
         return 0
 
+    # Se calcula el ranking COMPLETO y aparte el recortado por K. El informe declara
+    # cuantos lotes quedaron SIN DATO, y eso desaparece en el recorte.
+    rank_todos = rk.ranking(car, fecha=a.hasta, K=None)
+    cob = (df['calidad'] == 'pleno').mean()
     rank = rk.ranking(car, fecha=a.hasta, K=a.K)
     n_at = int((rank['estado'] == 'ATENCION').sum())
     n_vi = int((rank['estado'] == 'VIGILANCIA').sum())
@@ -207,6 +211,20 @@ def main(argv=None):
     rank.to_csv(csv, index=False)
     gj = os.path.join(a.salida, f'lotes_{sitio.clave}_{a.hasta}.geojson')
     n = _geojson_salida(sitio, rank, gj)
+
+    # Informe PDF. El ranking que se le pasa es el COMPLETO (rank_todos), no el cortado
+    # por K: el informe tiene que poder declarar cuantos lotes quedaron sin observacion,
+    # y eso no esta en el recorte.
+    pdf = os.path.join(a.salida, f'Informe_{sitio.clave}_{a.hasta}.pdf')
+    try:
+        from . import informe as inf
+        inf.generar(sitio, sitio, rank_todos, pdf, a.hasta,
+                    cobertura=cob, huecos=getattr(sitio, 'hueco_dias', None))
+    except Exception as e:
+        # El PDF es presentacion; el CSV y el GeoJSON son el producto. Si el informe
+        # falla se avisa y se entrega igual, en vez de perder la corrida entera.
+        print(f'  [AVISO] no se pudo generar el PDF: {type(e).__name__}: {e}')
+        pdf = None
 
     cob = (df['calidad'] == 'pleno').mean()
     print(f'\n{sitio.titulo} — corte {a.hasta}')
@@ -218,6 +236,8 @@ def main(argv=None):
         print('  >> ningun lote sale de control. No hay a donde mandar al tecnico.')
     print(f'  -> {csv}')
     print(f'  -> {gj} ({n} lotes)')
+    if pdf:
+        print(f'  -> {pdf}')
 
     if a.control_nulo:
         t = rk.control_nulo(df, n_rep=10)

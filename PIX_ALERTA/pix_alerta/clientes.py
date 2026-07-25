@@ -33,6 +33,7 @@ REGLA DE AISLAMIENTO: cada cliente escribe SOLO en `<salida>/<clave_cliente>/`. 
 entregable de un cliente que aparece en la carpeta de otro no es un bug de formato: es
 mandarle a un productor los datos de su vecino.
 """
+import dataclasses
 import json
 import os
 from dataclasses import dataclass, field
@@ -42,11 +43,11 @@ from . import config as cfg
 # Campos que el JSON puede setear en un Sitio. Cualquier otro es error: un typo como
 # "epsg" en vez de "epsg_metrico" se aceptaria en silencio y el sitio saldria
 # proyectado en la zona equivocada.
-CAMPOS_SITIO = {
-    'clave', 'titulo', 'lotes_geojson', 'campo_id', 'campo_area', 'epsg_metrico',
-    'buffer_negativo_m', 'campanas', 'unidades_csv', 'unidades_col_id',
-    'unidades_col_cat', 'categorias_excluidas',
-}
+#
+# Se DERIVA del dataclass, no se lista a mano. La lista escrita a mano se desincronizo
+# apenas se agrego `cultivo` al Sitio: el alta de cliente lo escribia y el cargador lo
+# rechazaba como campo desconocido. Un campo nuevo no tiene que acordarse de dos lugares.
+CAMPOS_SITIO = {f.name for f in dataclasses.fields(cfg.Sitio)}
 CAMPOS_CLIENTE = {
     'clave', 'titulo', 'activo', 'K', 'sitios', 'sitios_ref', 'entrega', 'marca', 'nota',
 }
