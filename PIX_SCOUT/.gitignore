@@ -1,0 +1,7 @@
+# secretos y artefactos de build — agregado 2026-07-24
+release/SECRETS.local.txt
+**/keystore.properties
+**/*.keystore
+pix-scout-apk/build/
+pix-scout-apk/app/build/
+app/data/*_ORIGINAL.geojson.bak

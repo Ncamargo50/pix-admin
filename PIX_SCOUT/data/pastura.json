@@ -1,0 +1,342 @@
+{
+  "cultivo": "pastura",
+  "region": "Bolivia / Brasil (forrajeras tropicales: Brachiaria/Urochloa, Panicum/Megathyrsus)",
+  "nota_curaduria": "En pasturas gran parte de los 'problemas' son ABIOTICOS (anegamiento, acidez, baja fertilidad, sobrepastoreo) mas que patogenos - reflejado en cada ficha. Unico umbral con cifra institucional solida: salivazo/cigarrinha (Embrapa 6-25 ninfas/m2 o 20-30 adultos/m2). El resto de plagas -> VERIFICAR_LOCAL (Embrapa publica umbrales para cultivos de grano, no extrapolables a pastura). Fotos con licencia verificada archivo por archivo; resto PENDIENTE_CURAR.",
+  "fichas": [
+    {
+      "id": "pastura-sindrome-muerte-brachiaria",
+      "categoria": "enfermedad",
+      "subtipo": "abiotico_fungico_complejo",
+      "nombre_comun": "Sindrome de la muerte de la Brachiaria",
+      "nombre_pt": "Sindrome da morte do braquiarao / capim-marandu",
+      "nombre_cientifico": "Complejo abiotico (anegamiento) + hongos oportunistas (Pythium, Rhizoctonia solani, Fusarium)",
+      "severidad_potencial": "muy_alta",
+      "organo": ["raiz", "corona", "planta_entera"],
+      "estadio_cultivo": ["meses lluviosos (>2100 mm/ano), suelos mal drenados"],
+      "signo": "Raices necrosadas/podridas; hongos oportunistas aislados de la raiz (no siempre visibles a ojo).",
+      "sintoma": "Amarillamiento, marchitez y muerte de macollos en manchones, sobre todo en cv. Marandu; asociado a encharcamiento.",
+      "confirmacion_campo": "Revisar drenaje/encharcamiento + raiz podrida; asociacion con las lluvias y bajos del relieve.",
+      "confusiones": [
+        { "con": "Deficiencia nutricional / sequia", "como_diferenciar": "El sindrome coincide con anegamiento + raiz podrida; la carencia es mas homogenea sin pudricion." },
+        { "con": "Salivazo (cigarrinha)", "como_diferenciar": "El salivazo deja espuma + ninfas en la base." }
+      ],
+      "dd_tags": { "patron_espacial": ["relieve", "foco"], "signo_visible": false, "tipo_signo": "ninguno", "distribucion_planta": "localizado", "gradiente_hoja": "generalizado" },
+      "manejo_ref": "Elegir cultivares tolerantes a encharcamiento (evitar Marandu en bajos); mejorar drenaje - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa sindrome da morte da braquiaria: https://www.embrapa.br/en/busca-de-noticias/-/noticia/2125574/pesquisas-apontam-formas-de-evitar-sindrome-da-morte-da-braquiaria-em-mato-grosso"]
+    },
+    {
+      "id": "pastura-mancha-foliar",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Mancha foliar",
+      "nombre_pt": "Mancha das folhas / mancha foliar",
+      "nombre_cientifico": "Bipolaris maydis (Drechslera/Cochliobolus) y Bipolaris spp.",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["pasto establecido, alta humedad"],
+      "signo": "Pequenas manchas elipticas pardas que crecen, centro pardo a pardo-oscuro con halo.",
+      "sintoma": "Amarillamiento y secado de hojas, caida de calidad forrajera. Reportada en Panicum maximum, Brachiaria, Paspalum, Pennisetum.",
+      "confirmacion_campo": "Lesiones elipticas con halo, progresion a areas necroticas alargadas.",
+      "confusiones": [
+        { "con": "Quemado por deficiencia", "como_diferenciar": "La mancha tiene lesion definida con halo; la carencia es difusa sin lesion." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Cultivares tolerantes; manejo de fertilidad/altura de pastoreo - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa reacao de genotipos de Panicum a mancha das folhas: https://www.embrapa.br/busca-de-publicacoes/-/publicacao/1099557/"]
+    },
+    {
+      "id": "pastura-carbon-semillero",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_inflorescencia",
+      "nombre_comun": "Carbon (semilleros)",
+      "nombre_pt": "Carvao",
+      "nombre_cientifico": "Tilletia ayersii",
+      "severidad_potencial": "media",
+      "organo": ["inflorescencia", "semilla"],
+      "estadio_cultivo": ["floracion/produccion de semilla (semilleros de Panicum maximum)"],
+      "signo": "Masas de esporas oscuras en lugar de semilla viable.",
+      "sintoma": "Reduccion de semilla viable -> menor renovacion natural del pasto y del banco de semillas.",
+      "confirmacion_campo": "Revisar panojas con soros negros.",
+      "confusiones": [
+        { "con": "Mela/ergot", "como_diferenciar": "El carbon da masa de esporas seca; la mela exuda liquido pegajoso." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "organo": "espiga_vaina_grano", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Semilla sana; solo relevante en semilleros - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Agromove doencas de forrageiras (revision base Embrapa): https://blog.agromove.com.br/doencas-plantas-forrageiras/"]
+    },
+    {
+      "id": "pastura-roya",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Roya de forrajeras",
+      "nombre_pt": "Ferrugem",
+      "nombre_cientifico": "Puccinia spp.",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["pasto establecido, condiciones humedas"],
+      "signo": "Pustulas/manchas color herrumbre en la superficie foliar.",
+      "sintoma": "Manchas amarillas, menor fotosintesis, caida de productividad. Comun en Brachiaria brizantha y Panicum maximum.",
+      "confirmacion_campo": "Polvo anaranjado que mancha el dedo al frotar.",
+      "confusiones": [
+        { "con": "Mancha foliar", "como_diferenciar": "Roya = pustula que suelta polvo; mancha = lesion con halo, sin polvo." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "foco"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Cultivares tolerantes; pastoreo/corte - VERIFICAR. Especie exacta de Puccinia: VERIFICAR_LOCAL.",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Agromove doencas de forrageiras"]
+    },
+    {
+      "id": "pastura-damping-off",
+      "categoria": "enfermedad",
+      "subtipo": "abiotico_fungico",
+      "nombre_comun": "Damping-off / muerte en implantacion",
+      "nombre_pt": "Tombamento / damping-off",
+      "nombre_cientifico": "Complejo Rhizoctonia solani / Pythium sp. / Fusarium sp.",
+      "severidad_potencial": "media",
+      "organo": ["plantula (cuello/raiz)"],
+      "estadio_cultivo": ["implantacion/germinacion, suelo humedo compactado"],
+      "signo": "Estrangulamiento acuoso del cuello, plantulas volcadas.",
+      "sintoma": "Fallas de stand en manchones durante la implantacion.",
+      "confirmacion_campo": "Plantulas caidas con lesion en cuello, suelo encharcado.",
+      "confusiones": [
+        { "con": "Falla de siembra / plaga de suelo", "como_diferenciar": "Damping-off deja plantula caida con lesion acuosa en el cuello." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "relieve"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Buena cama de siembra; drenaje; semilla tratada - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa (complejo de anegamiento, mismos hongos oportunistas)"]
+    },
+
+    {
+      "id": "pastura-salivazo",
+      "categoria": "plaga",
+      "subtipo": "picador_succionador",
+      "nombre_comun": "Salivazo / cigarrinha das pastagens (PLAGA #1)",
+      "nombre_pt": "Cigarrinha-das-pastagens",
+      "nombre_cientifico": "Deois flavopicta / Notozulia (Zulia) entreriana / Mahanarva spp.",
+      "severidad_potencial": "muy_alta",
+      "organo": ["raiz", "corona (ninfas)", "hoja (adultos)"],
+      "estadio_cultivo": ["epoca lluviosa/humeda"],
+      "signo": "Espuma blanca ('saliva') en la base de las macollas (ninfas); adultos saltadores sobre las hojas.",
+      "sintoma": "Ninfas succionan xilema; adultos inyectan toxina salival -> manchas cloroticas, amarillamiento, secado ('quema' de la pastura).",
+      "confirmacion_campo": "Ninfas: cuadro 0,5x1 m contando espumas/ninfas. Adultos: red entomologica. Monitoreo cada 15 dias.",
+      "confusiones": [
+        { "con": "Sequia / deficiencia de N / roya", "como_diferenciar": "El salivazo deja espuma + ninfas en la base y adultos que saltan; los otros no." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "insecto", "dano": "picador_succionador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (Metarhizium anisopliae); cultivares resistentes; manejo de altura/pastoreo - VERIFICAR",
+      "umbral_accion": "Embrapa/SEMADESC (aplicacion de Metarhizium): 6 a 25 ninfas/m2 o 20 a 30 adultos/m2. Revision Frontiers 2022: 10 adultos/m2 = infestacion baja (perdida 2-8%); 25-50 adultos/m2 reduce capacidad de carga 26-33%.",
+      "fuente_umbral": "SEMADESC/Embrapa: https://www.semadesc.ms.gov.br/cigarrinha-das-pastagens-tem-controle/ ; producto Embrapa: https://www.embrapa.br/en/busca-de-solucoes-tecnologicas/-/produto-servico/1649/controle-de-cigarrinha-das-pastagens ; Frontiers Sustain. Food Syst. 2022 (DOI 10.3389/fsufs.2022.891417): https://frontiersin.org/articles/10.3389/fsufs.2022.891417/full",
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Cercopidae_(24668225974).jpg", "muestra": "Adulto de cigarrinha (Cercopidae)", "licencia": "CC BY-SA 2.0", "autor": "Pavel Kirillov" },
+        { "url": "https://commons.wikimedia.org/wiki/File:Blowin%27_Bubbles_-_Flickr_-_treegrow.jpg", "muestra": "Espuma/'saliva' con ninfa (Cercopoidea)", "licencia": "CC BY 2.0", "autor": "Katja Schulz" }
+      ],
+      "fuentes": ["SEMADESC/Embrapa; Frontiers 2022; CIAT (Peck et al. 2001)"]
+    },
+    {
+      "id": "pastura-cogollero",
+      "categoria": "plaga",
+      "subtipo": "oruga_defoliadora",
+      "nombre_comun": "Gusano cogollero / lagarta militar",
+      "nombre_pt": "Lagarta-do-cartucho / lagarta militar",
+      "nombre_cientifico": "Spodoptera frugiperda",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["rebrotes tiernos, epoca calida"],
+      "signo": "Heces y raspado foliar, larvas en el cogollo/rebrote.",
+      "sintoma": "Defoliacion, raspado y perforacion de laminas; grave en implantacion y rebrotes.",
+      "confirmacion_campo": "Buscar larvas + raspaduras en rebrotes tiernos.",
+      "confusiones": [
+        { "con": "Curuquere (Mocis)", "como_diferenciar": "Mocis es 'mide-palmo' y deja nervadura central; cogollero raspa y perfora." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "larva", "dano": "masticador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (Bt, Baculovirus) - VERIFICAR",
+      "umbral_accion": "no establecido consolidado para pastura / VERIFICAR_LOCAL (los umbrales de Embrapa son para maiz, no extrapolables a pastura)",
+      "fuente_umbral": "Embrapa Doc 344 (contexto biologia): https://www.infoteca.cnptia.embrapa.br/bitstream/doc/935552/1/Documento344.pdf",
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:-_9666_%E2%80%93_Spodoptera_frugiperda_%E2%80%93_Fall_Armyworm_Moth_(14862753532).jpg", "muestra": "Adulto de S. frugiperda", "licencia": "CC BY 2.0", "autor": "Andy Reago & Chrissy McClarren" }
+      ],
+      "fuentes": ["Embrapa; revision pragas das pastagens"]
+    },
+    {
+      "id": "pastura-curuquere",
+      "categoria": "plaga",
+      "subtipo": "oruga_defoliadora",
+      "nombre_comun": "Curuquere / oruga de los pastizales",
+      "nombre_pt": "Curuquere-dos-capinzais / lagarta-dos-capinzais",
+      "nombre_cientifico": "Mocis latipes",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["epoca calido-humeda (~30C), lluvias"],
+      "signo": "Larvas 'mide-palmo' (tipo geometrida), defoliacion desde bordes.",
+      "sintoma": "Consume la lamina dejando la nervadura central y los tallos.",
+      "confirmacion_campo": "Larvas que miden palmos + defoliacion que respeta nervadura central.",
+      "confusiones": [
+        { "con": "Cogollero", "como_diferenciar": "Cogollero raspa/perfora; curuquere mide palmos y deja nervadura." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "larva", "dano": "masticador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (Bt); monitoreo en epoca calido-humeda - VERIFICAR",
+      "umbral_accion": "no establecido en cifra/m2 verificable / VERIFICAR_LOCAL",
+      "fuente_umbral": "Incaper/Emcapa: https://biblioteca.incaper.es.gov.br/digital/bitstream/item/2326/1/BRT-lagartadocapinzais-Emcapa.pdf",
+      "fotos": [],
+      "fuentes": ["Embrapa Panorama Fitossanitario; Incaper"]
+    },
+    {
+      "id": "pastura-coros",
+      "categoria": "plaga",
+      "subtipo": "larva_suelo",
+      "nombre_comun": "Coros / gusanos blancos",
+      "nombre_pt": "Coros",
+      "nombre_cientifico": "Diloboderus abderus / Phyllophaga spp. / Cyclocephala spp.",
+      "severidad_potencial": "media",
+      "organo": ["raiz"],
+      "estadio_cultivo": ["larvas en suelo; frecuente en siembra directa"],
+      "signo": "Larvas en 'C' blancas en trincheras de suelo.",
+      "sintoma": "Poda radicular, manchones de vigor bajo, plantas que se arrancan facil.",
+      "confirmacion_campo": "Monitoreo por trincheras de suelo.",
+      "confusiones": [
+        { "con": "Percevejo castanho de raiz", "como_diferenciar": "Coro = larva en C (masticador); percevejo castanho = insecto pardo que succiona raiz." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "relieve"], "signo_visible": true, "tipo_signo": "larva", "dano": "cortador_subterraneo", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Manejo de suelo; control biologico - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL (umbrales publicados por Embrapa son para cereales de invierno, no para pastura)",
+      "fuente_umbral": "Embrapa Coros/Ageitec: https://www.embrapa.br/web/agencia-de-informacao-tecnologica/cultivos/trigo/producao/insetos/coros",
+      "fotos": [],
+      "fuentes": ["Embrapa"]
+    },
+    {
+      "id": "pastura-hormiga-cortadora",
+      "categoria": "plaga",
+      "subtipo": "cortador",
+      "nombre_comun": "Hormiga cortadora / sauva-quenquem",
+      "nombre_pt": "Formiga cortadeira / sauva / quenquem",
+      "nombre_cientifico": "Atta spp. y Acromyrmex spp.",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["todo el ano, nidos activos"],
+      "signo": "Senderos de forrajeo, hojas cortadas transportadas, hormigueros.",
+      "sintoma": "Defoliacion por corte; un nido adulto puede destruir hasta ~50% del pasto de un area y consumir 3-7 kg de forraje/dia.",
+      "confirmacion_campo": "Ubicar nidos/senderos activos.",
+      "confusiones": [
+        { "con": "Orugas defoliadoras", "como_diferenciar": "La hormiga corta y transporta; la oruga come in situ." }
+      ],
+      "dd_tags": { "patron_espacial": ["borde", "foco"], "signo_visible": true, "tipo_signo": "insecto", "dano": "cortador_subterraneo", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Control con cebos formicidas por nido - VERIFICAR",
+      "umbral_accion": "no aplica umbral/m2; manejo por nido/hormiguero / VERIFICAR_LOCAL",
+      "fuente_umbral": "Epagri: https://www.epagri.sc.gov.br/publicacao-orienta-sobre-manejo-de-formigas-cortadeiras/",
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Atta.sexdens.jpg", "muestra": "Obrera de Atta sexdens", "licencia": "CC BY-SA 3.0", "autor": "Sarefo" }
+      ],
+      "fuentes": ["Epagri; IDR-PR"]
+    },
+    {
+      "id": "pastura-percevejo-castanho",
+      "categoria": "plaga",
+      "subtipo": "picador_succionador_raiz",
+      "nombre_comun": "Percevejo castanho de raiz",
+      "nombre_pt": "Percevejo castanho da raiz",
+      "nombre_cientifico": "Scaptocoris castanea / Atarsocoris brachiariae",
+      "severidad_potencial": "media",
+      "organo": ["raiz"],
+      "estadio_cultivo": ["subterraneo, mas superficial en suelo humedo"],
+      "signo": "Insectos pardos con olor caracteristico en el perfil de suelo; se profundizan en seco.",
+      "sintoma": "Succion radicular -> manchones amarillentos, menor vigor y macollaje.",
+      "confirmacion_campo": "Cavar el perfil de suelo (mas superficial con humedad); olor caracteristico.",
+      "confusiones": [
+        { "con": "Coros", "como_diferenciar": "Coro = larva blanca en C; percevejo castanho = insecto pardo (chinche de suelo)." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "relieve"], "signo_visible": true, "tipo_signo": "insecto", "dano": "picador_succionador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Manejo dificil; control quimico de suelo citado en ensayos - VERIFICAR",
+      "umbral_accion": "no establecido / VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa manual de identificacao de insetos: https://www.embrapa.br/en/busca-de-publicacoes/-/publicacao/991685/"]
+    },
+
+    {
+      "id": "pastura-carencia-n",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de nitrogeno",
+      "nombre_cientifico": "N",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["rebrote/crecimiento"],
+      "signo": "Ninguno.",
+      "sintoma": "Amarillamiento general desde hojas VIEJAS, rebrote lento y ralo, baja produccion de forraje. Muy comun en pasturas degradadas.",
+      "confirmacion_campo": "Amarillo general + rebrote pobre; responde rapido a N. Contrasta con manchones bien nutridos (bosta/orina).",
+      "confusiones": [
+        { "con": "Sindrome de la muerte de Brachiaria", "como_diferenciar": "El sindrome tiene raiz podrida + anegamiento; la carencia de N responde a fertilizacion." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion; manejo de pastoreo - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "pastura-carencia-p",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de fosforo",
+      "nombre_cientifico": "P",
+      "severidad_potencial": "alta",
+      "organo": ["planta_entera"],
+      "estadio_cultivo": ["implantacion y mantenimiento"],
+      "signo": "Ninguno.",
+      "sintoma": "Crecimiento lento, macollaje pobre, verde opaco; limita la persistencia de la pastura en suelos tropicales acidos (muy comun).",
+      "confirmacion_campo": "Pastura rala y de bajo vigor en suelos de baja fertilidad; correlaciona con analisis de P bajo.",
+      "confusiones": [
+        { "con": "Deficiencia de N", "como_diferenciar": "N amarillea; P frena el crecimiento sin amarillamiento marcado." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion (fosfatado en implantacion) - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "pastura-acidez-al",
+      "categoria": "carencia",
+      "subtipo": "abiotico_suelo",
+      "nombre_comun": "Acidez / toxicidad de aluminio y baja fertilidad",
+      "nombre_cientifico": "pH bajo / Al3+ / baja saturacion de bases",
+      "severidad_potencial": "alta",
+      "organo": ["raiz", "planta_entera"],
+      "estadio_cultivo": ["cualquiera (condicion de suelo)"],
+      "signo": "Ninguno (abiotico de suelo).",
+      "sintoma": "Raices cortas y engrosadas, bajo vigor generalizado, degradacion de la pastura en manchones asociados a suelo acido/compactado.",
+      "confirmacion_campo": "Raiz poco desarrollada + patron por tipo de suelo/relieve; confirmar con analisis (pH, Al, V%).",
+      "confusiones": [
+        { "con": "Deficiencia de P/N", "como_diferenciar": "La acidez limita la raiz y la respuesta a fertilizacion; se corrige con encalado. Diagnostico por analisis de suelo." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "generalizado", "distribucion_planta": "generalizado" },
+      "manejo_ref": "skill:interpretacion-suelos (encalado, yeso, correccion de V%) - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    }
+  ],
+  "stubs_por_curar": [
+    "pastura-mela-ergot (Claviceps sulcata)",
+    "pastura-tucuras-langostas (Acrididae - umbral no establecido)",
+    "pastura-carencia-s",
+    "pastura-carencia-k"
+  ]
+}

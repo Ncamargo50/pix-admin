@@ -1,0 +1,509 @@
+{
+  "cultivo": "maiz",
+  "region": "Bolivia / Brasil",
+  "nota_curaduria": "Umbrales MIP con fuente citada (Embrapa Milho e Sorgo, Epagri/RAC, INTA, IRAC-BR). Los umbrales estan calibrados en Brasil/EEUU: en Bolivia confirmar a campo (VERIFICAR_LOCAL). Fotos con licencia verificada archivo por archivo en Wikimedia Commons/Bugwood; el resto PENDIENTE_CURAR.",
+  "fichas": [
+    {
+      "id": "maiz-roya-comun",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Roya comun",
+      "nombre_pt": "Ferrugem comum",
+      "nombre_cientifico": "Puccinia sorghi",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["vegetativo-floracion"],
+      "signo": "Pustulas (uredinias) pulverulentas marron-canela en AMBAS caras de la hoja, ovaladas y dispersas; luego telias negras.",
+      "sintoma": "Clorosis alrededor de la pustula; secado foliar anticipado con presion alta. Favorecida por T baja 16-23C + rocio.",
+      "confirmacion_campo": "Frotar la hoja con papel blanco: polvo anaranjado-marron (esporas).",
+      "confusiones": [
+        { "con": "Roya polysora", "como_diferenciar": "Polysora = pustulas mas pequenas, circulares, canela-claro, sobre todo en el HAZ, clima calido 25-28C." },
+        { "con": "Roya tropical (Physopella zeae)", "como_diferenciar": "Physopella = pustulas blanquecinas ALINEADAS a la nervadura, cubiertas por epidermis." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Cultivares resistentes; fungicida triazol+estrobilurina - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Puccinia_sorghi_(10).jpg", "muestra": "Pustulas en hoja de maiz (foto de campo)", "licencia": "CC BY 3.0 US", "autor": "Daren Mueller, Iowa State University, Bugwood.org" }
+      ],
+      "fuentes": ["Embrapa Milho, Doencas Foliares: https://www.embrapa.br/en/agencia-de-informacao-tecnologica/cultivos/milho/producao/pragas-e-doencas/doencas/doencas-foliares"]
+    },
+    {
+      "id": "maiz-roya-polysora",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Roya polysora",
+      "nombre_pt": "Ferrugem polissora",
+      "nombre_cientifico": "Puccinia polysora",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["vegetativo tardio-reproductivo"],
+      "signo": "Pustulas pequenas, densas, circulares, canela-anaranjado, predominan en el haz.",
+      "sintoma": "Amarillamiento y necrosis foliar; puede ser mas agresiva que la comun en zonas calidas (25-28C + HR alta).",
+      "confirmacion_campo": "Polvo anaranjado al frotar; pustulas mas chicas y numerosas que la comun.",
+      "confusiones": [
+        { "con": "Roya comun", "como_diferenciar": "Comun = pustulas mayores, ambas caras, clima fresco; polysora = menores, mas claras, haz, clima calido." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Cultivares resistentes; fungicida - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa Circular 214: https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1038446/1/circ214.pdf"]
+    },
+    {
+      "id": "maiz-tizon-turcicum",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Tizon foliar del Norte (helmintosporiosis)",
+      "nombre_pt": "Helmintosporiose / queima-das-folhas",
+      "nombre_cientifico": "Exserohilum turcicum (Setosphaeria turcica)",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["vegetativo tardio-llenado"],
+      "signo": "En la lesion madura, esporulacion gris-oliva aterciopelada (lupa/camara humeda).",
+      "sintoma": "Lesiones grandes eliptico-fusiformes ('puro de cigarro'), gris-verdoso a marron, 2-15 cm, siguen el eje de la hoja; empieza abajo y sube.",
+      "confirmacion_campo": "Lesion alargada tipo huso que empieza en hojas bajas; camara humeda -> micelio gris.",
+      "confusiones": [
+        { "con": "Mancha gris (cercospora)", "como_diferenciar": "Cercospora da lesiones RECTANGULARES limitadas por nervaduras, mas chicas." },
+        { "con": "Mancha blanca (Phaeosphaeria)", "como_diferenciar": "Mancha blanca = lesiones circulares acuosas." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "foco"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Cultivares resistentes; rotacion; fungicida - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa Milho, Doencas Foliares"]
+    },
+    {
+      "id": "maiz-mancha-gris",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Mancha gris / cercosporiosis",
+      "nombre_pt": "Mancha cinzenta / cercosporiose",
+      "nombre_cientifico": "Cercospora zeae-maydis",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["reproductivo"],
+      "signo": "Conidioforos/conidios sobre la lesion (aspecto gris al madurar; lupa).",
+      "sintoma": "Lesiones RECTANGULARES gris-marron delimitadas por las nervaduras (aspecto de liston); coalescen y secan la hoja. Peor en siembra directa sobre rastrojo.",
+      "confirmacion_campo": "A contraluz: lesion rectangular estrictamente limitada por nervaduras.",
+      "confusiones": [
+        { "con": "Tizon (E. turcicum)", "como_diferenciar": "Turcicum = lesion eliptica grande, NO limitada por nervadura." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Rotacion; hibridos tolerantes; fungicida - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Gray_leaf_spot_Cercospora_zeae-maydis_5465607.png", "muestra": "Lesiones de mancha gris en hoja de maiz", "licencia": "CC BY 3.0 US", "autor": "Daren Mueller, Iowa State University, Bugwood.org" }
+      ],
+      "fuentes": ["Embrapa Milho, Doencas Foliares"]
+    },
+    {
+      "id": "maiz-mancha-blanca",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_bacteriana_foliar",
+      "nombre_comun": "Mancha blanca (Phaeosphaeria)",
+      "nombre_pt": "Mancha branca / mancha de Phaeosphaeria",
+      "nombre_cientifico": "Pantoea ananatis (agente inicial) + Phaeosphaeria maydis",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["vegetativo tardio-reproductivo"],
+      "signo": "En fase tardia, picnidios oscuros puntuales sobre la lesion seca.",
+      "sintoma": "Lesiones circulares/ovaladas primero ACUOSAS verde-claro (0,3-2 cm), luego necroticas color paja. T suave 14-20C + HR alta.",
+      "confirmacion_campo": "Al inicio: mancha acuosa translucida a contraluz que vira a color paja al secar.",
+      "confusiones": [
+        { "con": "Roya blanca (Physopella)", "como_diferenciar": "Physopella = pustulas alineadas a nervadura, no acuosas." },
+        { "con": "Mancha gris", "como_diferenciar": "Cercospora = rectangular limitada por nervadura." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Hibridos tolerantes; fungicida - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa Boletim 79: https://www.infoteca.cnptia.embrapa.br/bitstream/doc/979784/1/bol79.pdf"]
+    },
+    {
+      "id": "maiz-podredumbre-espiga",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_espiga",
+      "nombre_comun": "Podredumbre de espiga / granos ardidos",
+      "nombre_pt": "Podridao de espiga / graos ardidos",
+      "nombre_cientifico": "Fusarium verticillioides / Stenocarpella maydis (Diplodia)",
+      "severidad_potencial": "alta",
+      "organo": ["espiga", "grano"],
+      "estadio_cultivo": ["floracion-madurez"],
+      "signo": "Micelio blanco entre granos y base de la espiga; Fusarium = moho blanco-rosado/salmon; Stenocarpella = blanco denso basal + bracteas descoloridas.",
+      "sintoma": "Granos descoloridos, livianos ('ardidos'), pudricion desde la base de la espiga. RIESGO DE MICOTOXINAS; rechazo industrial >6% ardidos.",
+      "confirmacion_campo": "Abrir la chala desde la base: Fusarium = rosado disperso en granos danados por insecto; Diplodia = blanco desde la base.",
+      "confusiones": [
+        { "con": "Fusarium vs Diplodia", "como_diferenciar": "Rosado-salmon disperso (Fusarium) vs blanco denso basal con picnidios negros (Stenocarpella)." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "foco"], "signo_visible": true, "tipo_signo": "estructura_fungica", "organo": "espiga_vaina_grano", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Control de insectos de espiga; hibridos; cosecha oportuna - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa Circular 66 (graos ardidos): https://www.infoteca.cnptia.embrapa.br/bitstream/doc/489277/1/Circ66.pdf"]
+    },
+    {
+      "id": "maiz-carbon-comun",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_galla",
+      "nombre_comun": "Carbon comun (huitlacoche)",
+      "nombre_pt": "Carvao comum",
+      "nombre_cientifico": "Ustilago maydis",
+      "severidad_potencial": "media",
+      "organo": ["espiga", "panoja", "tallo", "hoja"],
+      "estadio_cultivo": ["V a reproductivo"],
+      "signo": "Agallas/tumores carnosos con membrana blanco-grisacea que al romperse liberan MASA PULVERULENTA NEGRA (teliosporas).",
+      "sintoma": "Deformacion de espigas/granos; galla que reemplaza el grano. Asociada a heridas (granizo, insectos) + estres.",
+      "confirmacion_campo": "Cortar la agalla: polvo negro. Inconfundible cuando madura.",
+      "confusiones": [
+        { "con": "Carbon de la panoja (Sphacelotheca)", "como_diferenciar": "Sphacelotheca afecta panoja/espiga con masa negra pero SIN galla carnosa grande, tejido fibroso." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Reducir heridas/estres; hibridos - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Corn_smut_-_Ustilago_maydis_(43972900765).jpg", "muestra": "Agallas/tumores de carbon en maiz", "licencia": "CC BY-SA 2.0", "autor": "Bjorn S. (Flickr 40948266@N04)" }
+      ],
+      "fuentes": ["Embrapa Circular 83: https://www.infoteca.cnptia.embrapa.br/bitstream/doc/490415/1/Circ83.pdf"]
+    },
+    {
+      "id": "maiz-enfezamiento",
+      "categoria": "enfermedad",
+      "subtipo": "molicute_vector",
+      "nombre_comun": "Complejo de enfezamiento (achaparramiento / corn stunt)",
+      "nombre_pt": "Enfezamentos (palido e vermelho)",
+      "nombre_cientifico": "Spiroplasma kunkelii (palido) / fitoplasma Maize bushy stunt (vermelho) - vector Dalbulus maidis",
+      "severidad_potencial": "muy_alta",
+      "organo": ["planta_entera"],
+      "estadio_cultivo": ["infeccion temprana V2-V8 es la mas danina"],
+      "signo": "Sin signo fungico (molicutes en floema); diagnostico por sintoma + PCR. Buscar la cigarrita en el cartucho.",
+      "sintoma": "Palido: estrias cloroticas/blanquecinas en la BASE de hojas jovenes. Vermelho: enrojecimiento foliar, entrenudos cortos, espigas pequenas multiples, macollaje, senescencia precoz. Perdidas hasta ~70%.",
+      "confirmacion_campo": "Mirar base de hojas jovenes (estrias cloroticas puntuales alineadas) + acortamiento de entrenudos + presencia del vector; confirmar por laboratorio (PCR).",
+      "confusiones": [
+        { "con": "Deficiencia de P/Mg", "como_diferenciar": "P/Mg no dan estrias basales + entrenudos cortos + vector. El enfezamiento si." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": false, "tipo_signo": "ninguno", "distribucion_planta": "localizado", "gradiente_hoja": "generalizado" },
+      "manejo_ref": "Tratamiento de semilla + control temprano del vector; hibridos tolerantes; evitar puentes verdes - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL (via manejo del vector, criterio near-zero temprano)",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": [
+        "Embrapa, cigarrinha vetor de molicutes: https://www.embrapa.br/documents/1344498/2767891/cigarrinha-do-milho-vetor-de-molicutes-e-virus.pdf",
+        "INTA/UBA Herbario Fitopatologia: https://herbariofitopatologia.agro.uba.ar/?page_id=8509"
+      ]
+    },
+    {
+      "id": "maiz-podredumbre-tallo",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_tallo",
+      "nombre_comun": "Podredumbre de tallo",
+      "nombre_pt": "Podridao de colmo",
+      "nombre_cientifico": "Fusarium spp. / Stenocarpella spp. / Colletotrichum graminicola / Macrophomina phaseolina",
+      "severidad_potencial": "alta",
+      "organo": ["tallo"],
+      "estadio_cultivo": ["llenado-madurez (estres post-floracion)"],
+      "signo": "Medula desintegrada; color rosado (Fusarium) u oscuro con microesclerocios (Macrophomina); picnidios (Colletotrichum/Stenocarpella).",
+      "sintoma": "Vuelco/quebrado de tallo, planta muerta prematuramente, tallo hueco.",
+      "confirmacion_campo": "Test de empuje (push test) + cortar tallo longitudinal y ver medula deshecha.",
+      "confusiones": [
+        { "con": "Senescencia normal", "como_diferenciar": "Diferenciar por medula deshecha/coloreada, no solo secado externo." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Manejo de estres hidrico/nutricional, densidad, cosecha oportuna - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa Circular 83"]
+    },
+
+    {
+      "id": "maiz-cogollero",
+      "categoria": "plaga",
+      "subtipo": "oruga_cogollo",
+      "nombre_comun": "Gusano cogollero",
+      "nombre_pt": "Lagarta-do-cartucho",
+      "nombre_cientifico": "Spodoptera frugiperda",
+      "severidad_potencial": "muy_alta",
+      "organo": ["hoja", "cogollo", "espiga"],
+      "estadio_cultivo": ["vegetativo (critico)"],
+      "signo": "Larva en el cartucho con 'Y' invertida en la cabeza y 4 puntos en el 8vo segmento; frass (aserrin humedo) en el embudo.",
+      "sintoma": "Raspaduras (ventanas translucidas) en hojas jovenes, perforaciones alineadas al desplegarse la hoja, cartucho destruido.",
+      "confirmacion_campo": "Muestreo 20 plantas/punto x 5 puntos; escala de dano de Davis (nota).",
+      "confusiones": [
+        { "con": "Otras Spodoptera", "como_diferenciar": "Confirmar por 'Y' invertida cefalica + 4 puntos del 8vo segmento." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "larva", "dano": "masticador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (Bt, Baculovirus, Telenomus/Trichogramma); MIP diamidas - VERIFICAR resistencia",
+      "umbral_accion": "20% de plantas con dano (nota >=3 escala Davis) en fase vegetativa; algunas recomendaciones bajan a 10% en 40-60 dias. Calibrado en Brasil -> VERIFICAR_LOCAL en Bolivia.",
+      "fuente_umbral": "Embrapa Milho e Sorgo Doc 344; IRAC-BR nivel de accion S. frugiperda milho: https://www.irac-br.org/single-post/nivel-de-acao-para-controle-de-spodoptera-frugiperda-em-milho",
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Zea_mays_damaged_by_Spodoptera_frugiperda_(200218-0814).jpg", "muestra": "Dano de la larva en hoja/tallo de maiz", "licencia": "CC BY-SA 4.0", "autor": "Wee Hong" },
+        { "url": "https://commons.wikimedia.org/wiki/File:Spodoptera_frugiperda_caterpillar01.jpg", "muestra": "Larva de S. frugiperda", "licencia": "CC BY 3.0 US", "autor": "Frank Peairs, Colorado State University, Bugwood.org" }
+      ],
+      "fuentes": ["Embrapa Doc 344: https://www.infoteca.cnptia.embrapa.br/bitstream/doc/935552/1/Documento344.pdf"]
+    },
+    {
+      "id": "maiz-cigarrita",
+      "categoria": "plaga",
+      "subtipo": "picador_succionador_vector",
+      "nombre_comun": "Cigarrita del maiz (vector de corn stunt)",
+      "nombre_pt": "Cigarrinha-do-milho",
+      "nombre_cientifico": "Dalbulus maidis",
+      "severidad_potencial": "muy_alta",
+      "organo": ["hoja", "cogollo"],
+      "estadio_cultivo": ["critico VE-V8 (mas joven = mas dano por transmision)"],
+      "signo": "Adultos color pajizo ~0,5 cm con dos puntos oscuros en la cabeza, saltan al abrir el cartucho; huevos bajo epidermis en nervadura central.",
+      "sintoma": "Dano directo bajo; el problema es que TRANSMITE el enfezamiento (molicutes) y MRFV. Puede haber melaza + fumagina.",
+      "confirmacion_campo": "Abrir el cartucho y buscar adultos que saltan. Muestreo INTA: 10 plantas x 10 repeticiones semanal desde emergencia a V7-V8.",
+      "confusiones": [
+        { "con": "Otras cigarritas", "como_diferenciar": "Dalbulus = dos puntos oscuros en la cabeza, en el cartucho del maiz." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "borde"], "signo_visible": true, "tipo_signo": "insecto", "dano": "picador_succionador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Tratamiento de semilla + monitoreo desde emergencia; evitar puentes verdes - VERIFICAR",
+      "umbral_accion": "No hay umbral convencional: por ser vector se maneja con criterio de tolerancia near-zero en fase temprana. Cifra numerica: VERIFICAR_LOCAL.",
+      "fuente_umbral": "Embrapa controle da cigarrinha do milho: https://www.embrapa.br/en/controle-da-cigarrinha-do-milho",
+      "fotos": [],
+      "fuentes": ["Revista Cultivar, monitoramento Dalbulus maidis: https://revistacultivar.com.br/artigos/monitoramento-e-controle-da-cigarrinha-dalbulus-maidis-na-cultura-do-milho"]
+    },
+    {
+      "id": "maiz-cortador",
+      "categoria": "plaga",
+      "subtipo": "oruga_cortadora",
+      "nombre_comun": "Gusano cortador",
+      "nombre_pt": "Lagarta-rosca",
+      "nombre_cientifico": "Agrotis ipsilon",
+      "severidad_potencial": "media",
+      "organo": ["tallo (plantula)"],
+      "estadio_cultivo": ["VE-V4 (emergencia-plantula)"],
+      "signo": "Larva gris-oscura enroscada en el suelo al pie de la planta; presente de dia bajo suelo/rastrojo.",
+      "sintoma": "Plantulas cortadas a ras de suelo, fallas/claros en la linea.",
+      "confirmacion_campo": "Cavar al pie de plantas cortadas al atardecer/amanecer; % de plantulas cortadas.",
+      "confusiones": [
+        { "con": "Dano de barriga-verde", "como_diferenciar": "Cortador siega la planta; barriga-verde deja perforaciones en fila + amarillamiento." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "borde"], "signo_visible": true, "tipo_signo": "larva", "dano": "cortador_subterraneo", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Tratamiento de semilla; control de malezas hospederas pre-siembra - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL (por % de plantulas cortadas en monitoreo nocturno)",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa Milho, pragas: https://www.embrapa.br/en/agencia-de-informacao-tecnologica/cultivos/milho/producao/pragas-e-doencas"]
+    },
+    {
+      "id": "maiz-pulgon",
+      "categoria": "plaga",
+      "subtipo": "picador_succionador",
+      "nombre_comun": "Pulgon del maiz",
+      "nombre_pt": "Pulgao-do-milho",
+      "nombre_cientifico": "Rhopalosiphum maidis",
+      "severidad_potencial": "media",
+      "organo": ["cogollo", "hoja", "panoja"],
+      "estadio_cultivo": ["vegetativo tardio-floracion"],
+      "signo": "Colonias verde-azuladas dentro del cartucho y sobre la panoja; melaza (honeydew) + fumagina negra.",
+      "sintoma": "Hojas amarillentas/deformadas, melaza pegajosa en panoja/estigmas afectando polinizacion; puede transmitir virus del mosaico.",
+      "confirmacion_campo": "Abrir cartucho: colonias + melaza. Mayor cuidado en pre-floracion.",
+      "confusiones": [
+        { "con": "Fumagina por otra melaza", "como_diferenciar": "Buscar las colonias vivas de pulgon en el cartucho/panoja." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "insecto", "dano": "picador_succionador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (coccinelidos, sirfidos, hongos); MIP - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL (Embrapa no publica umbral numerico unico; mayor cuidado pre-floracion por virus y melaza en estigmas)",
+      "fuente_umbral": "Embrapa, manejo de pulgoes em milho: https://www.embrapa.br/en/busca-de-publicacoes/-/publicacao/1139408/biologia-hospedeiros-e-manejo-de-pulgoes-em-milho",
+      "fotos": [],
+      "fuentes": ["Embrapa Milho"]
+    },
+    {
+      "id": "maiz-barrenador-diatraea",
+      "categoria": "plaga",
+      "subtipo": "barrenador",
+      "nombre_comun": "Barrenador del tallo",
+      "nombre_pt": "Broca-da-cana / broca-do-colmo",
+      "nombre_cientifico": "Diatraea saccharalis",
+      "severidad_potencial": "alta",
+      "organo": ["cogollo", "tallo"],
+      "estadio_cultivo": ["V a reproductivo"],
+      "signo": "Galerias en el tallo con aserrin, orificios de entrada; larva blanco-cremosa con puntos oscuros dentro del colmo.",
+      "sintoma": "'Corazon muerto' (dead heart) en plantas jovenes, quebrado de tallo, entrada de podredumbres de tallo/espiga.",
+      "confirmacion_campo": "Abrir tallo longitudinal: galerias + larva. Buscar corazon muerto en plantas jovenes.",
+      "confusiones": [
+        { "con": "Podredumbre de tallo", "como_diferenciar": "Barrenador deja galeria limpia + larva; podredumbre = medula deshecha por hongo." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "larva", "dano": "minador_barrenador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (Trichogramma, Cotesia flavipes) - VERIFICAR (control quimico limitado: larva dentro del tallo)",
+      "umbral_accion": "VERIFICAR_LOCAL (no establecido para maiz)",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa, principais pragas do milho - broca da cana: https://www.embrapa.br/documents/1344498/2767891/principais-pragas-do-milho-broca-da-cana.pdf"]
+    },
+    {
+      "id": "maiz-barriga-verde",
+      "categoria": "plaga",
+      "subtipo": "chinche",
+      "nombre_comun": "Chinche barriga verde",
+      "nombre_pt": "Percevejo barriga-verde",
+      "nombre_cientifico": "Dichelops melacanthus / D. furcatus",
+      "severidad_potencial": "alta",
+      "organo": ["plantula"],
+      "estadio_cultivo": ["VE-V4 critico"],
+      "signo": "Adultos verde-parduzcos con abdomen verde, en suelo/rastrojo al pie; ninfas en la base.",
+      "sintoma": "Perforaciones en fila transversal al desplegarse la hoja, plantas amarillentas, macollaje anomalo, 'planta dominada', deformacion.",
+      "confirmacion_campo": "Buscar chinches al ras del suelo en maiz recien emergido + sintoma de hoja perforada en fila.",
+      "confusiones": [
+        { "con": "Dano de herbicida", "como_diferenciar": "Barriga-verde deja perforaciones alineadas + chinches presentes; herbicida es mas difuso." }
+      ],
+      "dd_tags": { "patron_espacial": ["borde", "foco"], "signo_visible": true, "tipo_signo": "insecto", "dano": "picador_succionador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Tratamiento de semilla; manejo del puente verde soja->maiz - VERIFICAR",
+      "umbral_accion": "0,5 chinche/m2 o 1 chinche cada 10 plantas; nivel de dano economico reportado 0,6-2 chinches/m2 en fase inicial. Calibrado Brasil (Epagri) -> VERIFICAR_LOCAL.",
+      "fuente_umbral": "Epagri, Agropecuaria Catarinense (RAC), nivel de dano economico Dichelops furcatus em milho: https://publicacoes.epagri.sc.gov.br/rac/article/view/93",
+      "fotos": [],
+      "fuentes": ["Epagri/RAC; Agrolink manejo Dichelops"]
+    },
+    {
+      "id": "maiz-coros",
+      "categoria": "plaga",
+      "subtipo": "larva_suelo",
+      "nombre_comun": "Gusanos blancos / coros",
+      "nombre_pt": "Coros",
+      "nombre_cientifico": "Diloboderus abderus (y otros Scarabaeidae)",
+      "severidad_potencial": "media",
+      "organo": ["raiz", "tallo (plantula)"],
+      "estadio_cultivo": ["VE-V4"],
+      "signo": "Larva blanca en 'C' con cabeza marron en el suelo (galerias verticales); adultos escarabajos.",
+      "sintoma": "Plantulas marchitas/muertas en manchones, fallas en la linea, plantas facilmente arrancables.",
+      "confirmacion_campo": "Calicatas/trincheras de suelo para conteo de larvas antes de sembrar.",
+      "confusiones": [
+        { "con": "Cortador/barriga-verde", "como_diferenciar": "Coro dana raiz (bajo tierra); cortador siega a ras; barriga-verde perfora la base." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "relieve"], "signo_visible": true, "tipo_signo": "larva", "dano": "cortador_subterraneo", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Tratamiento de semilla preventivo; muestreo de suelo - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL (no establecido con cifra oficial para maiz)",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["INTA, plagas de suelo en siembra directa (verificar edicion local)"]
+    },
+
+    {
+      "id": "maiz-carencia-n",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de nitrogeno",
+      "nombre_cientifico": "N",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["V-llenado"],
+      "signo": "Ninguno.",
+      "sintoma": "Clorosis en 'V' desde la PUNTA de hojas VIEJAS hacia la nervadura central; plantas palidas y chicas.",
+      "confirmacion_campo": "Amarillamiento en V de bajeras; contrasta con franjas mejor fertilizadas.",
+      "confusiones": [
+        { "con": "Deficiencia de S", "como_diferenciar": "S amarillea hojas NUEVAS; N las VIEJAS en V desde la punta." },
+        { "con": "Enfezamiento", "como_diferenciar": "Enfezamiento da estrias basales + entrenudos cortos + vector." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion (VRT N) - VERIFICAR con foliar",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "maiz-carencia-p",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de fosforo",
+      "nombre_cientifico": "P",
+      "severidad_potencial": "media",
+      "organo": ["hoja", "planta_entera"],
+      "estadio_cultivo": ["V (temprano)"],
+      "signo": "Ninguno.",
+      "sintoma": "Tonos purpuras/rojizos en bordes y puntas de hojas VIEJAS, planta chica, poco desarrollo radicular.",
+      "confirmacion_campo": "Purpura persistente en zonas de suelo pobre/frio/compactado.",
+      "confusiones": [
+        { "con": "Frio transitorio", "como_diferenciar": "El purpura por frio remite al subir la temperatura." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "maiz-carencia-k",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de potasio",
+      "nombre_cientifico": "K",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["V-reproductivo"],
+      "signo": "Ninguno.",
+      "sintoma": "Amarillamiento y necrosis del BORDE/punta de hojas VIEJAS (bajeras), centro verde; tallos debiles.",
+      "confirmacion_campo": "Quemado marginal en bajeras; suelos pobres en K.",
+      "confusiones": [
+        { "con": "Deficiencia de N", "como_diferenciar": "N = amarillo en V central; K = borde marginal necrotico." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "maiz-carencia-zn",
+      "categoria": "carencia",
+      "subtipo": "micronutriente_inmovil",
+      "nombre_comun": "Deficiencia de zinc",
+      "nombre_cientifico": "Zn",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["V (temprano)"],
+      "signo": "Ninguno.",
+      "sintoma": "Bandas cloroticas/blanquecinas a ambos lados de la nervadura en hojas NUEVAS (tercio medio), entrenudos cortos. Clasica en maiz.",
+      "confirmacion_campo": "Bandas blanquecinas paralelas a la nervadura en hojas jovenes; suelos de pH alto/arenosos.",
+      "confusiones": [
+        { "con": "Enfezamiento palido", "como_diferenciar": "Zn = bandas laterales sin acortamiento severo ni vector; enfezamiento con vector y entrenudos muy cortos." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "nueva", "distribucion_planta": "localizado" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR (revisar pH)",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "maiz-carencia-s",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_inmovil",
+      "nombre_comun": "Deficiencia de azufre",
+      "nombre_cientifico": "S",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["V"],
+      "signo": "Ninguno.",
+      "sintoma": "Clorosis uniforme de hojas NUEVAS (planta palida desde arriba).",
+      "confirmacion_campo": "Amarillo del brote (contrario a N que es de abajo); suelos arenosos/bajo MO.",
+      "confusiones": [
+        { "con": "Deficiencia de N", "como_diferenciar": "N = hojas viejas; S = hojas nuevas." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "nueva", "distribucion_planta": "localizado" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    }
+  ],
+  "stubs_por_curar": [
+    "maiz-mancha-blanca-physopella (roya tropical Physopella zeae)",
+    "maiz-mosaico-comun (MRFV rayado fino, vector Dalbulus)",
+    "maiz-carencia-mg",
+    "maiz-carencia-b"
+  ]
+}

@@ -108,8 +108,24 @@ Medido: 48,2% de las dekadas tienen escena óptica útil a escala de lote. Febre
 
 La escalera de tres estados del pipeline actual es correcta y hay que conservarla, pero el rótulo
 tiene que viajar **dentro del dato**, no solo en el PDF: cada fila de la tabla lleva su calidad
-(pleno / parcial / radar / sin observación) y el ranking declara con qué se construyó. Con S2 ∪ S1
-se cubre el 87,3% de las dekadas; el 13% restante es "sin observación válida" y hay que decirlo.
+(pleno / parcial / radar / sin observación) y el ranking declara con qué se construyó.
+
+⚠️ **Corrección al 87,3% (2026-07-24).** Ese número —S2 útil ∪ S1 disponible— es correcto como
+medición pero estaba mal encuadrado: **cuenta como "cubierta" una dekada en la que solo hay radar, y
+el radar no detecta enfermedad.** Los números honestos son tres, no uno:
+
+| Qué se puede entregar | Cobertura de dekadas |
+|---|---|
+| **Producto pleno, con el criterio real** | **48,2%** |
+| + óptico parcial (40-80% válido), declarado degradado | 59,1% |
+| + continuidad estructural por radar, sin criterio de anomalía | 87,3% |
+| Sin ninguna observación válida | 12,7% |
+
+La revisita de S1 se verificó sobre **fechas únicas de adquisición**, no sobre la nominal: intervalo
+medio 12,9 · 12,8 · 11,1 · 13,7 días (2022/23 a 2025/26), órbita descendente 10 única, y **huecos
+máximos de 24 días**. Coincide con los 12,6 días de `DISPONIBILIDAD_MULTISITIO.md` §5. Solo 2021/22
+dio 6,0 días, con las dos órbitas de la era S1A+S1B. **La cadencia fija con SAR es de ~13 días con
+huecos de 24, no de 12 parejos.**
 
 Esto además protege la validación: sin la etiqueta de calidad en la fila, en un año no se va a poder
 distinguir un falso negativo real de una dekada nublada.

@@ -1,0 +1,58 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Firma: lee keystore.properties del root del proyecto (o variables de entorno en CI).
+def ksProps = new Properties()
+def ksFile = rootProject.file("keystore.properties")
+if (ksFile.exists()) { ksProps.load(new FileInputStream(ksFile)) }
+def sVal = { env, prop, def_ -> def v = System.getenv(env); (v==null||v.isEmpty()) ? (ksProps[prop] ?: def_) : v }
+
+android {
+    namespace 'network.pixadvisor.scout'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'network.pixadvisor.scout'
+        minSdk 26
+        targetSdk 34
+        versionCode 7
+        versionName '1.0.6'
+        resConfigs 'es'
+    }
+
+    signingConfigs {
+        release {
+            def sf = sVal('PIX_KEYSTORE_FILE', 'storeFile', 'pixscout.keystore')
+            storeFile rootProject.file(sf)
+            storePassword sVal('PIX_KEYSTORE_PASSWORD', 'storePassword', '')
+            keyAlias      sVal('PIX_KEY_ALIAS', 'keyAlias', '')
+            keyPassword   sVal('PIX_KEY_PASSWORD', 'keyPassword', '')
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            applicationIdSuffix '.debug'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // Los assets ya vienen comprimidos/optimizados; no re-comprimir binarios grandes.
+    androidResources {
+        noCompress 'webmanifest'
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.10.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}

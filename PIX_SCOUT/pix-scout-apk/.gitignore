@@ -1,0 +1,20 @@
+# Firma — NUNCA versionar (clave privada + contraseñas)
+keystore.properties
+*.keystore
+*.jks
+
+# Config local del SDK
+local.properties
+
+# Artefactos de build
+build/
+app/build/
+.gradle/
+.cxx/
+*.iml
+.idea/
+
+# Nota de seguridad:
+#  El keystore de firma y su contraseña deben vivir FUERA del repo (secretos de CI:
+#  variables PIX_KEYSTORE_FILE / PIX_KEYSTORE_PASSWORD / PIX_KEY_ALIAS / PIX_KEY_PASSWORD).
+#  Antes de distribución masiva conviene ROTAR la clave a una contraseña fuerte y respaldarla.

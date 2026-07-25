@@ -1,0 +1,89 @@
+PIX SCOUT — RELEASE v1.0.3
+==========================================
+Archivo:      pix-scout-v1.0.3.apk   (2.4 MB)
+Paquete:      network.pixadvisor.scout
+versionCode:  4     versionName: 1.0.3
+
+NUEVO EN 1.0.3
+- BASE SATELITAL en el mapa (tiles Esri World Imagery, Web Mercator), con caché OFFLINE
+  (Cache API 'pixscout-tiles' — la SW no la borra): tras verla una vez, anda sin señal.
+  Botón satélite/vector en el mapa. Perímetro + focos calzan exacto sobre la imagen.
+
+minSdk:       26 (Android 8.0)     targetSdk: 34 (Android 14)
+Firma:        APK Signature Scheme v2 — VERIFICADO
+Certificado:  CN=Pixadvisor PIX Scout, O=Pixadvisor SRL, Santa Cruz, BO
+
+NUEVO EN 1.0.2 (mapa + auditoría completa)
+- MAPA de anomalías navegable OFFLINE (canvas vectorial, sin tiles): polígonos de
+  anomalía por severidad + perímetro del lote + posición GPS + línea/distancia al foco.
+- Carga GeoJSON real del pipeline de anomalías (data/santo_antonio.geojson por defecto):
+  50 focos (nivel/SI/clorofila) + PERÍMETRO leído del MISMO geojson (feature tipo:'perimetro').
+- FIX crítico: la capa de login ya no tapa la app (bug .gate de 1.0.0/1.0.1).
+
+AUDITORÍA — CORRECCIONES APLICADAS (todo verificado, 0 errores JS)
+  Crítico:  quitado el bypass de login por ?demo/?load (demo solo en DEV_MODE=false);
+            teardownMap al entrar al diagnóstico (wizard no se corta); .gitignore del keystore.
+  Alto:     brújula sin fuga de listeners; GPS se apaga al salir (batería); SW network-first
+            para data/ (focos frescos) + PNG precacheados; sync con lock+upsert+timeout;
+            WebView shouldOverrideUrlLoading (externos al navegador); allowBackup=false;
+            contraste toast/botones a AA.
+  Medio:    validación NO inventa GPS (marca "sin fijar"); onPermissionRequest solo VIDEO;
+            geolocalización solo al origen interno; onPause/Resume/Destroy del WebView;
+            guards en el motor de diagnóstico; PBKDF2 210k + contraseña mínima 6.
+  Bajo:     :focus-visible; touch targets >=44px; íconos PNG 192/512; viewport con zoom.
+
+INSTALAR (sideload)
+1. Pasar el .apk al celular (WhatsApp/Drive/cable) y abrirlo.
+2. Aceptar "instalar apps de esta fuente". Conceder Ubicación y Cámara.
+3. Primer uso: CREAR ADMINISTRADOR (guardá la contraseña). Cuenta -> Gestionar usuarios
+   para dar de alta a cada técnico.
+4. La app abre en el MAPA con los focos reales de Santo Antonio + perímetro.
+
+--------------------------------------------------------------------------
+v1.0.5 (versionCode 6) — 2026-07-24
+  NUEVO · MODO CIEGO conmutable (config.js MODO_CIEGO). Con el encendido, el tecnico
+       NO ve severidad, score, nivel, clase ni SI antes de registrar — el SI es la
+       severidad en numero, mostrarlo equivale a mostrar el color. El dato se guarda
+       igual en `estrato`. Sin esto el registro negativo no mide nada: el que sabe que
+       va a un rojo, encuentra algo. Es lo que hace ejecutable el protocolo de
+       validacion (ESPECIFICACION.md §3 y §4). Apagado por defecto.
+  FIX  · NDMI del motor de lotes pasa de B8 a B8A, alineado con el pipeline. B8 tiene
+       FWHM de 118 nm e integra media meseta NIR; B8A tiene 20 nm y contiene los
+       850-865 que pide Hardisky 1983, y es nativo de 20 m igual que B11 (sin remuestreo).
+
+v1.0.4 (versionCode 5) — 2026-07-24
+  P0 · sin GeoJSON real la app ya NO cae a los 6 focos demo (5 haciendas a
+       >1.000 km): la lista va vacia y el contador dice SIN DATOS DE FOCOS.
+  P0 · data/santo_antonio.geojson precacheado por el service worker: el primer
+       arranque offline ya no se queda sin focos.
+  P0 · el Banco resetea `wiz`: el registro ya no sale estampado con el foco Y el
+       cultivo del recorrido anterior (el cultivo sale de la ficha).
+  P1 · los focos se ordenan por SEVERIDAD y despues por score (antes un
+       Prioritario podia caer al puesto 22 de 24 diciendo "ordenados por severidad").
+  P1 · el tecnico ve la etiqueta del PDF (P1, V3), no el hash del id estable.
+  P1 · el conteo acepta COMA decimal (con <input type=number>, "2,5" se guardaba
+       como null en teclado es-BO/pt-BR, sin avisar).
+  NUEVO · "Llegue y no encontre nada": registro negativo, sin el cual no se
+       pueden medir falsos positivos.
+  NUEVO · conteo + unidad + observacion en la ficha de validacion.
+  NUEVO · GeoJSON del pipeline con PERIMETRO + focos + id ESTABLE por posicion
+       (SA-c2aac5): el mismo foco conserva su id entre corridas.
+  CSS  · los campos de texto nuevos con 16 px (sin zoom automatico), 48 px de
+       alto y tema oscuro / Modo Sol.
+
+FIRMA / KEYSTORE (NO PERDER)
+  pix-scout-apk/pixscout.keystore  ·  credenciales en SECRETS.local.txt (NO versionado)
+  Mismo keystore para actualizar en el mismo packageId. Rotar antes de distribución masiva.
+
+RECOMPILAR
+  # editar la PWA en ../app ; luego:
+  cd pix-scout-apk
+  cp -r ../app/{index.html,manifest.webmanifest,sw.js,css,js,icons,data} app/src/main/assets/
+  #   (subir CACHE en sw.js si cambiaron assets)
+  ./gradlew :app:assembleRelease
+  -> app/build/outputs/apk/release/app-release.apk
+
+PENDIENTE / ROADMAP
+- Conectar backend (Supabase scout_users + scout_validaciones + FOCOS_ENDPOINT).
+- Capa satelital opcional con tiles cacheados (hoy el mapa es vectorial 100% offline).
+- Exportar el perímetro desde el pipeline dentro del mismo GeoJSON (ya soportado por la app).

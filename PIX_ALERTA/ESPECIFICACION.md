@@ -68,10 +68,35 @@ control quedan ~R$ 2.800 M/año.
   real RMSE ≈ 0,17 (DOI 10.3390/rs12060912), no el 0,04 teórico.
 - **Buffer negativo de 5 m** y descartar lotes que queden con **< 8 píxeles limpios** o que pierdan
   **> 60%** de su superficie. Criterio numérico publicado por el JRC: DOI 10.3390/rs12142195.
-- ⚠️ **BSI: la cita está rota.** Rikimaru 1997/2002 no tiene DOI, no está en Crossref, y el sitio de
-  la revista es hoy un dominio parqueado. Se puede usar como heurística pero **no citar como
-  referencia formal**. Además no distingue rastrojo seco. Alternativas verificadas:
+- ✅ **BSI: CORREGIDO 2026-07-24 — la cita NO está rota.** Se decía que "no se puede citar".
+  Es falso: el paper se recuperó del Wayback Machine y **se leyó**. Es **Rikimaru, Roy &
+  Miyatake (2002), "Tropical forest cover density mapping", Tropical Ecology 43(1):39-47,
+  ISSN 0564-3295**, fórmula en la página 43. PDF archivado en `referencias_primarias/`
+  porque tropecol.com es hoy un dominio parqueado. Cuatro precisiones para citarlo bien:
+  **(1)** no tiene DOI y no hay que inventarle uno; **(2)** en el paper se llama **BI**, no BSI;
+  **(3)** la fórmula original termina en `x100+100` sobre DN de 8 bits (rango 0-200) — la forma
+  normalizada (−1,+1) sobre reflectancia es una **adaptación** y hay que decirlo así;
+  **(4)** la primogenitura es **Rikimaru & Miyatake 1997** (ACRS Kuala Lumpur), misma fórmula
+  verbatim; *"Roy et al."* como fuente separada **no existe**.
+  ⚠️ Lo que sí es folclore son las fuentes de terceros: `awesome-spectral-indices` cita un
+  link muerto de CiteSeerX con un ID interno **disfrazado de DOI**, y Sentinel Hub distribuye
+  esta fórmula citando a Nguyen 2021, que es el paper del **MBI** (otro índice).
+  Sigue siendo cierto que **no distingue rastrojo seco**, y que Rikimaru **nunca validó BI**
+  contra suelo desnudo medido (es una de 4 entradas de un PCA). Alternativas verificadas:
   MBI (DOI 10.3390/land10030231), composites GEOS3/SYSI (DOI 10.1016/j.rse.2018.04.047).
+
+- ⚠️ **"NDSIsw" era un MISNOMER y se retiró del criterio.** La fórmula (B11−B12)/(B11+B12)
+  **no es un NDSI**: el NDSI real (Hall, Riggs & Salomonson 1995, DOI
+  10.1016/0034-4257(95)00137-P) es de **nieve** y usa verde/SWIR1. La fórmula que se usaba es
+  el **NDTI — Normalized Difference *Tillage* Index** (van Deventer, Ward, Gowda & Lyon 1997,
+  PE&RS 63(1):87-93, **sin DOI**; PDF archivado). Idéntico a NBR2 (USGS) y NSDSI3
+  (10.1016/j.isprsjprs.2019.06.012). El nombre equivocado viene de Index DataBase id=57, que
+  es *Normalized Difference **Salinity** Index*, marcado "derived" y apoyado en una tesis de
+  maestría sobre ASTER.
+  **Y no sirve para estrés de cultivo:** su uso publicado es residuo, labranza, humedad de
+  suelo desnudo, quema y salinidad. Hively et al. 2021 (10.3390/rs13183718) documenta que la
+  **vegetación verde lo degrada**. Se conserva como capa de suelo/residuo y se sacó de las
+  features de enfermedad.
 
 ### Paso 2 · Estratificación
 Dos ejes, ambos obligatorios:
@@ -192,9 +217,18 @@ tiene.
 
 ## 6. Lo que hay que reutilizar
 
+> ⚠️ **Actualizado 2026-07-24.** Esta tabla decía tres cosas que no eran ciertas: que el
+> motor v7 estaba en la skill (la skill despacha **v6**), que la compuerta absoluta era
+> parte de la base sólida (fue **retirada** por no transferir entre sitios), y no listaba
+> PIX SCOUT, que es el activo de campo real. Ver `AUDITORIA_2026-07-24.md` y
+> `CAMBIO_DE_CULTIVO.md`.
+
 | Activo | Dónde | Estado |
 |---|---|---|
-| Motor de anomalías v7 | skill `deteccion-anomalias-cultivos-satelital` | Gi*+FDR, Mahalanobis, zona de suelo, eje temporal, máscara veg, compuerta absoluta. Base sólida |
+| Motor de raster en producción | `PIXADVISOR_Sync/repo/scripts/` | Gi* sobre **residuo temporal** + FDR, Mahalanobis de 2 ejes, zona de suelo, compuerta **FVC**. Corre en la nube |
+| Motor de ranking de lotes | `PIX_ALERTA/pix_alerta/` | EWMA sobre residuo vs cohorte, 13 puertas de aceptación. Corre a mano |
+| ~~Motor de anomalías v7 en la skill~~ | skill `deteccion-anomalias-cultivos-satelital` | **La skill describe v6/v7 y quedó desactualizada**: instruye a usar BSI, Gi* sobre CIre crudo, `CIre_ref` de media de temporada y `NDVI>0.5`. Los cuatro fueron retirados por medición. No usarla como referencia hasta reescribirla |
+| **PIX SCOUT** | `PIX_SCOUT/` | APK firmada, 123 fichas / 7 cultivos, foto obligatoria, cola offline, registro negativo. **El lazo de retorno real** |
 | Revisión de literatura (trigo) | misma skill, `references/revision_literatura_2026-07-22.md` | 22 fuentes. Solo trigo — falta el resto de cultivos |
 | Pipeline en nube funcionando | repo `Ncamargo50/pixadvisor-monitoreo-trigo` | GitHub Actions cron, cuenta de servicio GEE, PDF + GeoJSON + aviso WhatsApp. Corre solo |
 | APK de campo | `pix-muestreo-apk` | GPS promediado, offline, cola de sync. Falta el esquema de formulario genérico |

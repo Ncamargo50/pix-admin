@@ -1,0 +1,133 @@
+{
+  "version": "1.0",
+  "descripcion": "Clave dicotomica de diagnostico diferencial a campo. La APK la recorre en el punto del foco. Cada nodo filtra el banco de fichas por dd_tags. NO diagnostica: reduce candidatos y muestra fotos para que el tecnico confirme.",
+  "disclaimer": "Herramienta de asistencia. La confirmacion es del tecnico. Ante duda, colectar muestra y enviar a laboratorio (IBRA megalab).",
+  "nodos": [
+    {
+      "id": "n0_patron",
+      "orden": 1,
+      "pregunta": "Como se distribuye el dano en el lote?",
+      "ayuda": "Mirar el foco satelital y confirmar en el suelo. El patron es la primera pista del tipo de causa.",
+      "opciones": [
+        {
+          "label": "En foco/parche denso, borde definido",
+          "filtro": { "patron_espacial": "foco" },
+          "sesga_hacia": ["enfermedad", "plaga", "suelo_localizado"],
+          "next": "n1_signo"
+        },
+        {
+          "label": "Difuso, homogeneo en toda una zona",
+          "filtro": { "patron_espacial": "difuso" },
+          "sesga_hacia": ["carencia", "hidrico", "ambiente_suelo"],
+          "next": "n1_signo"
+        },
+        {
+          "label": "En bordes, entradas o franjas",
+          "filtro": { "patron_espacial": "borde" },
+          "sesga_hacia": ["deriva", "pisoteo", "manejo", "plaga_migrante"],
+          "next": "n1_signo"
+        },
+        {
+          "label": "En manchones irregulares (bajos/altos del relieve)",
+          "filtro": { "patron_espacial": "relieve" },
+          "sesga_hacia": ["hidrico", "carencia", "suelo"],
+          "next": "n1_signo"
+        }
+      ]
+    },
+    {
+      "id": "n1_signo",
+      "orden": 2,
+      "pregunta": "Hay SIGNO del organismo? (mirar con lupa, incluido el enves de la hoja)",
+      "ayuda": "SIGNO = presencia fisica del organismo (pustula, micelio, insecto, huevo, excremento). SINTOMA = solo la reaccion de la planta (color, necrosis). El signo casi confirma biotico.",
+      "opciones": [
+        {
+          "label": "Pustula / polvo / micelio / manchas con estructura",
+          "filtro": { "tipo_signo": "estructura_fungica" },
+          "conclusion_parcial": "ENFERMEDAD (fungica/bacteriana)",
+          "next": "n2_hoja_pos"
+        },
+        {
+          "label": "Insecto visible (masticador, chinche, pulgon, mosca)",
+          "filtro": { "tipo_signo": "insecto" },
+          "conclusion_parcial": "PLAGA",
+          "next": "n_plaga_tipo"
+        },
+        {
+          "label": "Larva / oruga / gusano",
+          "filtro": { "tipo_signo": "larva" },
+          "conclusion_parcial": "PLAGA (complejo de orugas / larvas)",
+          "next": "n_plaga_tipo"
+        },
+        {
+          "label": "Huevos / posturas",
+          "filtro": { "tipo_signo": "huevo" },
+          "conclusion_parcial": "PLAGA (postura, revisar inminente)",
+          "next": "n_plaga_tipo"
+        },
+        {
+          "label": "Ningun signo, solo cambio de color/necrosis",
+          "filtro": { "tipo_signo": "ninguno" },
+          "conclusion_parcial": "Probable CARENCIA / abiotico (o enf. en etapa temprana)",
+          "next": "n3_gradiente"
+        }
+      ]
+    },
+    {
+      "id": "n_plaga_tipo",
+      "orden": 3,
+      "pregunta": "Que tipo de dano hace?",
+      "ayuda": "El tipo de aparato bucal define el grupo de plaga.",
+      "opciones": [
+        { "label": "Come/mastica hojas (defoliacion, agujeros)", "filtro": { "dano": "masticador" }, "next": "resultado" },
+        { "label": "Pica y succiona (vainas/granos manchados, hojas punteadas)", "filtro": { "dano": "picador_succionador" }, "next": "resultado" },
+        { "label": "Corta plantas a nivel de suelo / raiz", "filtro": { "dano": "cortador_subterraneo" }, "next": "resultado" },
+        { "label": "Mina hojas o barrena tallo", "filtro": { "dano": "minador_barrenador" }, "next": "resultado" }
+      ]
+    },
+    {
+      "id": "n2_hoja_pos",
+      "orden": 3,
+      "pregunta": "Donde empezo y como avanza?",
+      "ayuda": "Muchas royas avanzan de abajo (hojas viejas) hacia arriba; otras enfermedades empiezan en el estrato medio o en la espiga.",
+      "opciones": [
+        { "label": "De hojas bajeras hacia arriba (ascendente)", "filtro": { "distribucion_planta": "ascendente" }, "next": "resultado" },
+        { "label": "Estrato medio/superior o localizado", "filtro": { "distribucion_planta": "localizado" }, "next": "resultado" },
+        { "label": "En espiga / vaina / grano", "filtro": { "organo": "espiga_vaina_grano" }, "next": "resultado" }
+      ]
+    },
+    {
+      "id": "n3_gradiente",
+      "orden": 3,
+      "pregunta": "En que hojas aparece primero el sintoma? (clave para carencias por movilidad del nutriente)",
+      "ayuda": "Nutrientes MOVILES (N, P, K, Mg) se translocan a hojas nuevas -> el sintoma aparece en hojas VIEJAS. Nutrientes INMOVILES (S, Fe, Zn, B, Ca, Cu, Mn) -> el sintoma aparece en hojas NUEVAS.",
+      "opciones": [
+        {
+          "label": "En hojas VIEJAS (bajeras)",
+          "filtro": { "gradiente_hoja": "vieja_a_nueva" },
+          "conclusion_parcial": "Carencia de nutriente MOVIL: N, P, K o Mg",
+          "next": "resultado"
+        },
+        {
+          "label": "En hojas NUEVAS (brotes/apice)",
+          "filtro": { "gradiente_hoja": "nueva" },
+          "conclusion_parcial": "Carencia de nutriente INMOVIL: S, Fe, Zn, B, Ca, Cu o Mn",
+          "next": "resultado"
+        },
+        {
+          "label": "Generalizado en toda la planta",
+          "filtro": { "gradiente_hoja": "generalizado" },
+          "conclusion_parcial": "N generalizado, estres hidrico o multiple; considerar analisis de suelo/foliar",
+          "next": "resultado"
+        }
+      ]
+    },
+    {
+      "id": "resultado",
+      "orden": 4,
+      "tipo": "salida",
+      "accion": "Mostrar fichas candidatas ordenadas por coincidencia de dd_tags, con fotos lado a lado. El tecnico compara con su foto, elige la mas parecida, o marca 'no coincide -> colectar muestra a laboratorio'. Luego captura la validacion georreferenciada.",
+      "recordatorio": "Si la severidad es alta o hay duda: colectar muestra y enviar a IBRA (skill ficha-ibra-envio-amostras)."
+    }
+  ]
+}

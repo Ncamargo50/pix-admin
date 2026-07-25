@@ -1,0 +1,368 @@
+{
+  "cultivo": "cana_de_azucar",
+  "region": "Bolivia / Brasil",
+  "nota_curaduria": "Umbrales MIP con fuente citada. Umbrales firmes: broca Diatraea (III 1-2%) y salivazo Mahanarva (3-5 ninfas/m). Migdolus orientativo (niveles aun no consolidados). Fotos con licencia verificada archivo por archivo (Commons/USDA/Bugwood); resto PENDIENTE_CURAR. Coherente con project_pix_sacarosa_pipeline (HDS).",
+  "fichas": [
+    {
+      "id": "cana-roya-marron",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Roya marron / parda",
+      "nombre_pt": "Ferrugem marrom/parda",
+      "nombre_cientifico": "Puccinia melanocephala",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["vegetativo/macollaje en adelante"],
+      "signo": "Pustulas (uredinios) pardo-canela a marron oscuro/ladrillo en el enves, con halo clorotico, alargadas y distribuidas por toda la lamina.",
+      "sintoma": "Coalescencia, necrosis y secamiento foliar, perdida de area fotosintetica.",
+      "confirmacion_campo": "Pustulas alargadas repartidas en toda la hoja; polvo al frotar.",
+      "confusiones": [
+        { "con": "Roya naranja", "como_diferenciar": "La marron es mas grande, marron oscuro/ladrillo, con halo clorotico, dispersa en toda la lamina." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "foco"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Variedades resistentes; fungicida en casos severos - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Puccinia_melanocephala.jpg", "muestra": "Pustulas del hongo en cana", "licencia": "CC BY-SA 3.0", "autor": "K.C. Alexander (EcoPort)" }
+      ],
+      "fuentes": ["Instituto Biologico SP (Ferrari): https://biologico.agricultura.sp.gov.br/uploads/docs/bio/v75_1/ferrari.pdf ; AgroAdvance 2 ferrugens: https://agroadvance.com.br/blog-ferrugens-da-cana-de-acucar/"]
+    },
+    {
+      "id": "cana-roya-naranja",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Roya naranja",
+      "nombre_pt": "Ferrugem alaranjada",
+      "nombre_cientifico": "Puccinia kuehnii",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["variedades antes consideradas resistentes"],
+      "signo": "Pustulas anaranjadas a castano-anaranjadas, <=4 mm, que NO se oscurecen, agrupadas cerca de la insercion hoja-tallo, cara inferior.",
+      "sintoma": "Agrupamiento de pustulas y secamiento.",
+      "confirmacion_campo": "Color naranja vivo + tamano menor + agrupacion basal.",
+      "confusiones": [
+        { "con": "Roya marron", "como_diferenciar": "Marron = mayor, marron oscuro, dispersa; naranja = menor, naranja vivo, agrupada basal." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "foco"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Variedades resistentes; fungicida - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Agrolink ferrugem alaranjada: https://www.agrolink.com.br/problemas/ferrugem-alaranjada-da-cana_3010.html"]
+    },
+    {
+      "id": "cana-carbon",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_sistemica",
+      "nombre_comun": "Carbon (latigo negro)",
+      "nombre_pt": "Carvao",
+      "nombre_cientifico": "Sporisorium scitamineum (Ustilago scitaminea)",
+      "severidad_potencial": "alta",
+      "organo": ["meristema apical", "yema"],
+      "estadio_cultivo": ["brotacion/macollaje"],
+      "signo": "'Latigo' (soro) negro, cilindrico y alargado, cubierto de millones de teliosporas negras.",
+      "sintoma": "Macollaje excesivo tipo grama, colmos delgados, planta raquitica, baja sacarosa.",
+      "confirmacion_campo": "Presencia del latigo negro emergente del cogollo.",
+      "confusiones": [
+        { "con": "Raquitismo de la soca (RSD)", "como_diferenciar": "RSD da enanismo SIN latigo." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Variedades resistentes; semilla sana; termoterapia de toletes - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Sugar_cane_smut.jpg", "muestra": "Sintoma de carbon (latigo) en cana", "licencia": "CC BY 3.0 US", "autor": "William M. Brown Jr., Bugwood.org" }
+      ],
+      "fuentes": ["Aegro doencas da cana 2025: https://aegro.com.br/blog/doencas-da-cana-de-acucar-2025/"]
+    },
+    {
+      "id": "cana-escaldadura",
+      "categoria": "enfermedad",
+      "subtipo": "bacteriana_sistemica",
+      "nombre_comun": "Escaldadura de la hoja",
+      "nombre_pt": "Escaldadura das folhas",
+      "nombre_cientifico": "Xanthomonas albilineans",
+      "severidad_potencial": "alta",
+      "organo": ["haces vasculares (sistemica)"],
+      "estadio_cultivo": ["alta latencia (fase asintomatica)"],
+      "signo": "Linea/estria blanca-crema fina y recta ('pencil line') a lo largo de la nervadura; exudado bacteriano en vasos.",
+      "sintoma": "Escaldado/quemado del apice, muerte de brotes y plantas; FASE LATENTE asintomatica.",
+      "confirmacion_campo": "Linea blanca nitida; por la latencia requiere diagnostico de laboratorio (serologia/PCR).",
+      "confusiones": [
+        { "con": "Mosaico", "como_diferenciar": "Escaldadura = linea blanca recta y fina; mosaico = bandas cloroticas anchas e irregulares." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Semilla sana certificada; variedades tolerantes; desinfeccion de herramientas de corte - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Sugarcane_Leaf_scald_(Pathogen_Xanthomomas_albilineans,_a_bacterium)_(12209805035).jpg", "muestra": "Hoja con sintomas de escaldadura", "licencia": "CC0 1.0 (dominio publico)", "autor": "Scot Nelson" }
+      ],
+      "fuentes": ["SciELO diagnostico escaldadura: https://scielo.br/scielo.php?pid=S0100-54052012000200009&script=sci_arttext"]
+    },
+    {
+      "id": "cana-raquitismo-soca",
+      "categoria": "enfermedad",
+      "subtipo": "bacteriana_sistemica",
+      "nombre_comun": "Raquitismo de la soca (RSD)",
+      "nombre_pt": "Raquitismo da soqueira",
+      "nombre_cientifico": "Leifsonia xyli subsp. xyli",
+      "severidad_potencial": "muy_alta",
+      "organo": ["xilema/haces vasculares"],
+      "estadio_cultivo": ["socas"],
+      "signo": "Puntos/estrias vasculares rojo-anaranjados en los nudos (visibles al corte).",
+      "sintoma": "Enanismo, macollaje desuniforme, menor altura y peso por metro lineal; SIN sintoma foliar externo confiable. Es una de las mayores causas ocultas de perdida.",
+      "confirmacion_campo": "Coloracion vascular en nudos al corte + microscopia/serologia (no hay sintoma externo diagnostico).",
+      "confusiones": [
+        { "con": "Estres hidrico/nutricional o carbon", "como_diferenciar": "RSD sin latigo, solo enanismo + estrias vasculares." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "distribucion_planta": "generalizado", "gradiente_hoja": "generalizado" },
+      "manejo_ref": "Semilla sana + termoterapia; desinfeccion de cortadoras - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL (diagnostico de laboratorio)",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Aegro doencas da cana 2025; Verde.ag doencas da cana: https://blog.verde.ag/pt/manejo-de-pragas-e-doencas/doencas-da-cana-de-acucar/"]
+    },
+    {
+      "id": "cana-mosaico",
+      "categoria": "enfermedad",
+      "subtipo": "virus",
+      "nombre_comun": "Mosaico",
+      "nombre_pt": "Mosaico",
+      "nombre_cientifico": "Sugarcane mosaic virus (SCMV, Potyvirus)",
+      "severidad_potencial": "media",
+      "organo": ["hoja joven"],
+      "estadio_cultivo": ["canaverales jovenes, presencia de pulgones"],
+      "signo": "Viral: sin signo del patogeno visible. Buscar afidos vectores.",
+      "sintoma": "Patron de mosaico, bandas/manchas verde-claro (cloroticas) intercaladas con verde oscuro en la lamina joven; casos severos con necrosis y colmos atrofiados.",
+      "confirmacion_campo": "Patron mosaico en hojas jovenes; ELISA/RT-PCR; vector afidos.",
+      "confusiones": [
+        { "con": "Escaldadura", "como_diferenciar": "Escaldadura = lineas blancas rectas; mosaico = patron difuso e irregular verde claro/oscuro." },
+        { "con": "Deficiencia de Fe", "como_diferenciar": "Fe = internervial uniforme; mosaico = mosaico irregular." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": false, "tipo_signo": "ninguno", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Semilla sana; variedades resistentes; control de afidos - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Plantix SCMV: https://plantix.net/en/library/plant-diseases/200031/sugarcane-mosaic-virus/"]
+    },
+    {
+      "id": "cana-podredumbre-roja",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_colmo",
+      "nombre_comun": "Podredumbre roja",
+      "nombre_pt": "Podridao vermelha",
+      "nombre_cientifico": "Colletotrichum falcatum (Glomerella tucumanensis)",
+      "severidad_potencial": "alta",
+      "organo": ["colmo", "hoja", "yema"],
+      "estadio_cultivo": ["colmos danados por broca"],
+      "signo": "Al partir el colmo longitudinalmente: grandes manchas ROJAS internas separadas por bandas transversales BLANCAS; en hoja, lesiones beige con halo rojo.",
+      "sintoma": "Pudricion interna del colmo, muerte de yemas, caida de germinacion de toletes.",
+      "confirmacion_campo": "Corte longitudinal (rojo con bandas blancas) caracteristico.",
+      "confusiones": [
+        { "con": "Complejo con la broca Diatraea", "como_diferenciar": "Frecuentemente entra por galerias de broca; el patron rojo+bandas blancas es distintivo del hongo." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Control de broca (reduce puerta de entrada); variedades; semilla sana - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Genica podridao vermelha: https://agro.genica.com.br/2021/11/26/podridao-vermelha-da-cana-de-acucar/"]
+    },
+
+    {
+      "id": "cana-broca",
+      "categoria": "plaga",
+      "subtipo": "barrenador",
+      "nombre_comun": "Broca de la cana",
+      "nombre_pt": "Broca-da-cana",
+      "nombre_cientifico": "Diatraea saccharalis",
+      "severidad_potencial": "muy_alta",
+      "organo": ["colmo"],
+      "estadio_cultivo": ["todo el ciclo"],
+      "signo": "Galerias internas en el colmo, orificios de entrada, aserrin; larva blanco-cremosa con puntos oscuros.",
+      "sintoma": "'Corazon muerto' (dead-heart) en plantas jovenes, entrenudos barrenados, puerta de entrada a Colletotrichum (complejo broca-podredumbre).",
+      "confirmacion_campo": "Abrir colmo: galerias + larva. Calcular Indice de Intensidad de Infestacion III = 100*(entrenudos barrenados/total entrenudos).",
+      "confusiones": [
+        { "con": "Broca gigante (Telchin)", "como_diferenciar": "Telchin da galerias mas anchas en colmo/rizoma con aserrin grueso." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "larva", "dano": "minador_barrenador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (Cotesia flavipes, Trichogramma) - VERIFICAR",
+      "umbral_accion": "Mantener III en 1-2%. Manejo por III: hasta 5% III -> 1-2 liberaciones/ano de Cotesia; 5-10% -> agregar Trichogramma; >10% -> Trichogramma + Cotesia. Perdida ~1,14% TCH y 0,42% azucar por cada 1% de III.",
+      "fuente_umbral": "Gebio controle da broca: https://gebio.com.br/campo/controle-inteligente-da-broca-da-cana/ ; Redalyc (liberacion Cotesia): https://www.redalyc.org/journal/339/33959375006/html/",
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Adult_sugarcane_borer.jpg", "muestra": "Adulto (palomilla) de Diatraea saccharalis", "licencia": "Dominio publico (obra USDA)", "autor": "USDA, William White" }
+      ],
+      "fuentes": ["Gebio; Redalyc"]
+    },
+    {
+      "id": "cana-salivazo",
+      "categoria": "plaga",
+      "subtipo": "picador_succionador",
+      "nombre_comun": "Salivazo / cigarrinha das raizes",
+      "nombre_pt": "Cigarrinha-das-raizes",
+      "nombre_cientifico": "Mahanarva fimbriolata",
+      "severidad_potencial": "alta",
+      "organo": ["raiz", "base del tallo"],
+      "estadio_cultivo": ["ninfas en periodo humedo"],
+      "signo": "Espuma (salivazo) blanca en la base de los tallos (ninfas).",
+      "sintoma": "Manchas amarillas que viran a rojizas y opacas en hojas, secamiento ('queima'), colmos huecos/delgados.",
+      "confirmacion_campo": "Contar ninfas por metro lineal en la base (dentro de la espuma).",
+      "confusiones": [
+        { "con": "Deficiencia / sequia", "como_diferenciar": "El salivazo deja espuma + ninfas en la base; la carencia/sequia no." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "relieve"], "signo_visible": true, "tipo_signo": "insecto", "dano": "picador_succionador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (Metarhizium anisopliae); manejo de paja - VERIFICAR",
+      "umbral_accion": "Nivel de dano economico 3 a 5 ninfas por metro lineal (cana de fin de zafra) en la mayoria de variedades; algunas variedades solo se afectan con >16 ninfas/m.",
+      "fuente_umbral": "Coopercitrus Mahanarva fimbriolata: https://revistacoopercitrus.com.br/mahanarva-fimbriolata-cigarrinha-das-raizes/ ; Revista Cultivar: https://revistacultivar.com.br/artigos/conhecimento-e-manejo-da-cigarrinha-das-raizes-mahanarva-fimbriolata",
+      "fotos": [],
+      "fuentes": ["Coopercitrus; Revista Cultivar"]
+    },
+    {
+      "id": "cana-migdolus",
+      "categoria": "plaga",
+      "subtipo": "barrenador_subterraneo",
+      "nombre_comun": "Broca del rizoma (Migdolus)",
+      "nombre_pt": "Broca-do-rizoma / Migdolus",
+      "nombre_cientifico": "Migdolus fryanus (Cerambycidae)",
+      "severidad_potencial": "alta",
+      "organo": ["raiz", "rizoma"],
+      "estadio_cultivo": ["larva (subterraneo)"],
+      "signo": "Larvas en el suelo/rizoma, orificios en raices y rizomas.",
+      "sintoma": "Marchitez, amarillamiento, fallas de rebrote, muerte de touceiras en manchones; perdidas 25-30 t/ha.",
+      "confirmacion_campo": "Abrir trincheras/touceiras y contar larvas.",
+      "confusiones": [
+        { "con": "Margarodes/cochinilla de raiz", "como_diferenciar": "Son plagas distintas: Migdolus es escarabajo (larva grande); no confundir." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "relieve"], "signo_visible": true, "tipo_signo": "larva", "dano": "minador_barrenador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Preparacion de suelo; feromona; control biologico - VERIFICAR",
+      "umbral_accion": "No plenamente establecido -> VERIFICAR_LOCAL. Referencia orientativa: medidas cuando 10% de las touceiras evaluadas presentan larvas o media de 2 larvas/touceira (la fuente aclara que los niveles aun no estan definidos).",
+      "fuente_umbral": "AgroAdvance Migdolus fryanus: https://agroadvance.com.br/blog-migdolus-fryanus-cana/",
+      "fotos": [],
+      "fuentes": ["AgroAdvance"]
+    },
+    {
+      "id": "cana-coros",
+      "categoria": "plaga",
+      "subtipo": "larva_suelo",
+      "nombre_comun": "Gusanos blancos / coros",
+      "nombre_pt": "Coros / pao-de-galinha",
+      "nombre_cientifico": "Scarabaeidae/Melolonthidae (Liogenys, Dyscinetus, etc.) - especie VERIFICAR_LOCAL",
+      "severidad_potencial": "media",
+      "organo": ["raiz"],
+      "estadio_cultivo": ["larva"],
+      "signo": "Larvas en 'C' blancas en el suelo.",
+      "sintoma": "Raices comidas, marchitez y fallas de stand.",
+      "confirmacion_campo": "Trincheras de suelo para conteo.",
+      "confusiones": [
+        { "con": "Migdolus", "como_diferenciar": "Coro = larva en C tipica de escarabajo de suelo; Migdolus = larva alargada de cerambicido barrenando rizoma." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "relieve"], "signo_visible": true, "tipo_signo": "larva", "dano": "cortador_subterraneo", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Preparacion de suelo; control biologico (Metarhizium) - VERIFICAR",
+      "umbral_accion": "no establecido / VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "cana-hormiga-cortadora",
+      "categoria": "plaga",
+      "subtipo": "cortador",
+      "nombre_comun": "Hormiga cortadora",
+      "nombre_pt": "Formiga cortadeira / sauva / quenquem",
+      "nombre_cientifico": "Atta spp. y Acromyrmex spp.",
+      "severidad_potencial": "media",
+      "organo": ["hoja", "brote"],
+      "estadio_cultivo": ["cana nueva/plantio"],
+      "signo": "Fragmentos de hoja transportados, olheiros/hormigueros (sauveiros).",
+      "sintoma": "Defoliacion, sobre todo en cana joven.",
+      "confirmacion_campo": "Senderos de forrajeo + nidos activos.",
+      "confusiones": [
+        { "con": "Orugas defoliadoras", "como_diferenciar": "La hormiga corta y transporta; la oruga come in situ y deja heces." }
+      ],
+      "dd_tags": { "patron_espacial": ["borde", "foco"], "signo_visible": true, "tipo_signo": "insecto", "dano": "cortador_subterraneo", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Control de nidos con cebos formicidas - VERIFICAR",
+      "umbral_accion": "no establecido en indice numerico / VERIFICAR_LOCAL (manejo por localizacion y control de nidos)",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+
+    {
+      "id": "cana-carencia-n",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de nitrogeno",
+      "nombre_cientifico": "N",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["macollaje-crecimiento"],
+      "signo": "Ninguno.",
+      "sintoma": "Clorosis general de hojas VIEJAS, colmos delgados, menor macollaje y crecimiento.",
+      "confirmacion_campo": "Amarillamiento de hojas +1/+2 viejas; contrasta con franjas fertilizadas.",
+      "confusiones": [
+        { "con": "Raquitismo (RSD)", "como_diferenciar": "RSD da enanismo con estrias vasculares en nudos, sin patron de hoja vieja tan claro." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "cana-carencia-k",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de potasio",
+      "nombre_cientifico": "K",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["crecimiento-maduracion"],
+      "signo": "Ninguno.",
+      "sintoma": "Necrosis/quemado del borde y punta de hojas VIEJAS, moteado clorotico; K es el nutriente mas extraido por la cana.",
+      "confirmacion_campo": "Quemado marginal en hojas viejas; suelos pobres en K.",
+      "confusiones": [
+        { "con": "Deficiencia de N", "como_diferenciar": "N = clorosis general; K = borde/punta necrotico." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "cana-carencia-p",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de fosforo",
+      "nombre_cientifico": "P",
+      "severidad_potencial": "media",
+      "organo": ["hoja", "planta_entera"],
+      "estadio_cultivo": ["macollaje (temprano)"],
+      "signo": "Ninguno.",
+      "sintoma": "Hojas verde-azulado opaco, delgadas, poco macollaje, colmos finos; a veces tonos rojizos en hojas viejas.",
+      "confirmacion_campo": "Poco macollaje + hojas angostas en zonas de suelo pobre en P.",
+      "confusiones": [
+        { "con": "Estres general", "como_diferenciar": "Correlaciona con analisis de suelo bajo en P." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    }
+  ],
+  "stubs_por_curar": [
+    "cana-mancha-anillo (Leptosphaeria sacchari - identidad patogeno VERIFICAR_LOCAL)",
+    "cana-mancha-parda (Cercospora longipes - nomenclatura VERIFICAR_LOCAL)",
+    "cana-ojo-de-rana (Bipolaris sacchari)",
+    "cana-broca-gigante (Telchin licus - umbral no establecido)",
+    "cana-carencia-mg",
+    "cana-carencia-micros (Cu/Zn/Fe segun suelo)"
+  ]
+}

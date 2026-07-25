@@ -291,3 +291,83 @@ En `medicion/`, todos ejecutables y reproducibles (semillas fijas):
 | `gi_escala.py` | Gi\*+FDR a 10 / 20 / 30 m |
 | `cadena_v7_real.py` | Cadena completa coldspot ∩ Mahalanobis, df=7 vs df=2 |
 | `gi_nulo_y_estratos.py` | Control nulo con valores barajados + efecto de estratificar |
+
+---
+
+## 12. Segunda pasada (revisión de punta a punta, misma fecha)
+
+Cinco auditorías paralelas + batería de prueba y contraprueba. ~60 defectos, corregidos
+salvo lo que se lista al final.
+
+### Contrapruebas del motor, sobre la escena real del 15/07
+
+| Prueba | Resultado | Qué prueba |
+|---|---|---|
+| CT1 · escena contra sí misma | **0,0%** | el motor no inventa estructura |
+| CT2 · residuo barajado en el espacio | **0,0%** | bajo aleatoriedad espacial no marca nada |
+| CT3 · **tiempo invertido** | ver abajo | si la señal es direccional |
+
+**CT3 destapó el defecto de fondo.** Analizando el 10/07 con el 15/07 como referencia
+(o sea, mirando hacia atrás):
+
+| Capa | Hacia adelante | Hacia atrás |
+|---|---|---|
+| Prioritario | 0,63 ha | **0,00 ha** |
+| Vigilancia (antes del arreglo) | 12,31 ha | **12,50 ha** |
+| Vigilancia (después) | 4,72 ha | 2,35 ha |
+
+Una capa que marca lo mismo en las dos direcciones no es evidencia de deterioro: es la
+heterogeneidad normal entre dos escenas. Vigilancia no exigía declive. Corregido.
+
+### Límite de detección medido (fixture con anomalía inyectada)
+
+| Área inyectada | Magnitud | Detectado prioritario | Falso positivo en el campo sano |
+|---|---|---|---|
+| 10,2 ha | 100% | 10,00 ha | 0,00 ha |
+| 4,5 ha | 100% | 1,94 ha | 0,00 ha |
+| 2,0 ha | 100% | 1,64 ha | 0,00 ha |
+| **0,8 ha** | 100% | **0,00 ha** | 0,00 ha |
+| 10,2 ha | 60% | 1,84 ha | 0,00 ha |
+| 10,2 ha | **25%** | **0,00 ha** | 0,00 ha |
+
+**Piso de detección: ~2 ha a magnitud plena, ~10 ha a 40% de magnitud.** Cero falsos
+positivos en las ocho configuraciones.
+
+### El estimador de escala de PIX ALERTA — cuatro versiones
+
+Objetivo: SD(z) ≈ 1 bajo la nula. Medido sobre la campaña real de HDS.
+
+| Estimador | SD del z | Por qué falla |
+|---|---|---|
+| MAD del propio lote | — | el denominador elige el ranking |
+| Rango móvil ÷ √2 | **2,9** | supone independencia temporal; el ρ real es 0,73 |
+| Dispersión marginal de fase I | **2,9** | la heterogeneidad **crece** en la campaña |
+| **MAD transversal entre lotes, por fecha** | **1,17** | — |
+
+El control nulo también estaba ciego: permutar identidades dentro de cada fecha dejaba
+cada serie iid, o sea destruía la autocorrelación que importaba, y reportaba ~0% pasara lo
+que pasara. Ahora usa rotación circular. Resultado real: **0–3,6% marcado contra un nulo
+de 1,1%** — discriminación débil, y sin dato de campo no se puede saber si es porque la
+campaña estuvo tranquila o porque el criterio quedó poco sensible.
+
+### Coherencia operativa — lo que hay que decidir
+
+Sobre la corrida real de Santo Antonio (125 ha de área útil):
+
+- **20 focos** (5 prioritarios + 15 de vigilancia), 5,35 ha = 4,3% de la superficie.
+- **15 de los 20 miden menos de 0,25 ha** (50×50 m). Mediana: 34 m de lado en prioritario,
+  43 m en vigilancia.
+- AAPRESID recomienda **1 estación cada 10-15 ha** → para 125 ha son 8-12 estaciones.
+  El motor entrega **2× esa densidad**.
+
+Y hay una incoherencia interna: el test espacial corre a **10 m** (la especificación pide
+agregar a 20-30 m antes de testear) mientras la MMU de vectorización es `MIN_HA = 0.05` =
+**5 píxeles de 10 m**. Si el test se agregara a 20-30 m como corresponde, esos 500 m²
+serían 1,2 unidades — por debajo de cualquier MMU razonable. **Las dos decisiones hay que
+tomarlas juntas**: agregar el test a 20-30 m y subir la MMU a ~0,2-0,3 ha.
+
+### Cadena completa verificada de punta a punta
+
+20 focos emitidos por el pipeline → 20 cargados por la app → 20 en el registro guardado,
+**todos con `focoIdEstable: true`**, con `estrato` y `fechaImg`. El perímetro viaja en el
+mismo archivo (2 anillos) y la app lo usa para encuadrar el mapa. El ID sobrevive el viaje.

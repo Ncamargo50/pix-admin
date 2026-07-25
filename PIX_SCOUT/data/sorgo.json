@@ -1,0 +1,391 @@
+{
+  "cultivo": "sorgo",
+  "region": "Bolivia / Brasil",
+  "nota_curaduria": "Umbrales MIP con fuente citada. Casi todos los umbrales publicados son de EEUU (Texas A&M, UGA) o estudios puntuales, NO calibrados para Bolivia/Brasil -> VERIFICAR_LOCAL. Fotos con licencia verificada archivo por archivo (Wikimedia Commons/Bugwood/CSIRO); resto PENDIENTE_CURAR.",
+  "fichas": [
+    {
+      "id": "sorgo-antracnosis",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar_tallo",
+      "nombre_comun": "Antracnosis",
+      "nombre_pt": "Antracnose",
+      "nombre_cientifico": "Colletotrichum sublineola (Glomerella graminicola)",
+      "severidad_potencial": "muy_alta",
+      "organo": ["hoja", "tallo", "panicula", "grano"],
+      "estadio_cultivo": ["30-40 dias tras emergencia (foliar); post-floracion (colmo)"],
+      "signo": "Acervulos con setas oscuras; centros de lesion color paja con puntos (masa de conidios).",
+      "sintoma": "Lesiones elipticas a circulares de hasta 5 mm, centro pajizo con margenes rojizos/anaranjados/purpura segun cultivar; en colmo, podredumbre interna rojiza.",
+      "confirmacion_campo": "Buscar acervulos/setas en el centro de la lesion (lupa); rayado rojizo del colmo al partirlo.",
+      "confusiones": [
+        { "con": "Roya", "como_diferenciar": "La roya forma pustulas pulverulentas que sueltan polvo; la antracnosis no." },
+        { "con": "Mancha zonada", "como_diferenciar": "La zonada tiene bandas concentricas; la antracnosis no." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "foco"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Cultivares resistentes; rotacion; fungicida - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Anthracnose_on_Sweet_sorghum.jpg", "muestra": "Lesion foliar de antracnosis en sorgo dulce", "licencia": "CC BY 3.0 AU", "autor": "Photchana Trakunsukharat, Dept. of Agriculture, Thailand" }
+      ],
+      "fuentes": ["Embrapa Circular 117 (controle quimico da antracnose do sorgo): https://www.infoteca.cnptia.embrapa.br/bitstream/doc/658621/1/Circ117.pdf"]
+    },
+    {
+      "id": "sorgo-roya",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Roya del sorgo",
+      "nombre_pt": "Ferrugem",
+      "nombre_cientifico": "Puccinia purpurea",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["post-floracion (mas severa)"],
+      "signo": "Pustulas (uredinios) de ~2 mm, paralelas entre las nervaduras, en el enves.",
+      "sintoma": "Pustulas pulverulentas color purpura/rojo/amarillo/castano segun pigmentacion del cultivar; empieza por hojas bajeras.",
+      "confirmacion_campo": "Frotar la lesion: desprende polvo de urediniosporas.",
+      "confusiones": [
+        { "con": "Antracnosis", "como_diferenciar": "Antracnosis = lesion con acervulos, no suelta polvo; roya = pustula pulverulenta." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "foco"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Cultivares resistentes; fungicida - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Puccinia_purpurea.jpg", "muestra": "Roya (Puccinia purpurea) sobre Sorghum bicolor", "licencia": "CC BY-SA 3.0", "autor": "David C. Novell (EcoPort)" }
+      ],
+      "fuentes": ["Embrapa Circular 89 (manejo de doencas do sorgo): https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/486484/1/Circ89.pdf"]
+    },
+    {
+      "id": "sorgo-mildiu",
+      "categoria": "enfermedad",
+      "subtipo": "oomiceto_sistemico",
+      "nombre_comun": "Mildiu velloso",
+      "nombre_pt": "Mildio",
+      "nombre_cientifico": "Peronosclerospora sorghi",
+      "severidad_potencial": "alta",
+      "organo": ["hoja", "planta_entera"],
+      "estadio_cultivo": ["infeccion temprana desde suelo (oosporas)"],
+      "signo": "Esporulacion blanca en el enves en mananas humedas; oosporas entre haces vasculares.",
+      "sintoma": "Estrias cloroticas/verdes paralelas; desgarro del tejido foliar liberando oosporas ('shredding'). Danos hasta 80% en cultivares susceptibles.",
+      "confirmacion_campo": "Estrias longitudinales sistemicas + enves con felpa blanca al amanecer.",
+      "confusiones": [
+        { "con": "Deficiencia de Fe/Zn", "como_diferenciar": "El mildiu da estrias netas + esporulacion blanca; la carencia es internervial sin felpa." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "foco"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Cultivares resistentes; tratamiento de semilla (metalaxil) - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa Circular 169: https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/912818/4/circ169.pdf"]
+    },
+    {
+      "id": "sorgo-ergot",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_panicula",
+      "nombre_comun": "Ergot / enfermedad azucarada",
+      "nombre_pt": "Ergot / doenca acucarada",
+      "nombre_cientifico": "Claviceps africana (Sphacelia sorghi)",
+      "severidad_potencial": "alta",
+      "organo": ["panicula", "flor"],
+      "estadio_cultivo": ["antesis (floracion)"],
+      "signo": "Exudado de gotas espesas ('mielato') rosado a castano desde ovarios infectados, cargado de esporas; luego esfacelia dura.",
+      "sintoma": "Paniculas con secrecion melosa pegajosa; granos no cuajan (reemplazados por esclerocios/esfacelia). Severa con HR >80% y ~19C en floracion.",
+      "confirmacion_campo": "Mielato azucarado y pegajoso en flores; hollin/moho sobre el mielato.",
+      "confusiones": [
+        { "con": "Melaza de afidos (honeydew)", "como_diferenciar": "El de Claviceps sale del ovario/flor; el de afidos, de colonias en hojas." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "foco"], "signo_visible": true, "tipo_signo": "estructura_fungica", "organo": "espiga_vaina_grano", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Sincronizar floracion; cultivares; fungicida en floracion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa Comunicado 114: https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/488729/1/Com114.pdf"]
+    },
+    {
+      "id": "sorgo-mancha-zonada",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Mancha zonada",
+      "nombre_pt": "Mancha zonada",
+      "nombre_cientifico": "Gloeocercospora sorghi",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["plantas jovenes ~45-80 dias"],
+      "signo": "Esclerocios (puntos oscuros pequenos) en la lesion; salpicadura desde el suelo.",
+      "sintoma": "Manchas circulares con bandas concentricas (anillos) alternando rojo/purpura y beige/canela (aspecto de diana).",
+      "confirmacion_campo": "El patron de 'diana'/bandas concentricas es distintivo.",
+      "confusiones": [
+        { "con": "Antracnosis", "como_diferenciar": "Antracnosis sin bandas concentricas." },
+        { "con": "Mancha por Exserohilum", "como_diferenciar": "Exserohilum = lesiones alargadas, no concentricas." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "foco"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Rotacion; cultivares - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Herbario Virtual Fitopatologia FAUBA: https://herbariofitopatologia.agro.uba.ar/?page_id=22853"]
+    },
+    {
+      "id": "sorgo-mancha-foliar-turcicum",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_foliar",
+      "nombre_comun": "Mancha foliar / helmintosporiosis",
+      "nombre_pt": "Helmintosporiose / mancha foliar",
+      "nombre_cientifico": "Exserohilum turcicum (Setosphaeria turcica)",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["post-floracion, clima fresco y humedo"],
+      "signo": "Esporulacion oscura (aterciopelada) sobre la lesion en alta humedad.",
+      "sintoma": "Lesiones necroticas alargadas, elipticas, grisaceo-castanas (aspecto 'de cigarro'), siguiendo el eje foliar.",
+      "confirmacion_campo": "Lesion elongada larga (varios cm) vs las cortas de antracnosis/roya.",
+      "confusiones": [
+        { "con": "Mancha zonada", "como_diferenciar": "Zonada = concentrica; turcicum = alargada." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "Cultivares; rotacion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Embrapa Circular 89 (descripcion morfologica especifica: VERIFICAR_LOCAL)"]
+    },
+    {
+      "id": "sorgo-podredumbre-tallo",
+      "categoria": "enfermedad",
+      "subtipo": "fungica_tallo",
+      "nombre_comun": "Podredumbres de tallo/colmo",
+      "nombre_pt": "Podridoes do colmo",
+      "nombre_cientifico": "Macrophomina phaseolina / Fusarium spp.",
+      "severidad_potencial": "alta",
+      "organo": ["tallo", "raiz"],
+      "estadio_cultivo": ["post-polinizacion (estres hidrico/calor)"],
+      "signo": "Microesclerocios negros diminutos sobre los haces (aspecto gris 'carbon') en Macrophomina; coloracion rojiza/rosada interna en Fusarium.",
+      "sintoma": "Medula desintegrada dejando solo haces; base del tallo esponjosa/flexible; acame ('lodging'); maduracion forzada.",
+      "confirmacion_campo": "Abrir el colmo basal: medula deshilachada con puntos negros (Macrophomina) o rosado (Fusarium).",
+      "confusiones": [
+        { "con": "Antracnosis del colmo", "como_diferenciar": "Antracnosis = rayado rojizo; Macrophomina = puntos negros/gris." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": true, "tipo_signo": "estructura_fungica", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Manejo de estres hidrico; densidad; cultivares - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": ["Agrolink; Embrapa Podridoes do Colmo e das Raizes"]
+    },
+
+    {
+      "id": "sorgo-pulgon-amarillo",
+      "categoria": "plaga",
+      "subtipo": "picador_succionador",
+      "nombre_comun": "Pulgon amarillo del sorgo / de la cana",
+      "nombre_pt": "Pulgao-da-cana / pulgao-do-sorgo",
+      "nombre_cientifico": "Melanaphis sacchari",
+      "severidad_potencial": "muy_alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["todo el ciclo, critico vegetativo-floracion"],
+      "signo": "Colonias densas en el enves + honeydew brillante + fumagina (moho negro).",
+      "sintoma": "Amarilleo, secado foliar, granos con fumagina, contaminacion de cosecha (melaza pegajosa que traba la cosechadora).",
+      "confirmacion_campo": "Contar afidos por hoja en el enves; buscar melaza brillante y fumagina.",
+      "confusiones": [
+        { "con": "Pulgon verde (Schizaphis)", "como_diferenciar": "Melanaphis = amarillo con melaza masiva; Schizaphis inyecta toxina y da manchas rojizas." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "insecto", "dano": "picador_succionador", "distribucion_planta": "ascendente", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (coccinelidos, sirfidos, parasitoides); hibridos tolerantes - VERIFICAR",
+      "umbral_accion": "Umbral economico ~40 afidos/hoja en hibridos susceptibles (algunos manejos tratan >=50/hoja). Calibrado EEUU -> VERIFICAR_LOCAL.",
+      "fuente_umbral": "Gordy et al. 2019 J. Econ. Entomol.: https://pubmed.ncbi.nlm.nih.gov/30816948/ ; Brewer et al. 2018: https://pubmed.ncbi.nlm.nih.gov/29955822/",
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Melanaphis_sacchari_from_CSIRO.jpg", "muestra": "Afido Melanaphis sacchari", "licencia": "Dominio publico", "autor": "CSIRO (Australia)" }
+      ],
+      "fuentes": ["Gordy et al. 2019; Brewer et al. 2018"]
+    },
+    {
+      "id": "sorgo-cogollero",
+      "categoria": "plaga",
+      "subtipo": "oruga_cogollo",
+      "nombre_comun": "Gusano cogollero",
+      "nombre_pt": "Lagarta-do-cartucho",
+      "nombre_cientifico": "Spodoptera frugiperda",
+      "severidad_potencial": "alta",
+      "organo": ["cogollo", "hoja"],
+      "estadio_cultivo": ["critico hasta 8-10 hojas"],
+      "signo": "Aserrin/frass humedo en el cogollo; larva con 'Y' invertida en la cabeza y 4 puntos en el 8vo segmento.",
+      "sintoma": "Raspaduras ('ventanas'), perforaciones alineadas en hojas, destruccion del cogollo. Perdidas 17-38,7%.",
+      "confirmacion_campo": "Escala de dano de Davis (nota); muestreo de plantas con dano.",
+      "confusiones": [
+        { "con": "Otras Spodoptera", "como_diferenciar": "Confirmar por 'Y' invertida cefalica + 4 puntos." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "larva", "dano": "masticador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (Bt, Baculovirus, Trichogramma); MIP - VERIFICAR",
+      "umbral_accion": "Nivel de control = 20% de plantas con nota >=3 en escala Davis. (Embrapa, sorgo forrajero.) VERIFICAR_LOCAL en Bolivia.",
+      "fuente_umbral": "Embrapa Milho e Sorgo: https://www.embrapa.br/en/busca-de-noticias/-/noticia/41309956/manejo-da-lagarta-do-cartucho-no-sorgo-forrageiro-pode-associar-controles-biologico-e-quimico",
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Spodoptera_frugiperda_caterpillar01.jpg", "muestra": "Larva de S. frugiperda", "licencia": "CC BY 3.0 US", "autor": "Frank Peairs, Colorado State University, Bugwood.org" }
+      ],
+      "fuentes": ["Embrapa Milho e Sorgo"]
+    },
+    {
+      "id": "sorgo-midge",
+      "categoria": "plaga",
+      "subtipo": "mosca_panicula",
+      "nombre_comun": "Mosca del panojo / midge",
+      "nombre_pt": "Mosca-do-sorgo",
+      "nombre_cientifico": "Stenodiplosis sorghicola (Contarinia sorghicola)",
+      "severidad_potencial": "alta",
+      "organo": ["panicula", "flor", "grano"],
+      "estadio_cultivo": ["SOLO panicula en antesis"],
+      "signo": "Mosca adulta anaranjada pequena sobre paniculas en flor a media manana; pupas blancas en glumas.",
+      "sintoma": "Espiguillas vanas, granos no cuajados. Una hembra/panicula destruye ~1,5 g (42-48 granos) en susceptible.",
+      "confirmacion_campo": "Contar adultos por panicula a media manana durante la floracion.",
+      "confusiones": [
+        { "con": "Ergot", "como_diferenciar": "Ergot da mielato pegajoso; el midge no exuda, deja espiguilla vana con pupa." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso"], "signo_visible": true, "tipo_signo": "insecto", "dano": "minador_barrenador", "organo": "espiga_vaina_grano", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "Sincronizar floracion; cultivares resistentes; control en floracion - VERIFICAR",
+      "umbral_accion": "1 adulto por panicula cuando 20-30% de las paniculas estan en floracion. EIL formal M=C*33.256/(V*F). Calibrado EEUU -> VERIFICAR_LOCAL.",
+      "fuente_umbral": "UGA CAES B1283: https://fieldreport.caes.uga.edu/publications/B1283/sorghum-insect-pests-and-their-management/ ; EIL Southwestern Entomologist 32(2):75",
+      "fotos": [],
+      "fuentes": ["UGA Sorghum Insect Pests B1283"]
+    },
+    {
+      "id": "sorgo-pulgon-verde",
+      "categoria": "plaga",
+      "subtipo": "picador_succionador",
+      "nombre_comun": "Pulgon verde de los cereales",
+      "nombre_pt": "Pulgao-verde",
+      "nombre_cientifico": "Schizaphis graminum",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["critico en plantula (puede matarla)"],
+      "signo": "Colonias en el enves; manchas cloroticas/rojizas alrededor del sitio de alimentacion.",
+      "sintoma": "Manchas necroticas rojizas, secado desde bordes, muerte de plantulas, menos macollos fertiles. Inyecta toxina fitotoxica y transmite virus.",
+      "confirmacion_campo": "Buscar colonias en el enves + halo clorotico/rojizo (toxina).",
+      "confusiones": [
+        { "con": "Pulgon amarillo (Melanaphis)", "como_diferenciar": "Schizaphis da halo toxico rojizo; Melanaphis da melaza masiva sin toxina." }
+      ],
+      "dd_tags": { "patron_espacial": ["foco", "difuso"], "signo_visible": true, "tipo_signo": "insecto", "dano": "picador_succionador", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (Doru luteipes, coccinelidos); hibridos - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL (umbrales de EEUU por tamano de planta, variables; no establecido para Sudamerica)",
+      "fuente_umbral": "Michaud et al. 2015 J. IPM 6(1): https://academic.oup.com/jipm/article/6/1/19/2936986",
+      "fotos": [
+        { "url": "https://commons.wikimedia.org/wiki/File:Schizaphis_graminum_adults_on_sorghum_bicolor.jpg", "muestra": "Adultos de S. graminum sobre sorgo con coloracion foliar tipica", "licencia": "CC BY 3.0 US", "autor": "Alton N. Sparks, Jr., University of Georgia, Bugwood.org" }
+      ],
+      "fuentes": ["Michaud et al. 2015"]
+    },
+    {
+      "id": "sorgo-chinches-panicula",
+      "categoria": "plaga",
+      "subtipo": "chinche",
+      "nombre_comun": "Chinches de la panicula",
+      "nombre_pt": "Percevejos da panicula",
+      "nombre_cientifico": "Nezara viridula / Euschistus heros / Oebalus spp. / Leptoglossus zonatus",
+      "severidad_potencial": "alta",
+      "organo": ["grano"],
+      "estadio_cultivo": ["llenado de grano"],
+      "signo": "Chinches sobre paniculas; punciones en granos.",
+      "sintoma": "Granos manchados, chupados, reducidos; hasta 59,5% de perdida de peso y >98% de perdida de germinacion en semilla.",
+      "confirmacion_campo": "Batir la panicula/observacion directa; contar chinches por panicula.",
+      "confusiones": [
+        { "con": "Midge", "como_diferenciar": "Chinche pica el grano formado; midge dana en floracion desde adentro." }
+      ],
+      "dd_tags": { "patron_espacial": ["borde", "difuso"], "signo_visible": true, "tipo_signo": "insecto", "dano": "picador_succionador", "organo": "espiga_vaina_grano", "distribucion_planta": "localizado", "gradiente_hoja": null },
+      "manejo_ref": "skill:biocontrol-plagas (parasitoides de huevo); MIP - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL (no establecido especifico para sorgo en Brasil)",
+      "fuente_umbral": "Embrapa Pragas da Panicula (Waquil): https://ainfo.cnptia.embrapa.br/digital/bitstream/item/27492/1/Pragas-Panicula.pdf",
+      "fotos": [],
+      "fuentes": ["Embrapa Pragas da Panicula"]
+    },
+
+    {
+      "id": "sorgo-carencia-n",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de nitrogeno",
+      "nombre_cientifico": "N",
+      "severidad_potencial": "alta",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["vegetativo"],
+      "signo": "Ninguno.",
+      "sintoma": "Clorosis en 'V' desde la punta de hojas VIEJAS; planta palida, poco vigor.",
+      "confirmacion_campo": "Amarillamiento en V de bajeras; contrasta con franjas fertilizadas.",
+      "confusiones": [
+        { "con": "Deficiencia de S", "como_diferenciar": "S en hojas NUEVAS; N en VIEJAS." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "sorgo-carencia-p",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de fosforo",
+      "nombre_cientifico": "P",
+      "severidad_potencial": "media",
+      "organo": ["hoja", "planta_entera"],
+      "estadio_cultivo": ["temprano"],
+      "signo": "Ninguno.",
+      "sintoma": "Tonos purpuras/rojizos en hojas VIEJAS, planta chica, retraso.",
+      "confirmacion_campo": "Purpura persistente en suelo pobre/frio.",
+      "confusiones": [
+        { "con": "Frio", "como_diferenciar": "El purpura por frio remite con calor." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "sorgo-carencia-k",
+      "categoria": "carencia",
+      "subtipo": "macronutriente_movil",
+      "nombre_comun": "Deficiencia de potasio",
+      "nombre_cientifico": "K",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["vegetativo-reproductivo"],
+      "signo": "Ninguno.",
+      "sintoma": "Necrosis del borde/punta de hojas VIEJAS, tallos debiles.",
+      "confirmacion_campo": "Quemado marginal en bajeras; suelos pobres en K.",
+      "confusiones": [
+        { "con": "Deficiencia de N", "como_diferenciar": "N = V central; K = borde marginal." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "vieja_a_nueva", "distribucion_planta": "ascendente" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    },
+    {
+      "id": "sorgo-carencia-fe-zn",
+      "categoria": "carencia",
+      "subtipo": "micronutriente_inmovil",
+      "nombre_comun": "Deficiencia de hierro/zinc",
+      "nombre_cientifico": "Fe/Zn",
+      "severidad_potencial": "media",
+      "organo": ["hoja"],
+      "estadio_cultivo": ["temprano"],
+      "signo": "Ninguno.",
+      "sintoma": "Clorosis internervial en hojas NUEVAS (nervaduras verdes); estrias cloroticas. Frecuente en suelos calcareos/pH alto.",
+      "confirmacion_campo": "Internervial del brote; el sorgo es sensible a clorosis ferrica en suelos calcareos.",
+      "confusiones": [
+        { "con": "Mildiu", "como_diferenciar": "Mildiu da felpa blanca en enves; la carencia no tiene signo." }
+      ],
+      "dd_tags": { "patron_espacial": ["difuso", "relieve"], "signo_visible": false, "tipo_signo": "ninguno", "gradiente_hoja": "nueva", "distribucion_planta": "localizado" },
+      "manejo_ref": "skill:interpretacion-suelos, recomendacion-fertilizacion - VERIFICAR (revisar pH/carbonatos)",
+      "umbral_accion": "VERIFICAR_LOCAL",
+      "fuente_umbral": null,
+      "fotos": [],
+      "fuentes": []
+    }
+  ],
+  "stubs_por_curar": [
+    "sorgo-barrenador-diatraea (Diatraea saccharalis - umbral no establecido)",
+    "sorgo-mancha-gris-cercospora",
+    "sorgo-carencia-s",
+    "sorgo-carencia-mg"
+  ]
+}

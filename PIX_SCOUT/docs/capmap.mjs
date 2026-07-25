@@ -1,0 +1,15 @@
+import puppeteer from 'puppeteer-core';
+const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const b = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox','--disable-gpu','--hide-scrollbars'] });
+const ctx = await b.createBrowserContext();
+const p = await ctx.newPage();
+await p.setViewport({ width: 390, height: 860, deviceScaleFactor: 2 });
+const errs = [];
+p.on('pageerror', e => errs.push(String(e)));
+p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+await p.goto('http://localhost:9301/index.html?demo=mapa', { waitUntil: 'networkidle0', timeout: 20000 });
+await p.waitForSelector('#scoutcanvas', { timeout: 12000 });
+await new Promise(r => setTimeout(r, 1400));
+await p.screenshot({ path: 'shots/11_mapa.png' });
+console.log('errores JS:', errs.length ? errs.slice(0, 6) : 'ninguno');
+await b.close();
