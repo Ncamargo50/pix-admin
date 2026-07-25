@@ -130,11 +130,16 @@ def app_de_campo():
         import re
         m = re.search(k + r":\s*'([^']*)'", s)
         return m.group(1) if m else None
+    # El canal real es WhatsApp: el administrador manda el GeoJSON y el tecnico lo abre
+    # con "Abrir mapa". La descarga automatica es opcional, asi que NO es bloqueante.
+    # Marcarla como falta hacia que el chequeo dijera "no esta lista" cuando si lo esta,
+    # y un chequeo que avisa de mas se termina ignorando.
     if val('FOCOS_ENDPOINT'):
         chk(OK, 'La app baja los focos sola', val('FOCOS_ENDPOINT')[:60])
     else:
-        chk(FALTA, 'La app baja los focos sola', 'FOCOS_ENDPOINT vacio',
-            'apuntarlo a entregas/{campo}/ultimo y recompilar el APK (ver NUBE.md)')
+        chk(AVISO, 'Descarga automatica de focos',
+            'sin configurar. No hace falta: el mapa se manda por WhatsApp y el tecnico '
+            'lo abre con "Abrir mapa" (APK 1.0.10+)')
     if val('SUPABASE_URL'):
         chk(OK, 'Lo que registra el tecnico vuelve al servidor')
     else:
