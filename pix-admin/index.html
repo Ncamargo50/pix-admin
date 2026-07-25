@@ -74,6 +74,9 @@
         <div class="nav-group-items">
           <button class="nav-sub-link" data-view="manage-clients" onclick="admin.showView('manage-clients')">Clientes</button>
           <button class="nav-sub-link" data-view="gis-dashboard" onclick="admin.showView('gis-dashboard')">Lotes / Perímetros (GIS)</button>
+          <button class="nav-sub-link" data-view="field-delineation" onclick="admin.showView('field-delineation')">
+            <span style="display:flex;align-items:center;gap:6px">Cadastro AI (auto)<span class="nav-pro-badge" style="background:#7FD633;color:#000;font-size:9px;padding:1px 5px;border-radius:4px">NEW</span></span>
+          </button>
         </div>
       </div>
 
@@ -909,6 +912,19 @@
           <div class="panel-section" id="relationMapLegend"></div>
           <div class="panel-section" id="relationMapStats"></div>
         </div>
+      </div>
+
+      <!-- ===== CADASTRO AI - Field Delineation (auto-detect + boundary refinement) ===== -->
+      <div id="view-field-delineation" class="view-fullmap" style="display:flex;flex-direction:column;background:var(--dark)">
+        <div id="fieldDelineationStatus" style="padding:8px 14px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:10px;background:var(--dark-2);border-bottom:1px solid var(--border);flex-shrink:0">
+          <div id="fieldDelineationStatusDot" style="width:9px;height:9px;border-radius:50%;background:#aaa;flex-shrink:0"></div>
+          <strong style="color:var(--text)">Cadastro AI</strong>
+          <span id="fieldDelineationStatusText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Verificando servicio local...</span>
+          <span style="font-size:10px;color:var(--text-dim);flex-shrink:0">
+            ¿No arranca? <code style="background:var(--dark);padding:2px 6px;border-radius:3px;color:#9eb;font-size:10px">start_pixadvisor_services.bat</code>
+          </span>
+        </div>
+        <iframe id="fieldDelineationIframe" src="about:blank" style="flex:1;width:100%;border:0;background:var(--dark);min-height:0" title="Pixadvisor Field Delineation"></iframe>
       </div>
 
       <!-- ===== MANAGEMENT ZONES v3 (Full-screen wizard) ===== -->

@@ -1,7 +1,7 @@
 // PIX Admin - Service Worker for PWA
 // Auto-version: bump BUILD_TS on each deploy to invalidate cache.
 // For manual deploys: update BUILD_TS below. For CI: replace with build timestamp.
-const BUILD_TS = '2026-03-29T20';
+const BUILD_TS = '2026-05-01T16-field-delineation';
 const CACHE_NAME = `pix-admin-${BUILD_TS}`;
 
 const STATIC_ASSETS = [

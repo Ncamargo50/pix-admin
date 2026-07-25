@@ -206,7 +206,7 @@ class PixAdmin {
 
   _expandParentGroup(viewName) {
     const viewGroupMap = {
-      'manage-clients': 'cadastro-group', 'gis-dashboard': 'cadastro-group',
+      'manage-clients': 'cadastro-group', 'gis-dashboard': 'cadastro-group', 'field-delineation': 'cadastro-group',
       'management-zones': 'field-group', 'sampling-points': 'field-group', 'service-orders': 'field-group', 'samples': 'field-group',
       'soil': 'soil-group', 'soil-interpretation': 'soil-group', 'soil-relationships': 'soil-group', 'soil-amendments': 'soil-group',
       'leaf': 'leaf-group', 'leaf-dris': 'leaf-group', 'leaf-cross': 'leaf-group',
@@ -253,6 +253,7 @@ class PixAdmin {
       'leaf-dris': ['DRIS / IBN', 'Diagnóstico integrado de balance nutricional'],
       'leaf-cross': ['Diagnóstico Cruzado', 'Comparación suelo vs. hoja'],
       'gis-dashboard': ['GIS Dashboard', 'Mapas profesionales de fertilidad, zonas y prescripción'],
+      'field-delineation': ['Cadastro AI de Lotes', 'Auto-detección de área útil + refinamiento de perímetros (Sentinel-2 + Delineate Anything)'],
       'nutrient-maps': ['Mapas de Nutrientes', 'Interpolación geoespacial'],
       'relation-maps': ['Mapas de Relaciones', 'Ca/Mg, Ca/K, Mg/K geoespacial'],
       'management-zones': ['Zonas de Manejo PRO v3', 'Multi-variable, temporal, planialtimetría y flujo de agua'],
@@ -297,6 +298,7 @@ class PixAdmin {
       this._initingMap.relation = true;
       setTimeout(() => { this.initRelationMap(); this._initingMap.relation = false; }, 100);
     }
+    if (viewName === 'field-delineation') this._initFieldDelineation();
     if (viewName === 'management-zones') {
       if (!this.maps.mz && !this._initingMap?.mz) {
         this._initingMap = this._initingMap || {};
@@ -2907,6 +2909,44 @@ class PixAdmin {
   // ===== COLLABORATOR MANAGEMENT (via PIX User API — port 9105) =====
 
   _userApiUrl = 'http://localhost:9105';
+  _fieldApiUrl = 'http://localhost:8765';
+
+  async _initFieldDelineation() {
+    const dot = document.getElementById('fieldDelineationStatusDot');
+    const txt = document.getElementById('fieldDelineationStatusText');
+    const iframe = document.getElementById('fieldDelineationIframe');
+    if (!dot || !txt || !iframe) return;
+    if (this._fieldDelineationInited) return;
+
+    dot.style.background = '#ffb547';
+    txt.textContent = 'Verificando servicio en localhost:8765...';
+    try {
+      const r = await fetch(this._fieldApiUrl + '/health', {signal: AbortSignal.timeout(3000)});
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      dot.style.background = '#7FD633';
+      txt.innerHTML = `Conectado a Field API v${j.version} — modelos: ${Object.entries(j.weights_available).filter(([_,v])=>v).map(([k])=>k).join(', ') || 'ninguno'}`;
+      iframe.src = this._fieldApiUrl + '/widget';
+      this._fieldDelineationInited = true;
+      // Bridge: cuando el widget guarda lote, recibir el evento via postMessage si el widget lo emite
+      window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'lot_saved') {
+          this.notify(`Lote "${e.data.lot.name}" cadastrado: ${e.data.lot.area_ha} ha (${e.data.lot.useful_area_ha} ha útil)`, 'success');
+        }
+      });
+    } catch (e) {
+      dot.style.background = '#ef5350';
+      txt.innerHTML = `<strong style="color:#ef5350">Service offline</strong> — ejecutá <code style="background:#0c1014;padding:2px 6px;border-radius:3px;color:#aacf91">D:\\PIXADVISOR_AGENT_WORKSPACE\\POC_FIELD_BOUNDARY\\start_api.bat</code> y refrescá esta vista`;
+      iframe.src = 'about:blank';
+    }
+  }
+
+  notify(msg, level='info') {
+    // Fallback a console + alert si no hay sistema de notificaciones
+    console.log(`[${level}]`, msg);
+    if (typeof this._showToast === 'function') this._showToast(msg, level);
+    else if (level === 'error') alert(msg);
+  }
 
   async renderCollaborators() {
     const container = document.getElementById('collaboratorsList');
