@@ -98,6 +98,17 @@ INSTALAR (sideload)
 4. La app abre en el MAPA con los focos reales de Santo Antonio + perímetro.
 
 --------------------------------------------------------------------------
+v1.0.9 (versionCode 9) — 2026-07-24
+  Alineacion de version: build.gradle decia 1.0.8 mientras config.js y sw.js ya
+  estaban en 1.0.9/v14. El APK habria dicho 1.0.8 por fuera y 1.0.9 por dentro.
+  NUEVO · umbral.js: `supera_umbral` pasa de OPINION del tecnico a CALCULO trazable,
+       y el veredicto SIEMPRE viaja con `comparable_con_mip`. Con muestreo dirigido la
+       salida es 'referencia', nunca 'supera el umbral, aplicar'.
+  FIX  · el cultivo y la hacienda salen del GeoJSON, no de un default fijo a
+       Santo Antonio/trigo. Antes, cargando lotes de soya, la app abria el banco de
+       fichas de TRIGO: el tecnico habria buscado royas de trigo en un lote de soya.
+  Verificacion del paquete compilado: 24/24 (pix-scout-apk/verificar_apk.py).
+
 v1.0.5 (versionCode 6) — 2026-07-24
   NUEVO · MODO CIEGO conmutable (config.js MODO_CIEGO). Con el encendido, el tecnico
        NO ve severidad, score, nivel, clase ni SI antes de registrar — el SI es la
