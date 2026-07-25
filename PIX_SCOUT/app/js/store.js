@@ -54,12 +54,24 @@ window.Store = (function(){
           const r=await fetch(cfg.SUPABASE_URL+'/rest/v1/'+cfg.VALIDACIONES_TABLE+'?on_conflict=id',{
             method:'POST', signal:ctrl.signal,
             headers:{'Content-Type':'application/json','apikey':cfg.SUPABASE_ANON_KEY,
-                     'Authorization':'Bearer '+cfg.SUPABASE_ANON_KEY,'Prefer':'return=minimal,resolution=merge-duplicates'},
+                     // ignore-duplicates, NO merge-duplicates: la tabla es append-only y la
+                     // anon key viaja dentro del APK, asi que el servidor no da UPDATE a
+                     // nadie. Un merge exigiria ese permiso y todo reintento daria 403.
+                     // Ademas es lo correcto: una validacion de campo es un dato observado,
+                     // reenviarla tras un timeout debe ser no-op, no sobrescribir.
+                     'Authorization':'Bearer '+cfg.SUPABASE_ANON_KEY,'Prefer':'return=minimal,resolution=ignore-duplicates'},
             body:JSON.stringify(sanitize(v))
           });
           clearTimeout(to);
           if(r.ok){ await markSynced(v.id); sent++; }
-          else if(console&&console.warn) console.warn('sync '+v.id+' HTTP '+r.status);
+          else if(console&&console.warn){
+            // Un 4xx que no es 429 no se arregla reintentando: es esquema o permisos.
+            // Sin el cuerpo del error, un PGRST204 (columna que no existe) se ve igual
+            // que "no hay señal" y la cola se llena en silencio.
+            const cuerpo=await r.text().catch(()=>'');
+            const permanente = r.status>=400 && r.status<500 && r.status!==429;
+            console.warn('sync '+v.id+' HTTP '+r.status+(permanente?' [PERMANENTE, no se arregla solo]':' [reintentable]')+' '+cuerpo.slice(0,300));
+          }
         }catch(e){ /* queda en cola, se reintenta */ }
       }
     } finally { syncing=false; }
