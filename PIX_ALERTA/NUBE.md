@@ -49,6 +49,21 @@ programada que nadie está mirando, cuesta una campaña.
 
 ---
 
+## Publicar cambios al repositorio de la nube
+
+El código vive en **un solo lugar**: este workspace. El repo de despliegue
+(`Ncamargo50/pixadvisor-monitor`, privado) es una copia derivada que se regenera sola:
+
+```bash
+bash PIX_ALERTA/scripts/publicar_repo.sh
+```
+
+Usa `git subtree split`, así que no hay dos copias que se puedan desincronizar. Es
+exactamente el defecto que la auditoría encontró en pix-admin: código bifurcado entre lo
+desplegado y lo local, con rutas rotas en producción porque nadie sabía cuál era la buena.
+
+---
+
 ## Puesta en marcha (una sola vez)
 
 **1. Crear el repositorio.** Tiene que ser **privado**: lleva geometrías de campos de
