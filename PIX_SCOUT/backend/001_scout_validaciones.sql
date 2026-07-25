@@ -59,6 +59,13 @@ create table if not exists public.scout_validaciones (
   -- analisis concluye que hace falta aplicar mas de lo que hace falta.
   umbral_comparable_mip boolean,
   umbral_regla      text,                      -- JSON de la regla aplicada (valor/operador/unidad)
+  -- PUERTA 4.3 — ciego auditable. `registro_a_ciegas` es la unica columna con la que se
+  -- puede DEMOSTRAR, al cierre de la campaña, que el tecnico no vio el nivel de alerta
+  -- antes de registrar. Un ciego que se confia al procedimiento no lo puede verificar
+  -- un tercero, y una campaña que no se puede auditar no prueba nada.
+  modo_ciego        boolean,                   -- estaba encendido al registrar
+  estrato_visto_en  text,                      -- cuando la pantalla revelo el estrato (ISO), o null
+  registro_a_ciegas boolean,                   -- ciego encendido Y estrato nunca revelado
   coincide          text,
   -- 'dirigido_satelital': el satelite eligio el sitio (el peor punto del lote). El umbral
   -- MIP esta calibrado sobre muestreo REPRESENTATIVO: este conteo no es comparable con el.

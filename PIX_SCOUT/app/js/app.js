@@ -58,9 +58,17 @@ function activeFoci(){ return LOADED_FOCI || (CFG.DEMO_FOCOS ? D.focos : []); }
 // antes de registrar. Sin esto el registro negativo no mide nada: el que sabe que va
 // a un rojo encuentra algo. Ver ESPECIFICACION.md §3 y §4.
 const CIEGO = !!CFG.MODO_CIEGO;
-const sevTxt = f => CIEGO ? '—' : SEVL[f.sev];
+// PUERTA 4.3 — CIEGO AUDITABLE. No alcanza con ocultar el nivel de alerta: al cerrar la
+// campaña hay que poder DEMOSTRAR que el técnico no lo vio antes de registrar. Sin este
+// rastro, el ciego se confía al procedimiento y un tercero hostil no puede verificarlo.
+// Se marca la primera vez que la pantalla revela el estrato (severidad, score o nivel).
+let ESTRATO_VISTO_EN = null;
+function marcarEstratoVisto(){
+  if(!ESTRATO_VISTO_EN) ESTRATO_VISTO_EN = new Date().toISOString();
+}
+const sevTxt = f => { if(CIEGO) return '—'; marcarEstratoVisto(); return SEVL[f.sev]; };
 const sevCls = f => CIEGO ? 'media' : sevC(f.sev);
-const scoreTxt = f => CIEGO ? '·' : f.score;
+const scoreTxt = f => { if(CIEGO) return '·'; marcarEstratoVisto(); return f.score; };
 /* Descarga el GeoJSON de focos del pipeline y lo deja cacheado para uso offline.
    CFG.FOCOS_ENDPOINT estaba declarado pero NINGUN modulo lo leia: cambiar de campo
    exigia recompilar el APK entera. Ahora: si hay endpoint se intenta la red primero,
@@ -503,6 +511,12 @@ function registrarSinHallazgo(f){
    hallazgo:'nada', categoria:null, fichaId:null, alcance:st.alcance,
    // dirigido = el satelite eligio el sitio. NO entra al calculo del umbral MIP.
    tipo_muestreo:'dirigido_satelital',
+   // PUERTA 4.3: queda registrado si el modo ciego estaba encendido y si la pantalla
+   // habia revelado el estrato ANTES de este registro. Sin esto el ciego no se puede
+   // auditar despues, y una campaña que no se puede auditar no prueba nada.
+   modo_ciego: CIEGO,
+   estrato_visto_en: ESTRATO_VISTO_EN,
+   registro_a_ciegas: CIEGO && !ESTRATO_VISTO_EN,
    // el historial pinta estos campos; sin ellos el registro negativo — que es el
    // que permite medir los falsos positivos — sale como una fila en blanco
    nombre:'Sin hallazgo', cultivo:(f?f.cultivoLabel:''), estadio:(f?f.estadio:''),
@@ -670,6 +684,12 @@ function openValidacion(f, cultivoFicha){
    // esta calibrado sobre muestreo representativo: este conteo NO es comparable
    // con el, y marcarlo es lo que evita que el producto empuje a sobre-aplicar.
    tipo_muestreo:'dirigido_satelital',
+   // PUERTA 4.3: queda registrado si el modo ciego estaba encendido y si la pantalla
+   // habia revelado el estrato ANTES de este registro. Sin esto el ciego no se puede
+   // auditar despues, y una campaña que no se puede auditar no prueba nada.
+   modo_ciego: CIEGO,
+   estrato_visto_en: ESTRATO_VISTO_EN,
+   registro_a_ciegas: CIEGO && !ESTRATO_VISTO_EN,
    coincide:st.coin,nde:st.nde,coord,acc,gps_real:gpsFix,foto:st.photo,
    // `supera_umbral` ahora es un CALCULO, no el boton que aprieta el tecnico (Puerta 3.2).
    // Vale null cuando no se pudo calcular, y `umbral_estado` dice por que. Nunca se
