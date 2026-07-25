@@ -113,7 +113,23 @@ async function loadFocosGeojson(name){
    if(d && (!FOCOS_FECHA || d>FOCOS_FECHA)) FOCOS_FECHA=d;
   }
  }catch(e){}
- LOADED_FOCI=GeoLoad.fociFromGeoJSON(gj, {hacienda:'Santo Antonio', cultivo:'trigo', cultivoLabel:'Trigo', estadio:'Vegetativo', idPrefix:'SA'});
+ // El cultivo y la hacienda salen del GeoJSON, NO de un default fijo. Estaban
+ // hardcodeados a Santo Antonio/trigo: cargando los lotes de soya de otra hacienda,
+ // la app mostraba "Trigo" y abría el banco de fichas de TRIGO para diagnosticar una
+ // soya. El técnico habría buscado royas de trigo en un lote de soya.
+ const meta = (gj.features||[]).map(f=>f.properties||{})
+   .find(p => p.cultivo || p.hacienda) || {};
+ const cultKey = String(meta.cultivo||'').toLowerCase().replace(/[\s-]+/g,'_') || null;
+ const cultOk = cultKey && D.cultivos && D.cultivos[cultKey] ? cultKey : null;
+ if(meta.cultivo && !cultOk && console && console.warn){
+   // Se declara: mejor un aviso que diagnosticar con el banco equivocado en silencio.
+   console.warn('cultivo "'+meta.cultivo+'" del GeoJSON no está en el banco; se usa el genérico');
+ }
+ LOADED_FOCI=GeoLoad.fociFromGeoJSON(gj, {
+   hacienda: meta.hacienda || 'Campo',
+   cultivo: cultOk || 'trigo',
+   cultivoLabel: (cultOk && D.cultivos[cultOk].label) || meta.cultivo || 'Lote',
+   estadio: meta.estadio || 'Vegetativo', idPrefix:'F'});
  if(!LOADED_FOCI.length) throw new Error('El GeoJSON no tiene polígonos válidos.');
  // Perímetro del lote: primero del MISMO geojson (features de perímetro); si no, de <name>_boundary.geojson.
  LOADED_BOUNDARY = GeoLoad.boundaryFromGeoJSON(gj);
@@ -149,7 +165,7 @@ function buildList(el){
  el.innerHTML=`<div class="view">
    <div class="eyebrow">${IC.route} Origen · ${LOADED_FOCI?'GeoJSON de anomalías':'motor satelital'}</div>
    <h2 class="vh">${fs.length} focos para validar</h2>
-   <p class="sub">${CIEGO?'Orden de recorrida asignado. El nivel de alerta no se muestra hasta registrar.':'Ordenados por severidad (Gi* + FDR).'} Tocá un foco para navegar por GPS y diagnosticar.</p>
+   <p class="sub">${CIEGO?'Orden de recorrida asignado. El nivel de alerta no se muestra hasta registrar.':'Ordenados por prioridad de recorrida.'} Tocá un foco para navegar por GPS y diagnosticar.</p>
    ${fs.map((f,i)=>focoCard(f,i)).join('')}
    <div class="callout">${IC.info}<div>Cada validación vuelve como <b>verdad de campo</b> y recalibra el próximo mapa de anomalías.</div></div></div>`;
  el.querySelectorAll('.foco').forEach(e=>e.onclick=()=>renderNav(fs[+e.dataset.i]));

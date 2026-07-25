@@ -25,8 +25,62 @@ from . import ranking as rk
 from . import series as sr
 
 
+# Severidad que entiende la app a partir del veredicto del criterio. La app deriva
+# color y orden de `sev`; sin este campo `deriveSev` devuelve null y TODOS los lotes
+# salen "sin dato de severidad".
+SEV_APP = {'ATENCION': 'alta', 'VIGILANCIA': 'media'}
+
+
+# Tolerancia de simplificacion del perimetro, en grados (~0,0002 = ~22 m).
+# El perimetro es SOLO para encuadrar el mapa: no se mide sobre el, asi que no hace
+# falta resolucion de borde. Medido sobre HDS: el contorno crudo de los 220 lotes son
+# 16.107 vertices y 776 KB de GeoJSON para 6 focos — el 97% del archivo era el marco.
+# En una APK offline sobre conectividad rural eso se paga en cada descarga. Con esta
+# tolerancia baja a 3.607 vertices y 192 KB. Las 148 partes que quedan NO son astillas:
+# son parcelas reales (mediana 16 ha, maxima 358), o sea la forma verdadera del campo.
+PERIM_TOLERANCIA = 0.0002
+PERIM_AREA_MINIMA = 1e-7          # ~1 ha en grados: descarta astillas del disolvido
+
+
+def _perimetro(gj):
+    """Contorno del campo, disuelto de los propios lotes y simplificado.
+
+    La app lo usa para encuadrar el mapa. Sin el, el tecnico ve poligonos flotando sin
+    referencia de donde esta el campo. Si no hay shapely se sigue sin perimetro: es
+    degradacion, no motivo para no entregar.
+    """
+    try:
+        from shapely.geometry import MultiPolygon, Polygon, mapping, shape
+        from shapely.ops import unary_union
+    except ImportError:
+        return None
+    try:
+        u = unary_union([shape(f['geometry']) for f in gj['features']
+                         if f.get('geometry')]).buffer(0)
+        u = u.simplify(PERIM_TOLERANCIA, preserve_topology=True)
+        # Las astillas que deja el disolvido no son campo y son la mitad de las partes.
+        if isinstance(u, MultiPolygon):
+            partes = [g for g in u.geoms if g.area >= PERIM_AREA_MINIMA]
+            if partes:
+                u = MultiPolygon(partes) if len(partes) > 1 else partes[0]
+        if u.is_empty or not isinstance(u, (Polygon, MultiPolygon)):
+            return None
+        return mapping(u)
+    except Exception:
+        return None
+
+
 def _geojson_salida(sitio, rank, ruta):
-    """Poligonos de los lotes priorizados, con ID estable y estrato oculto."""
+    """Poligonos de los lotes priorizados, en el formato que LEE la app de campo.
+
+    OJO: los nombres de campo no son decorativos, son la interfaz con PIX Scout.
+    Medido antes de este cambio: la app cargaba los 6 lotes con id `F-1`..`F-6`
+    —posicionales, se renumeran en cada corrida—, el nombre del lote como "Lote 1" en
+    vez de `J1_soya`, hacienda "Campo", sin severidad y sin perimetro. Con ids
+    posicionales **el lazo de retorno no existe**: una validacion registrada hoy no se
+    puede rastrear al lote la semana que viene, que es justo el dato con el que se mide
+    la precision del motor.
+    """
     with open(sitio.lotes_geojson, encoding='utf-8') as fh:
         gj = json.load(fh)
     por_id = {str(f['properties'].get(sitio.campo_id)): f for f in gj['features']}
@@ -40,23 +94,47 @@ def _geojson_salida(sitio, rank, ruta):
         if lid in vistos:                      # el ID tiene que ser unico o no sirve
             raise RuntimeError(f'lote_id duplicado en la salida: {lid}')
         vistos.add(lid)
-        feats.append({
-            'type': 'Feature',
-            'geometry': f['geometry'],
-            'properties': {
-                'lote_id': lid,
-                'orden': int(r['orden']),
-                'estrato': r['estado'],        # la app lo GUARDA y no lo muestra
-                'fecha_dato': str(r['fecha_dato'])[:10],
-                'dias_atras': int(r['dias_atras']),
-                'area_ha': float(r['area_ha']),
-                'status': 'pending',
-            },
-        })
+        est = r['estado']
+        props = {
+            # --- interfaz con la app: `id` es lo que ancla el lazo de retorno ---
+            'id': lid,
+            'name': lid,
+            'etiqueta': lid,                   # lo que el tecnico casa con el informe
+            'lote': lid,
+            'hacienda': sitio.titulo,
+            'fecha_img': str(r['fecha_dato'])[:10],
+            'sev': SEV_APP.get(est),           # None si no esta alertado
+            'cultivo': getattr(sitio, 'cultivo', '') or None,
+            # Redondeado: la app lo imprime tal cual y salia "Sev 2.2025829689196113".
+            # NO se reescala a 1-99: ese numero seria inventado. Es el estadistico del
+            # criterio (EWMA dirigido); lo que el tecnico usa es el ORDEN.
+            'score': (round(float(r['score']), 2)
+                      if pd.notna(r.get('score')) else None),
+            # --- criterio ---
+            'lote_id': lid,
+            'orden': int(r['orden']),
+            'estrato': est,                    # la app lo GUARDA y no lo muestra
+            'fecha_dato': str(r['fecha_dato'])[:10],
+            'dias_atras': int(r['dias_atras']),
+            'area_ha': float(r['area_ha']),
+            'status': 'pending',
+        }
+        feats.append({'type': 'Feature', 'geometry': f['geometry'],
+                      'properties': props})
+
+    n_focos = len(feats)
+    per = _perimetro(gj)
+    if per is not None:
+        # Va PRIMERO y con tipo 'perimetro': asi la app lo excluye de la lista de focos
+        # y lo usa solo para encuadrar (geojson.js -> isPerimeter).
+        feats.insert(0, {'type': 'Feature', 'geometry': per,
+                         'properties': {'tipo': 'perimetro',
+                                        'id': '%s-PERIMETRO' % sitio.clave,
+                                        'hacienda': sitio.titulo}})
     with open(ruta, 'w', encoding='utf-8') as fh:
         json.dump({'type': 'FeatureCollection', 'features': feats}, fh,
                   ensure_ascii=False)
-    return len(feats)
+    return n_focos
 
 
 def main(argv=None):

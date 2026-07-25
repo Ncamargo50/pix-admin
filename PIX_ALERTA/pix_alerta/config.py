@@ -14,6 +14,10 @@ class Sitio:
     lotes_geojson: str
     campo_id: str                  # propiedad del GeoJSON que es el ID estable del lote
     campo_area: str = 'area_ha'
+    # Cultivo del sitio, con la clave del banco de fichas de la app (soya, trigo, maiz,
+    # sorgo, girasol, cana_de_azucar, pastura). Sin esto la app cae a su default 'trigo'
+    # y abre el banco de TRIGO para diagnosticar una soya.
+    cultivo: str = ''
     epsg_metrico: str = 'EPSG:32720'
     buffer_negativo_m: float = 5.0  # ESPECIFICACION.md paso 1 (JRC 10.3390/rs12142195)
     # Ventanas de campaña. Sin esto no hay cohorte ni trayectoria esperada.
@@ -34,6 +38,7 @@ HDS = Sitio(
                    r'\Hacienda-Del-Senor\HACIENDA-DEL-SENOR-PIX-MUESTREO'
                    r'\HACIENDA_TODOS_LOTES_OVERVIEW.geojson'),
     campo_id='lote',
+    cultivo='soya',
     epsg_metrico='EPSG:32720',
     campanas={'2025/2026': ('2025-10-01', '2026-04-30'),
               '2024/2025': ('2024-10-01', '2025-04-30'),

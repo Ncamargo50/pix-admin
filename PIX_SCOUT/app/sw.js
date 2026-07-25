@@ -1,5 +1,5 @@
 /* PIX Scout — Service Worker (offline-first). SUBIR CACHE en cada cambio de assets. */
-const CACHE = 'pixscout-v13';
+const CACHE = 'pixscout-v14';
 // Cachés que NO se borran en activate: son datos de campo, no assets versionados.
 // `pixscout-tiles` = tiles satelitales. `pixscout-focos` = ultimo GeoJSON descargado del
 // pipeline; sin esta entrada, cada actualizacion de la app dejaba al tecnico sin los
@@ -12,7 +12,7 @@ const KEEP = ['pixscout-tiles', 'pixscout-focos'];
    con codigo viejo. Medido: con CACHE ya en v11, la app seguia ejecutando el data.js
    anterior. El parametro cambia la URL y obliga a bajar de red.
    DEBE coincidir con el ?v= de los <script> de index.html. */
-const AV = '1.0.8';
+const AV = '1.0.9';
 const V = u => u.indexOf('./js/') === 0 || u === './css/app.css' ? u + '?v=' + AV : u;
 
 const ASSETS = [

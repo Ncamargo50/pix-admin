@@ -3,7 +3,7 @@
    Dejar vacío = la app funciona 100% offline y encola las validaciones localmente. */
 window.PIXCONFIG = {
   APP_NAME: 'PIX Scout',
-  APP_VERSION: '1.0.8',
+  APP_VERSION: '1.0.9',
   // Focos de ejemplo (5 haciendas distintas). SOLO para capturas: si el GeoJSON real
   // falla, con esto en true el tecnico navega a otra finca sin enterarse.
   DEMO_FOCOS: false,
