@@ -1,0 +1,57 @@
+# Workspace Pixadvisor — que NO entra al historial de git.
+#
+# Criterio: git guarda el CODIGO y la CONFIGURACION. Los datos pesados (imagenes,
+# rasteres, shapefiles) y los artefactos de build se REGENERAN y no se versionan:
+# una vez que un binario de 50 MB entra al historial, queda para siempre aunque se
+# borre despues, y clonar el repo pasa a costar esa descarga a cada uno.
+
+# --- Secretos --------------------------------------------------------------
+# (pix-scout-apk/.gitignore ya cubre su keystore; esto es la red de seguridad)
+*.keystore
+*.jks
+keystore.properties
+SECRETS.local.txt
+local.properties
+*serviceaccount*.json
+*-credentials.json
+
+# --- Artefactos de build ---------------------------------------------------
+# El APK se reconstruye del fuente; su SHA-256 y su ficha SI se versionan.
+*.apk
+*.aab
+build/
+.gradle/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+
+# --- Datos pesados: se regeneran o viven fuera del repo ---------------------
+*.tif
+*.tiff
+*.img
+*.jp2
+*.hdf
+*.nc
+*.zip
+*.7z
+
+# Shapefiles (van siempre en juego de 6-7 archivos)
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.sbn
+*.sbx
+
+# Fotos y salidas de render en masa. Los PNG de la web/app SI estan versionados
+# desde antes, asi que no se ignoran por extension.
+*.jpg
+*.jpeg
+
+# --- Trabajo intermedio ----------------------------------------------------
+_orphan_files/
+_pre_clone_backup/
+salida/
+scratch/
