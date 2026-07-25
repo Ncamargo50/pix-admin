@@ -133,6 +133,12 @@ def main(argv=None):
                    help='ej. --campana 2026/2027 2026-10-01 2027-04-30 (repetible)')
     p.add_argument('--K', type=int, default=None, help='lotes que el cliente puede caminar por ronda')
     p.add_argument('--avisar', default='', help='telefono o canal para el aviso')
+    # El inventario de lotes casi siempre trae unidades que NO son cultivo. Sin este
+    # filtro el ranking manda al tecnico al monte o a la pista de aterrizaje: paso de
+    # verdad, "PISTA" (2,78 ha) salio PRIMERA en la corrida del 2026-05-06.
+    p.add_argument('--unidades', default='', help='CSV que clasifica cada lote')
+    p.add_argument('--excluir', nargs='*', default=[],
+                   help='categorias a excluir del CSV (ej. MONTE_FOREST PASTO_O_COBERTURA)')
     p.add_argument('--raiz', default=None, help='raiz del repo (def: la del paquete)')
     p.add_argument('--forzar', action='store_true', help='sobrescribe un cliente existente')
     a = p.parse_args(argv)
@@ -164,6 +170,15 @@ def main(argv=None):
     for x in avisos:
         print('   [aviso] ' + x)
 
+    # El CSV de clasificacion se copia al repo: en la nube no existe el Escritorio.
+    ruta_unidades = ''
+    if a.unidades:
+        if not os.path.exists(a.unidades):
+            raise SystemExit('[ERROR] no existe el CSV de unidades: %s' % a.unidades)
+        import shutil
+        ruta_unidades = os.path.join(dir_lot, '%s_unidades.csv' % a.clave.lower())
+        shutil.copy2(a.unidades, ruta_unidades)
+
     ruta_lotes = os.path.join(dir_lot, '%s.geojson' % a.clave.lower())
     with open(ruta_lotes, 'w', encoding='utf-8') as fh:
         json.dump(gj, fh, ensure_ascii=False)
@@ -176,19 +191,26 @@ def main(argv=None):
         print('           Fuera de campaña no distingue cosecha de deterioro (en madurez')
         print('           el dosel se seca y senesce, que es la firma que busca).')
 
+    sitio = {
+        'clave': '%s_PRINCIPAL' % a.clave,
+        'titulo': a.titulo,
+        'lotes_geojson': '../lotes/%s.geojson' % a.clave.lower(),
+        'campo_id': a.campo_id,
+        'cultivo': a.cultivo,
+        'epsg_metrico': a.epsg,
+        'campanas': campanas,
+    }
+    if ruta_unidades:
+        sitio['unidades_csv'] = '../lotes/%s_unidades.csv' % a.clave.lower()
+        sitio['categorias_excluidas'] = list(a.excluir)
+        if not a.excluir:
+            print('   [aviso] se paso --unidades sin --excluir: el filtro no descarta nada.')
+
     cliente = {
         'clave': a.clave,
         'titulo': a.titulo,
         'activo': True,
-        'sitios': [{
-            'clave': '%s_PRINCIPAL' % a.clave,
-            'titulo': a.titulo,
-            'lotes_geojson': '../lotes/%s.geojson' % a.clave.lower(),
-            'campo_id': a.campo_id,
-            'cultivo': a.cultivo,
-            'epsg_metrico': a.epsg,
-            'campanas': campanas,
-        }],
+        'sitios': [sitio],
         'entrega': {'cadencia_dias': 10},
         'marca': {'nombre': a.titulo},
     }

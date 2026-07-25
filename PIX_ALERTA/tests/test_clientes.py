@@ -182,5 +182,34 @@ def test_cliente_HDS_del_repo_carga():
     assert hds, 'no se pudo cargar clientes/HDS.json'
     c = hds[0]
     assert c.K == 10
-    assert [s.clave for s in c.sitios] == ['HDS']
-    assert c.sitios[0] is cfg.SITIOS['HDS']   # reusa el sitio, no lo duplica
+    assert len(c.sitios) == 1
+
+
+def test_los_clientes_del_repo_son_AUTOCONTENIDOS():
+    """LA PUERTA DE LA NUBE. Un runner de GitHub Actions es una maquina Linux vacia:
+    no tiene el Escritorio del usuario. HDS apuntaba a
+    `C:/Users/.../Desktop/.../HACIENDA_TODOS_LOTES_OVERVIEW.geojson` y la primera corrida
+    en la nube habria fallado en el primer cliente. Todo insumo tiene que vivir DENTRO
+    del repo."""
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(cl.__file__)))
+    for c in cl.cargar_todos(solo_activos=False):
+        for s in c.sitios:
+            for campo in ('lotes_geojson', 'unidades_csv'):
+                ruta = getattr(s, campo, '')
+                if not ruta:
+                    continue
+                assert os.path.exists(ruta), \
+                    '%s.%s no existe: %s' % (s.clave, campo, ruta)
+                dentro = os.path.commonpath([os.path.abspath(ruta), raiz]) == raiz
+                assert dentro, ('%s.%s apunta FUERA del repo (%s): en la nube ese '
+                                'archivo no existe' % (s.clave, campo, ruta))
+
+
+def test_el_filtro_de_unidades_descarta_lo_que_no_es_cultivo():
+    """Sin el, el ranking manda al tecnico al monte o a la pista de aterrizaje —
+    paso de verdad: "PISTA" (2,78 ha) salio PRIMERA en la corrida del 2026-05-06."""
+    hds = [c for c in cl.cargar_todos() if c.clave == 'HDS'][0]
+    s = hds.sitios[0]
+    assert s.unidades_csv, 'HDS perdio el filtro de unidades'
+    validas = cfg.unidades_validas(s)
+    assert validas is not None and 150 < len(validas) < 220

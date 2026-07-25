@@ -2,15 +2,37 @@
   "clave": "HDS",
   "titulo": "Hacienda del Señor",
   "activo": true,
-  "K": 10,
-  "sitios_ref": ["HDS"],
+  "sitios": [
+    {
+      "clave": "HDS_PRINCIPAL",
+      "titulo": "Hacienda del Señor",
+      "lotes_geojson": "../lotes/hds.geojson",
+      "campo_id": "lote",
+      "cultivo": "soya",
+      "epsg_metrico": "EPSG:32720",
+      "campanas": {
+        "2025/2026": [
+          "2025-10-01",
+          "2026-04-30"
+        ],
+        "2026/2027": [
+          "2026-10-01",
+          "2027-04-30"
+        ]
+      },
+      "unidades_csv": "../lotes/hds_unidades.csv",
+      "categorias_excluidas": [
+        "MONTE_FOREST",
+        "PASTO_O_COBERTURA",
+        "OTRO_REVISAR"
+      ]
+    }
+  ],
   "entrega": {
-    "cadencia_dias": 10,
-    "hueco_maximo_declarado_dias": 66
+    "cadencia_dias": 10
   },
   "marca": {
-    "nombre": "Pixadvisor",
-    "color": "#0D9488"
+    "nombre": "Hacienda del Señor"
   },
-  "nota": "Unico sitio con base historica completa (20.700 filas, 207 lotes, campaña 2025/26). K=10 es provisorio: el cliente todavia no lo declaro por escrito (Puerta 0.2)."
+  "K": 10
 }
