@@ -53,25 +53,24 @@ dentro del APK y es pública. Está explicado en `PIX_SCOUT/backend/README.md`.
 
 ---
 
-## 3. La decisión: cómo baja los focos el teléfono
+## 3. Cómo llega el mapa al técnico — RESUELTO
 
-**Es lo único que requiere que elijas, y bloquea que la app reciba sola.**
+El canal es **WhatsApp**, y con eso no hace falta ninguna URL pública ni exponer
+coordenadas de campos de clientes en internet.
 
-El repositorio es privado (lleva geometría de campos de clientes), y desde un repo
-privado la app no puede descargar sin un token — y un token dentro del APK es público,
-así que no sirve.
+1. Bajás el GeoJSON de la corrida desde el repo: `entregas/<CLIENTE>/ultimo/`
+2. Se lo mandás al cliente por WhatsApp.
+3. El técnico abre la app → **Focos → “Abrir mapa”** → elige el archivo.
 
-| Opción | Qué implica | Cuándo conviene |
-|---|---|---|
-| **A. Supabase Storage** | El workflow sube `ultimo/` a un bucket. Nada se publica. | Si ya vas a montar Supabase por el punto 2. **Es la que recomiendo.** |
-| **B. Repo espejo público** | Un segundo repo, público, sólo con `entregas/*/ultimo/`. Lleva los focos recortados —no el mapa completo de lotes— pero **son coordenadas del campo de tu cliente, publicadas**. | Sólo si el cliente lo sabe y no le molesta. |
-| **C. Sin descarga automática** | Se sigue empaquetando el GeoJSON en el APK. Funciona, pero recompilás cada vez que cambia el campo. | Para arrancar con un cliente. |
+La app le muestra qué trae antes de reemplazar nada (campo, fecha de escena, cuántos
+lotes) y **le avisa si el mapa es más viejo** que el que ya tiene cargado. El mapa
+importado queda guardado: sobrevive a cerrar la app y funciona sin señal.
 
-Con la opción A, en `config.js`:
+Necesita el **APK v1.0.10** o posterior.
 
-```js
-FOCOS_ENDPOINT: 'https://<proyecto>.supabase.co/storage/v1/object/public/focos/{campo}/ultimo'
-```
+> `FOCOS_ENDPOINT` sigue existiendo por si algún día conviene la descarga automática,
+> pero **no hace falta para operar**. El chequeo lo marca como pendiente; con el flujo de
+> WhatsApp podés ignorarlo.
 
 ---
 
