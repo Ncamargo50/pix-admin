@@ -278,8 +278,15 @@ def ranking(car, fecha=None, K=None):
     if 'cobertura' in ult.columns:
         espec['cobertura'] = ('cobertura', 'min')
     agg = ult.groupby('lote_id').agg(**espec).reset_index()
-    agg['cohorte_declarada'] = np.where(agg['cohorte'].astype(str) == 'unica',
-                                        'ESTIMADA-UNICA', 'declarada')
+    # Origen de la cohorte. `cohorte.py` rotula SIEMPRE `EST-<fecha>` / `EST-SIN-CICLO`
+    # porque no hay una sola fecha de siembra declarada en toda la cartera. La condicion
+    # anterior comparaba contra 'unica' y daba 'declarada' a todo lo demas, o sea rotulaba
+    # como declarada una cohorte estimada por fenologia — justo lo que la metodologia
+    # prohibe. Se decide por el prefijo que escribe el estimador, no por descarte.
+    coh = agg['cohorte'].astype(str)
+    agg['cohorte_origen'] = np.where(coh == 'EST-SIN-CICLO', 'ESTIMADA-SIN-CICLO',
+                             np.where(coh.str.startswith('EST-'), 'ESTIMADA-FENOLOGIA',
+                             np.where(coh == 'unica', 'ESTIMADA-UNICA', 'declarada')))
 
     agg['estado'] = np.where(agg['ejes_en_senal'] >= 2, 'ATENCION',
                     np.where(agg['ejes_en_senal'] == 1, 'VIGILANCIA', 'SIN SEÑAL'))

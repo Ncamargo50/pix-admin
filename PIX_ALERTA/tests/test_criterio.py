@@ -177,3 +177,28 @@ def test_cohorte_chica_se_descarta():
     """Con pocos lotes la mediana de la cohorte no significa nada."""
     df = campo_sintetico(n_lotes=rk.MIN_LOTES_COHORTE - 2)
     assert rk.residuos(df).empty
+
+
+# --- Puerta 0.1: la cohorte estimada nunca se presenta como declarada ---------
+def test_cohorte_estimada_no_se_rotula_declarada():
+    """El entregable debe decir de donde salio la cohorte.
+
+    `cohorte.py` rotula SIEMPRE `EST-<fecha>` porque no hay ni una fecha de siembra
+    declarada en la cartera. La version anterior comparaba contra 'unica' y le ponia
+    'declarada' a todo lo demas: el CSV entregado afirmaba tener fechas de siembra
+    que no existen. Sin este test el error es invisible, porque el ranking sale igual.
+    """
+    df = campo_sintetico(semilla=11)
+    df['cohorte'] = 'EST-2025-10-22'          # lo que produce el estimador real
+    r = evaluar(df)
+    assert (r['cohorte_origen'] == 'ESTIMADA-FENOLOGIA').all(), \
+        'una cohorte EST-* se esta rotulando como declarada'
+
+    sin_ciclo = campo_sintetico(semilla=12)
+    sin_ciclo['cohorte'] = 'EST-SIN-CICLO'
+    assert (evaluar(sin_ciclo)['cohorte_origen'] == 'ESTIMADA-SIN-CICLO').all()
+
+    # y el dia que exista la planilla de siembra, esa si es declarada
+    declarada = campo_sintetico(semilla=13)
+    declarada['cohorte'] = '2025-10-22'       # sin prefijo EST- = fecha del cliente
+    assert (evaluar(declarada)['cohorte_origen'] == 'declarada').all()
