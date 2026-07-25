@@ -57,6 +57,13 @@ jobs:
         if: env.RC == '10'
         run: python scripts/publicar_ultimo.py entregas
 
+      # El tablero se regenera SIEMPRE, tambien cuando no hubo entrega: si solo se
+      # actualizara al entregar, se quedaria congelado mostrando la ultima buena y
+      # nadie se enteraria de que hace tres semanas que no entra una escena limpia.
+      - name: Regenerar el tablero
+        if: env.RC == '10' || env.RC == '0'
+        run: python scripts/tablero.py entregas
+
       - name: Commitear entregables
         # Tambien con RC=0: el no-op deja rastro de que se miro y no habia nada nuevo.
         if: env.RC == '10' || env.RC == '0'
