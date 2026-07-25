@@ -180,8 +180,11 @@ def main(argv=None):
             if fuera:
                 print(f'{fuera} unidades descartadas por no ser cultivo')
     else:
-        import ee
-        ee.Initialize()
+        # NO usar ee.Initialize() a secas: en la nube no hay credencial personal y la
+        # primera corrida real murio con "Please authorize access to your Earth Engine
+        # account". Ver ee_init.
+        from .ee_init import inicializar
+        print('[GEE] %s' % inicializar())
         df = sr.extraer(sitio, desde, a.hasta)
         if df.empty:
             print('sin escenas en la ventana: nada que entregar')
