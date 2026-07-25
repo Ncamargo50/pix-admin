@@ -95,6 +95,27 @@ async function fetchFocosCacheado(name){
       return r ? await r.json() : null; }catch(e){ return null; }
 }
 async function loadFocosGeojson(name){
+ // PRIMERO el mapa que el tecnico importo a mano. El canal real es WhatsApp: si abrio
+ // un archivo, ESE es su campo — pisarlo al reabrir la app lo mandaria al lote de otro.
+ try{
+  const imp = await Importar.activo();
+  if(imp && imp.nombre){
+   const gj = await Importar.leerGuardado(imp.nombre);
+   if(gj){
+    const meta=(gj.features||[]).map(f=>f.properties||{});
+    const hac=(meta.find(p=>p.hacienda)||{}).hacienda;
+    const cul=String(((meta.find(p=>p.cultivo)||{}).cultivo)||'').toLowerCase().replace(/[\s-]+/g,'_');
+    FOCOS_ORIGEN='recibido por WhatsApp';
+    FOCOS_FECHA=meta.reduce((a,p)=>(p.fecha_img&&(!a||p.fecha_img>a))?p.fecha_img:a,null);
+    LOADED_FOCI=GeoLoad.fociFromGeoJSON(gj,{hacienda:hac||'Campo',
+      cultivo:(cul&&D.cultivos&&D.cultivos[cul])?cul:'trigo',
+      cultivoLabel:((meta.find(p=>p.cultivo)||{}).cultivo)||'Lote', idPrefix:'F'});
+    LOADED_BOUNDARY=GeoLoad.boundaryFromGeoJSON(gj);
+    return LOADED_FOCI;
+   }
+  }
+ }catch(e){}
+
  let gj=await fetchFocosRemoto(name);
  let origen='remoto';
  if(!gj){ gj=await fetchFocosCacheado(name); origen='descarga previa'; }
@@ -155,11 +176,81 @@ function renderFocos(){
  M.innerHTML=`<div class="fmodebar">
    <button class="fmode ${m==='mapa'?'on':''}" data-m="mapa">${IC.pin} Mapa</button>
    <button class="fmode ${m==='lista'?'on':''}" data-m="lista">${IC.list} Lista</button>
+   <button class="fmode" data-m="importar" title="Abrir un mapa que te mandaron">${IC.route} Abrir mapa</button>
    <span class="fcount">${FOCOS_ERROR ? 'SIN DATOS DE FOCOS' : activeFoci().length+' focos activos'}${LOADED_FOCI&&FOCOS_FECHA?' · escena '+esc(FOCOS_FECHA):(LOADED_FOCI?' · GeoJSON':'')}${LOADED_FOCI&&FOCOS_ORIGEN&&FOCOS_ORIGEN!=='remoto'?' · '+esc(FOCOS_ORIGEN):''}</span></div>
+  <input type="file" accept=".geojson,.json,application/geo+json,application/json" id="fImport" style="display:none">
   <div id="fbody" style="flex:1;min-height:0;position:relative;overflow:${m==='mapa'?'hidden':'auto'}"></div>`;
- M.querySelectorAll('.fmode').forEach(b=>b.onclick=()=>{ focosMode=b.dataset.m; renderFocos(); });
+ M.querySelectorAll('.fmode').forEach(b=>b.onclick=()=>{
+   if(b.dataset.m==='importar'){ $('#fImport').click(); return; }
+   focosMode=b.dataset.m; renderFocos();
+ });
+ $('#fImport').onchange = e => {
+   const file = e.target.files && e.target.files[0];
+   e.target.value = '';                       // permite reabrir el MISMO archivo
+   if(file) abrirMapaRecibido(file);
+ };
  m==='mapa' ? buildMap($('#fbody')) : buildList($('#fbody'));
 }
+/* Abre un GeoJSON que llegó por WhatsApp. NO reemplaza el mapa activo en silencio:
+   primero muestra qué trae el archivo. Un técnico que sale al campo con el mapa
+   equivocado sin haberse enterado es peor que uno sin mapa. */
+function abrirMapaRecibido(file){
+ const rd = new FileReader();
+ rd.onerror = () => toast('No se pudo leer el archivo.');
+ rd.onload = () => {
+  const r = Importar.inspeccionar(rd.result);
+  const wrap = document.createElement('div'); wrap.className='scrim';
+  if(!r.ok){
+   wrap.innerHTML = `<div class="sheet"><div class="grab"></div>
+     <div><div class="eyebrow" style="margin-bottom:6px">No se pudo abrir</div>
+     <h2 class="vh" style="font-size:17px">${esc(file.name)}</h2></div>
+     <p class="sub">${esc(r.motivo)}</p>
+     <p class="sub" style="font-size:11px">Pedile a Pixadvisor el archivo <b>.geojson</b> de la última corrida. Si lo bajaste de WhatsApp, fijate que no sea la vista previa.</p>
+     <button class="btn ghost block" id="i-c">Cerrar</button></div>`;
+   $('#app').appendChild(wrap);
+   wrap.querySelector('#i-c').onclick = () => wrap.remove();
+   wrap.onclick = e => { if(e.target===wrap) wrap.remove(); };
+   return;
+  }
+  const dif = FOCOS_FECHA && r.fecha && r.fecha < FOCOS_FECHA;
+  wrap.innerHTML = `<div class="sheet"><div class="grab"></div>
+    <div><div class="eyebrow" style="margin-bottom:6px">Mapa recibido</div>
+    <h2 class="vh" style="font-size:17px">${esc(r.hacienda||'Campo sin nombre')}</h2>
+    <div class="sub">${esc(file.name)}</div></div>
+    <div class="ndebox" style="margin-top:10px">
+      <div class="ndh" style="font-size:12px">
+        <b>${r.focos}</b> lote(s) para recorrer${r.fecha?` · escena del <b>${esc(r.fecha)}</b>`:''}${r.perimetro?' · con perímetro del campo':''}
+      </div>
+    </div>
+    ${dif?`<div class="ndverdict at" style="margin-top:8px">${IC.alert} Este mapa es <b>más viejo</b> que el que tenés cargado (${esc(FOCOS_FECHA)}).</div>`:''}
+    ${r.aviso?`<div class="sub" style="font-size:11px;margin-top:8px">⚠ ${esc(r.aviso)}</div>`:''}
+    <p class="sub" style="font-size:11px;margin-top:8px">Reemplaza el mapa que estás usando. Lo que ya registraste <b>no se borra</b>.</p>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn ghost" id="i-c" style="flex:1">Cancelar</button>
+      <button class="btn lima big" id="i-ok" style="flex:2">Usar este mapa</button></div></div>`;
+  $('#app').appendChild(wrap);
+  const cerrar = () => wrap.remove();
+  wrap.querySelector('#i-c').onclick = cerrar;
+  wrap.onclick = e => { if(e.target===wrap) cerrar(); };
+  wrap.querySelector('#i-ok').onclick = async () => {
+   const nombre = file.name.replace(/\.(geo)?json$/i,'') || 'importado';
+   try{ await Importar.guardar(nombre, r.texto); }catch(e){}
+   LOADED_FOCI = GeoLoad.fociFromGeoJSON(r.gj, {
+     hacienda: r.hacienda||'Campo',
+     cultivo: (function(){
+       const c=String(((r.gj.features||[]).map(f=>f.properties||{}).find(p=>p.cultivo)||{}).cultivo||'').toLowerCase().replace(/[\s-]+/g,'_');
+       return (c && D.cultivos && D.cultivos[c]) ? c : 'trigo'; })(),
+     cultivoLabel: (((r.gj.features||[]).map(f=>f.properties||{}).find(p=>p.cultivo)||{}).cultivo)||'Lote',
+     idPrefix:'F'});
+   LOADED_BOUNDARY = GeoLoad.boundaryFromGeoJSON(r.gj);
+   FOCOS_FECHA = r.fecha; FOCOS_ORIGEN = 'recibido por WhatsApp'; FOCOS_ERROR = null;
+   cerrar(); toast('Mapa cargado: '+r.focos+' lote(s).');
+   renderFocos();
+  };
+ };
+ rd.readAsText(file);
+}
+
 function buildList(el){
  const fs=activeFoci();
  el.innerHTML=`<div class="view">
