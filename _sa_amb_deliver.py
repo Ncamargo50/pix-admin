@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SERRO ALTO v2.1 — ENTREGA: copia GeoJSON APK de los 3 bloques + PNG por lote + overview hacienda."""
+"""CERRO ALTO v2.1 — ENTREGA: copia GeoJSON APK de los 3 bloques + PNG por lote + overview hacienda."""
 import os, sys, shutil, glob
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 import geopandas as gpd, numpy as np, rasterio
@@ -72,6 +72,6 @@ handles = [mp.Patch(color=COLOR['Altura roja'], label='Altura roja (bien drenada
            mp.Patch(color=COLOR['Bajura negra'], label='Bajura negra (humeda) — %.0f ha' % ha('Bajura negra')),
            plt.Line2D([], [], color='black', marker='o', linestyle='', markersize=9, label='Punto principal / muestra compuesta (%d)' % int((allp.tipo=='PRINCIPAL').sum()))]
 ax.legend(handles=handles, loc='lower left', fontsize=12, framealpha=0.9)
-ax.set_title('HACIENDA SERRO ALTO — AMBIENTES v2.1 (color de suelo + drenaje + vigor verano) — Bloques 2, 3 y 14', fontsize=13, weight='bold')
+ax.set_title('HACIENDA CERRO ALTO — AMBIENTES v2.1 (color de suelo + drenaje + vigor verano) — Bloques 2, 3 y 14', fontsize=13, weight='bold')
 plt.tight_layout(); plt.savefig(os.path.join(OUT, 'MAPA_AMBIENTES_SerroAlto_v2.png'), dpi=140, bbox_inches='tight'); plt.close()
 print('overview -> MAPA_AMBIENTES_SerroAlto_v2.png'); print('DONE deliver')

@@ -21,6 +21,13 @@ VERDE = HexColor('#1B5E20'); VERDE2 = HexColor('#4CAF50'); GRIS = HexColor('#333
 AMBCOL = {'Altura roja': HexColor('#D84315'), 'Transicion': HexColor('#FFB300'), 'Bajura negra': HexColor('#3E2723')}
 ORD = ['Altura roja', 'Transicion', 'Bajura negra']
 
+def _natkey(s):  # orden natural por numero de fila + letra (1C, 2B, 2C, ... 10C)
+    s = str(s); num = ''
+    for ch in s:
+        if ch.isdigit(): num += ch
+        else: break
+    return (int(num) if num else 0, s)
+
 zdf = pd.read_csv(os.path.join(OUT, 'SerroAlto_zonas_V2.csv')); zdf['bloque'] = zdf['bloque'].astype(str)
 pdf_ = pd.read_csv(os.path.join(OUT, 'SerroAlto_puntos_V2.csv')); pdf_['bloque'] = pdf_['bloque'].astype(str)
 nP = int((pdf_.tipo == 'PRINCIPAL').sum()); nS = int((pdf_.tipo == 'SUBMUESTRA').sum())
@@ -41,12 +48,12 @@ def hf(canvas, doc):
     canvas.drawString(2*cm, A4[1]-1.1*cm, 'PIXADVISOR — Agricultura de Precisión')
     canvas.setStrokeColor(VERDE); canvas.setLineWidth(1.1); canvas.line(2*cm, A4[1]-1.25*cm, A4[0]-2*cm, A4[1]-1.25*cm)
     canvas.setFont('Helvetica', 7); canvas.setFillColor(GRIS)
-    canvas.drawString(2*cm, 1*cm, 'Pixadvisor AP · Muestreo de suelo por ambientes · Hacienda Serro Alto · %s · %s' % (CLIENTE, FECHA))
+    canvas.drawString(2*cm, 1*cm, 'Pixadvisor AP · Muestreo de suelo por ambientes · Hacienda Cerro Alto · %s · %s' % (CLIENTE, FECHA))
     canvas.drawRightString(A4[0]-2*cm, 1*cm, 'Página %d' % doc.page); canvas.restoreState()
 
 story = [Spacer(1, 6)]
 story.append(Paragraph('Plan de Muestreo de Suelo por Ambientes', ss['T']))
-story.append(Paragraph('Hacienda Serro Alto · Campaña Soya 2026/27 · Bloques 2, 3 y 14', ss['Sub']))
+story.append(Paragraph('Hacienda Cerro Alto · Campaña Soya 2026/27 · Bloques 2, 3 y 14', ss['Sub']))
 story.append(Paragraph('Cliente: %s' % CLIENTE, ss['Cli']))
 
 story.append(Paragraph('¿Qué hicimos y por qué?', ss['H']))
@@ -74,7 +81,7 @@ story.append(Paragraph(
 
 if os.path.exists(OVER):
     im = RLImage(OVER); im._restrictSize(17*cm, 12*cm); story.append(Spacer(1, 4)); story.append(im)
-    story.append(Paragraph('Mapa general de ambientes de la Hacienda Serro Alto (Bloques 2, 3 y 14).', ss['Cap']))
+    story.append(Paragraph('Mapa general de ambientes de la Hacienda Cerro Alto (Bloques 2, 3 y 14).', ss['Cap']))
 
 story.append(Paragraph('Alcance del plan', ss['H']))
 data = [['Bloque', 'Lotes', 'Ambientes', 'Muestras compuestas', 'Submuestras', 'Área (ha)']]
@@ -101,7 +108,7 @@ for bk in ['2', '3', '14']:
     story.append(Paragraph('BLOQUE %s' % bk, ss['T']))
     story.append(Paragraph('%d lotes · %.0f ha · %d muestras compuestas' % (
         zb['lote'].nunique(), zb['area_ha'].sum(), int((pdf_[(pdf_.bloque == bk) & (pdf_.tipo == 'PRINCIPAL')]).shape[0])), ss['Sub']))
-    for lote in sorted(zb['lote'].unique()):
+    for lote in sorted(zb['lote'].unique(), key=_natkey):
         s = zb[zb.lote == lote].copy()
         s['ord'] = s['ambiente'].map({a: i for i, a in enumerate(ORD)}); s = s.sort_values('ord')
         el = [Paragraph('%s — Bloque %s' % (lote, bk), ss['LH'])]

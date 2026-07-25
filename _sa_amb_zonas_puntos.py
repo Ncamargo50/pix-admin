@@ -23,6 +23,9 @@ W = dict(redness=0.36, clay_inv=0.10, twi_inv=0.10, elev=0.08, flow_inv=0.06, di
 assert abs(sum(W.values())-1.0) < 1e-6
 CLASE = {1: 'Bajura negra', 2: 'Transicion', 3: 'Altura roja'}
 COLOR = {'Bajura negra': '#3E2723', 'Transicion': '#FFB300', 'Altura roja': '#D84315'}
+# clase que el APK PIX Muestreo reconoce para colorear zonas (_getZonaColor: baja/media/alta).
+# El nombre descriptivo del ambiente va en 'ambiente'/'name'; 'clase' habilita el color en la app.
+CLA_APK = {1: 'Baja', 2: 'Media', 3: 'Alta'}
 EDGE_BUF = 20.0
 
 # ---------- grid de referencia = veg_summer_full ----------
@@ -141,23 +144,23 @@ for BK in BLOCKS:
                               redness=round(float(np.nanmean(red_b[mm])), 3), clay=round(float(np.nanmean(clay_b[mm])), 3),
                               elev_m=round(float(np.nanmean(dem[mm])), 1), twi=round(float(np.nanmean(twi[mm])), 2),
                               ndvi_verano=round(float(np.nanmean(ndvi[mm])), 3)))
-            zfeats.append(dict(lote=lote, bloque=BK, zona=zz, ambiente=clase, geometry=zg))
-            apk.append({'type': 'Feature', 'properties': {'name': clase, 'zona': zz, 'ambiente': clase, 'clase': clase,
-                        'color': COLOR[clase], 'area_ha': round(zarea, 2), 'type': 'zona'},
+            zfeats.append(dict(lote=lote, bloque=BK, zona=zz, ambiente=clase, clase=CLA_APK[zz], geometry=zg))
+            apk.append({'type': 'Feature', 'properties': {'name': clase, 'zona': zz, 'ambiente': clase, 'clase': CLA_APK[zz],
+                        'color': COLOR[clase], 'fill': COLOR[clase], 'area_ha': round(zarea, 2), 'type': 'zona'},
                         'geometry': mapping(gpd.GeoSeries([zg], crs=31981).to_crs(4326).iloc[0])})
             # UN principal por ambiente al centro + submuestras FPS (nomenclatura original P{zona})
             core = core_of(zg); prin = center(core)
             pid = '%s-B%s-P%d' % (lote, BK, zz)
             precs.append(dict(punto_id=pid, name='P%d' % zz, tipo='PRINCIPAL', lote=lote, bloque=BK, zona=zz,
-                              ambiente=clase, clase=clase, principal=pid, geometry=prin))
+                              ambiente=clase, clase=CLA_APK[zz], principal=pid, geometry=prin))
             for ms, sp in enumerate(fps(core, dens(zarea), prin), 1):
                 precs.append(dict(punto_id='%s-%02d' % (pid, ms), name='P%d-%02d' % (zz, ms), tipo='SUBMUESTRA',
-                                  lote=lote, bloque=BK, zona=zz, ambiente=clase, clase=clase, principal=pid, geometry=sp))
+                                  lote=lote, bloque=BK, zona=zz, ambiente=clase, clase=CLA_APK[zz], principal=pid, geometry=sp))
         pl = [p for p in precs if p['lote'] == lote]
         for p in pl:
             p4 = gpd.GeoSeries([p['geometry']], crs=31981).to_crs(4326).iloc[0]
             apk.append({'type': 'Feature', 'properties': {'id': p['punto_id'], 'name': p['name'], 'tipo': p['tipo'].lower(),
-                        'zona': p['zona'], 'ambiente': p['ambiente'], 'clase': p['ambiente'], 'principal': p['principal'],
+                        'zona': p['zona'], 'ambiente': p['ambiente'], 'clase': p['clase'], 'principal': p['principal'],
                         'status': 'pendiente', 'marker-color': COLOR[p['ambiente']], 'type': 'point'}, 'geometry': mapping(p4)})
         with open(os.path.join(APKD, 'Bloque-%s-%s_muestreo.geojson' % (BK, lote)), 'w', encoding='utf-8') as f:
             json.dump({'type': 'FeatureCollection', 'name': 'B%s-%s_muestreo' % (BK, lote), 'features': apk}, f, ensure_ascii=False)
