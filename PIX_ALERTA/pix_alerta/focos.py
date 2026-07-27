@@ -350,17 +350,26 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
     # Severidad del foco: el z del PRIMER eje (humedad), con signo. Va con nombre
     # estable `z_sev` porque la app y el informe lo leen; los z de cada eje van
     # ademas con su propio nombre, para poder auditar cual disparo.
-    # `z_sev` se guarda ORIENTADO: multiplicado por el signo del eje, de modo que
-    # MAS NEGATIVO = PEOR, sea cual sea el eje. Antes se guardaba el z crudo del eje
-    # 0 y dos lugares mas abajo asumian que la alarma es el valor bajo — cierto para
-    # NDMI/NDRE (SIGNO=-1), FALSO para PSRI (SIGNO=+1): con PSRI como primer eje el
-    # orden de severidad se invertia (F1 pasaba a ser el foco mas leve) y TODOS los
-    # focos salian 'media'. Fallaba en silencio, que es justo lo que el docstring de
-    # `_mascara_focos` dice haber cerrado delegando el signo.
+    # `z_sev` se guarda ORIENTADO de modo que **MAS NEGATIVO = PEOR**, sea cual sea
+    # el eje. Los dos consumidores de abajo asumen esa convencion: el orden ascendente
+    # (peor primero) y el corte `z_sev <= -(Z_FOCO+1)` para 'alta'.
+    #
+    # EL MULTIPLICADOR ES `-SIGNO`, NO `SIGNO`. `_mascara_focos` usa
+    # `z*SIGNO >= Z_FOCO`, o sea que `z*SIGNO` es POSITIVO cuando hay deterioro; para
+    # dejarlo negativo hay que invertirlo una vez mas.
+    #
+    #     NDMI  SIGNO=-1  deterioro z=-3,45  ->  z*(-SIGNO) = -3,45   negativo OK
+    #     PSRI  SIGNO=+1  deterioro z=+3,45  ->  z*(-SIGNO) = -3,45   negativo OK
+    #
+    # MEDIDO 2026-07-27 en produccion con el signo mal: `z_sev` salia +3,45 con
+    # `z_ndmi` -3,45, asi que NINGUN foco alcanzaba nunca el corte de 'alta' (todos
+    # 'media') y el orden quedaba invertido — F1 era el foco MAS LEVE, justo el que
+    # el tecnico visita primero. No rompia nada visible: entregaba, con la prioridad
+    # al reves.
     from .ranking import SIGNO          # import local: ranking importa config, no focos
     _eje0 = cfg.EJES[0]
     apilado = limpio.addBands(
-        zs[_eje0].multiply(SIGNO[_eje0]).rename('z_sev'))
+        zs[_eje0].multiply(-SIGNO[_eje0]).rename('z_sev'))
     for e in cfg.EJES:
         apilado = apilado.addBands(zs[e].rename('z_' + e.lower()))
     vec = (apilado

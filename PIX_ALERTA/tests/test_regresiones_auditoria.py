@@ -265,3 +265,44 @@ def test_los_nombres_publicados_son_reconocibles_por_el_aislamiento():
                 'ranking_AGRO_NORTE.csv', 'focos_AGRO_NORTE.geojson',
                 'dimensionamiento_AGRO_NORTE.txt'):
         assert f(nom) == 'AGRO_NORTE', '%s -> %r' % (nom, f(nom))
+
+
+# --- z_sev: la orientacion que decide a que foco va primero el tecnico ----------
+
+def test_z_sev_es_NEGATIVO_cuando_hay_deterioro_en_cualquier_eje():
+    """Los dos consumidores de `z_sev` asumen "mas negativo = peor": el orden
+    ascendente (peor primero) y el corte `<= -(Z_FOCO+1)` para severidad alta.
+
+    El multiplicador correcto es `-SIGNO`, no `SIGNO`: `_mascara_focos` usa
+    `z*SIGNO >= Z_FOCO`, o sea que `z*SIGNO` ya es POSITIVO cuando hay deterioro.
+
+    MEDIDO en produccion con el signo mal (2026-07-27): z_sev salia +3,45 con
+    z_ndmi -3,45 -> ningun foco alcanzaba 'alta' y el orden quedaba invertido, o sea
+    que F1 —el que el tecnico visita primero— era el foco MAS LEVE. Entregaba igual:
+    fallaba solo en la prioridad, que es lo unico que el producto vende.
+    """
+    from pix_alerta import focos as fo
+    from pix_alerta.ranking import SIGNO
+
+    for eje, z_deterioro in (('NDMI', -3.45), ('NDRE', -2.10),
+                             ('PSRI', +3.45), ('NDVI', -3.00), ('CIRE', -3.00)):
+        orientado = z_deterioro * (-SIGNO[eje])
+        assert orientado < 0, (
+            '%s: un z de deterioro (%.2f) tiene que orientarse a NEGATIVO, salio %.2f'
+            % (eje, z_deterioro, orientado))
+        assert orientado <= -(fo.Z_FOCO + 1) or abs(z_deterioro) < fo.Z_FOCO + 1
+
+
+def test_un_foco_severo_se_rotula_alta():
+    """Con la orientacion correcta, un deterioro fuerte tiene que llegar a 'alta'."""
+    from pix_alerta import focos as fo
+    z_sev = -3.45                      # NDMI z=-3,45 orientado
+    assert (z_sev <= -(fo.Z_FOCO + 1)) is True
+
+
+def test_el_orden_pone_el_PEOR_primero():
+    """Orden ascendente sobre z_sev orientado: el mas negativo (peor) queda F1."""
+    focos = [{'z': -3.45}, {'z': -3.61}, {'z': -2.50}]
+    ordenados = sorted(focos, key=lambda x: x['z'])
+    assert ordenados[0]['z'] == -3.61, 'F1 tiene que ser el foco MAS severo'
+    assert ordenados[-1]['z'] == -2.50
