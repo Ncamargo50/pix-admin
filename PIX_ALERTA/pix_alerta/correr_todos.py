@@ -29,8 +29,14 @@ from . import clientes as cl
 from . import main as m
 
 
+# Un rotulo por codigo. "NO EVALUABLE" tiene que LEERSE distinto de "sin novedad":
+# son la misma pantalla para el cliente y significan lo contrario.
+_ROTULO = {m.ENTREGADO: 'ENTREGADO', m.SIN_NOVEDAD: 'sin novedad',
+           m.NO_EVALUABLE: 'NO EVALUABLE', m.FUERA_CAMPANA: 'fuera de campana'}
+
+
 def _resumen(fila):
-    est = {0: 'sin novedad', 10: 'ENTREGADO'}.get(fila['rc'], 'FALLO')
+    est = _ROTULO.get(fila['rc'], 'FALLO')
     linea = '  %-10s %-28s %-12s' % (fila['cliente'], fila['sitio'][:28], est)
     if fila.get('error'):
         linea += ' :: ' + fila['error'][:90]
@@ -55,6 +61,13 @@ def correr_cliente(c, args):
                 argv += ['--K', str(K)]
             if args.serie:
                 argv += ['--serie', args.serie]
+            # Sin esto no habia forma de apagar el acercamiento ni el radar en la
+            # nube: el cron llama a correr_todos, no a main, y ambos suman llamadas
+            # a Earth Engine y tiempo de job en cada corrida.
+            if getattr(args, 'sin_focos', False):
+                argv += ['--sin-focos']
+            if getattr(args, 'sin_radar', False):
+                argv += ['--sin-radar']
             fila['rc'] = m.main(argv)
         except SystemExit as e:                 # argparse aborta con SystemExit
             fila['rc'] = 1
@@ -70,7 +83,15 @@ def correr_cliente(c, args):
 
 
 # ranking_<SITIO>_<fecha>.csv · lotes_<SITIO>_<fecha>.geojson · serie_<SITIO>.csv
-_PREFIJOS = ('ranking_', 'lotes_', 'serie_')
+# focos_<SITIO>_<fecha>.geojson · Informe_<SITIO>_<fecha>.pdf
+#
+# TODO entregable tiene que estar en esta lista. Un prefijo que falta no da error:
+# `sitio_de_archivo` devuelve None, el archivo queda FUERA del chequeo de aislamiento
+# y un entregable en la carpeta del cliente equivocado pasa sin que nadie lo vea. Es
+# lo que le paso a `focos_` cuando se sumo el acercamiento.
+_PREFIJOS = ('ranking_', 'lotes_', 'serie_', 'focos_', 'Informe_',
+             'muestra_', 'campana_', 'dimensionamiento_')
+_EXTENSIONES = ('.csv', '.geojson', '.pdf', '.txt')
 _RE_FECHA = re.compile(r'_\d{4}-\d{2}-\d{2}$')
 
 
@@ -84,7 +105,7 @@ def sitio_de_archivo(nom):
     que queda ES la clave.
     """
     base, ext = os.path.splitext(nom)
-    if ext not in ('.csv', '.geojson'):
+    if ext not in _EXTENSIONES:
         return None
     for pref in _PREFIJOS:
         if base.startswith(pref):
@@ -105,14 +126,20 @@ def verificar_aislamiento(clientes, base):
         d = c.salida(base)
         if not os.path.isdir(d):
             continue
-        for nom in sorted(os.listdir(d)):
-            sitio = sitio_de_archivo(nom)
-            if sitio is None:
-                continue
-            if sitio not in propios:
-                problemas.append('%s tiene "%s" (sitio %s), que no es de ninguno de sus '
-                                 'sitios (%s)'
-                                 % (d, nom, sitio, ', '.join(sorted(propios)) or 'ninguno'))
+        # RECURSIVO. `os.listdir` plano no veia `ultimo/`, que es justo la carpeta
+        # que descarga el telefono: se podian plantar tres archivos de otro cliente
+        # ahi adentro y el verificador no reportaba nada.
+        for raiz, _dirs, noms in os.walk(d):
+            for nom in sorted(noms):
+                sitio = sitio_de_archivo(nom)
+                if sitio is None:
+                    continue
+                if sitio not in propios:
+                    rel = os.path.relpath(os.path.join(raiz, nom), d)
+                    problemas.append('%s tiene "%s" (sitio %s), que no es de ninguno '
+                                     'de sus sitios (%s)'
+                                     % (d, rel, sitio,
+                                        ', '.join(sorted(propios)) or 'ninguno'))
     return problemas
 
 
@@ -123,6 +150,10 @@ def main(argv=None):
     p.add_argument('--desde', default=None)
     p.add_argument('--K', type=int, default=None, help='pisa el K de todos los clientes')
     p.add_argument('--salida', default='salida')
+    p.add_argument('--sin-focos', action='store_true',
+                   help='no corre el acercamiento intra-lote en ningun cliente')
+    p.add_argument('--sin-radar', action='store_true',
+                   help='no consulta Sentinel-1 en ningun cliente')
     p.add_argument('--serie', default=None, help='CSV ya extraido (solo con --cliente)')
     p.add_argument('--carpeta-clientes', default=None)
     p.add_argument('--trazas', action='store_true', help='imprime el traceback completo')
@@ -155,8 +186,9 @@ def main(argv=None):
     for f in filas:
         print(_resumen(f))
 
-    fallos = [f for f in filas if f['rc'] not in (0, 10)]
-    entregas = [f for f in filas if f['rc'] == 10]
+    fallos = [f for f in filas if f['rc'] not in m.NO_FALLO]
+    entregas = [f for f in filas if f['rc'] == m.ENTREGADO]
+    ciegos = [f for f in filas if f['rc'] == m.NO_EVALUABLE]
 
     problemas = verificar_aislamiento(todos, a.salida)
     if problemas:
@@ -166,12 +198,33 @@ def main(argv=None):
         for pr in problemas:
             print('  ' + pr)
 
-    print('\n%d entregable(s), %d sin novedad, %d fallo(s)'
-          % (len(entregas), len(filas) - len(entregas) - len(fallos), len(fallos)))
+    sin_nov = len(filas) - len(entregas) - len(fallos) - len(ciegos)
+    print('\n%d entregable(s), %d sin novedad, %d NO EVALUABLE(S), %d fallo(s)'
+          % (len(entregas), sin_nov, len(ciegos), len(fallos)))
+    if ciegos:
+        # Que no pase inadvertido en el log: un sitio que no se pudo evaluar no es un
+        # sitio tranquilo. Si esto se repite ronda tras ronda, el cliente esta pagando
+        # por un monitoreo que no lo esta mirando.
+        print('\n[NO EVALUABLE] el motor NO pudo mirar estos sitios. No es que esten '
+              'sin novedad:')
+        for f in ciegos:
+            print('  · %s / %s' % (f['cliente'], f['sitio']))
+        print('  Sin escenas utiles no hay criterio que calcular. Si se repite, '
+              'revisar la ventana de campaña y la nubosidad de la zona.')
 
     if fallos or problemas:
         return 1
-    return 10 if entregas else 0
+    if entregas:
+        return m.ENTREGADO
+    # NO_EVALUABLE TIENE QUE CRUZAR EL BORDE DEL PROCESO.
+    # El codigo de salida es lo unico que ve la maquina: el bloque `[NO EVALUABLE]`
+    # de arriba se imprime en un log que nadie abre si el job sale verde. Devolver 0
+    # aca fundia otra vez los dos estados que `main` acababa de separar —una capa mas
+    # afuera— y el workflow (`RC != '10' && RC != '0'`) daba el job por bueno.
+    # Auditado 2026-07-27.
+    if ciegos:
+        return m.NO_EVALUABLE
+    return 0
 
 
 if __name__ == '__main__':

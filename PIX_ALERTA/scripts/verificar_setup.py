@@ -17,6 +17,9 @@ import sys
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RAIZ)
 
+from pix_alerta import entorno  # noqa: E402
+entorno.cargar()   # si el asistente ya dejo el .env, el chequeo tiene que verlo
+
 OK, FALTA, AVISO = 'OK   ', 'FALTA', 'aviso'
 _r = []
 
@@ -41,6 +44,42 @@ def dependencias():
         chk(OK, 'Dependencias de Python')
 
 
+# Secretos que el runner necesita y que NO se pueden ver desde la maquina local
+# mirando variables de entorno: viven en GitHub. Se preguntan con `gh`.
+SECRETOS_NUBE = ('GEE_SA_JSON', 'SUPABASE_URL', 'SUPABASE_SERVICE_KEY')
+
+
+def _secretos_de_la_nube():
+    """Que secretos tiene cargados el repo de la nube. Solo los NOMBRES.
+
+    Antes esto se deducia de las variables de entorno LOCALES, y avisaba "falta
+    GEE_SA_JSON en la nube" con el secreto perfectamente cargado en GitHub. Un
+    chequeo que avisa de mas se termina ignorando, y el dia que falta de verdad
+    tampoco se lee. `gh secret list` no muestra valores, solo nombres y fechas.
+    """
+    import subprocess
+    repo = os.environ.get('PIX_REPO_NUBE', 'Ncamargo50/pixadvisor-monitor')
+    try:
+        r = subprocess.run(['gh', 'secret', 'list', '-R', repo],
+                           capture_output=True, timeout=30)
+    except Exception:
+        r = None
+    if r is None or r.returncode != 0:
+        return chk(AVISO, 'Secretos del repo de la nube',
+                   'no se pudo preguntar (falta `gh` o no hay sesion): revisalos a mano',
+                   'gh auth login  ·  o mirar Settings > Secrets > Actions en %s' % repo)
+    cargados = {l.split('\t')[0].strip()
+                for l in r.stdout.decode('utf-8', 'replace').splitlines() if l.strip()}
+    faltan = [s for s in SECRETOS_NUBE if s not in cargados]
+    if faltan:
+        chk(FALTA, 'Secretos del repo de la nube',
+            'faltan en %s: %s' % (repo, ', '.join(faltan)),
+            'gh secret set <NOMBRE> -R %s < archivo_con_el_valor' % repo)
+    else:
+        chk(OK, 'Secretos del repo de la nube',
+            '%s tiene los %d que hacen falta' % (repo, len(SECRETOS_NUBE)))
+
+
 def earth_engine():
     """Lo que mas cuesta diagnosticar despues: sin esto no hay imagenes, y punto."""
     key = os.environ.get('GEE_SA_KEY')
@@ -58,10 +97,7 @@ def earth_engine():
             ee.Initialize()
             chk(OK, 'Earth Engine', 'credencial local del usuario')
             if not key:
-                chk(AVISO, 'Credencial de servicio para la nube',
-                    'aca funciona con tu credencial personal, pero el runner de GitHub '
-                    'necesita el secreto GEE_SA_JSON',
-                    'cargar GEE_SA_JSON en Settings > Secrets > Actions')
+                _secretos_de_la_nube()
     except Exception as e:
         chk(FALTA, 'Earth Engine', '%s: %s' % (type(e).__name__, str(e)[:90]),
             'revisar la cuenta de servicio y que el proyecto tenga GEE habilitado')
@@ -140,12 +176,29 @@ def app_de_campo():
         chk(AVISO, 'Descarga automatica de focos',
             'sin configurar. No hace falta: el mapa se manda por WhatsApp y el tecnico '
             'lo abre con "Abrir mapa" (APK 1.0.10+)')
-    if val('SUPABASE_URL'):
-        chk(OK, 'Lo que registra el tecnico vuelve al servidor')
+    # El lazo tiene DOS extremos y DOS credenciales distintas. Chequearlos por
+    # separado: con solo la de la app, el tecnico registra y el motor no puede leer
+    # —la tabla es append-only para anon— y la campaña termina sin un solo numero
+    # creyendo que "no hubo validaciones".
+    if val('SUPABASE_URL') and val('SUPABASE_ANON_KEY'):
+        chk(OK, 'La app puede ENVIAR lo que registra el tecnico')
     else:
-        chk(FALTA, 'Lo que registra el tecnico vuelve al servidor',
-            'SUPABASE_URL vacio: las validaciones quedan en el telefono',
-            'correr backend/001_scout_validaciones.sql y pegar las 2 credenciales')
+        falta = ('SUPABASE_URL' if not val('SUPABASE_URL') else 'SUPABASE_ANON_KEY')
+        chk(FALTA, 'La app puede ENVIAR lo que registra el tecnico',
+            '%s vacio en PIX_SCOUT/app/js/config.js: las validaciones quedan en el '
+            'telefono' % falta,
+            'python scripts/configurar_lazo.py (pide URL + clave publica)')
+
+    import os as _os
+    if _os.environ.get('SUPABASE_SERVICE_KEY', '').strip():
+        chk(OK, 'El motor puede LEER las validaciones')
+    else:
+        chk(FALTA, 'El motor puede LEER las validaciones',
+            'falta SUPABASE_SERVICE_KEY. La clave PUBLICA no sirve para leer: la '
+            'tabla no tiene policy de SELECT para anon, a proposito',
+            'cargar la clave SECRETA (sb_secret_... o service_role) como variable de '
+            'entorno local y como secreto del repo de la nube. '
+            'python scripts/configurar_lazo.py lo hace')
     if 'MODO_CIEGO: false' in s:
         chk(AVISO, 'Modo ciego',
             'apagado. Encenderlo para la campaña de validacion: si el tecnico sabe que '

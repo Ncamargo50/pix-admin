@@ -34,9 +34,12 @@ DIAS_AVISO, DIAS_ALARMA = 14, 30
 
 def _dias(fecha):
     try:
-        return (date.today() - date.fromisoformat(str(fecha)[:10])).days
+        d = (date.today() - date.fromisoformat(str(fecha)[:10])).days
     except Exception:
         return None
+    # Una entrega con fecha futura (un `--hasta` mal puesto, el reloj del runner)
+    # imprimia "hace -1 dias". No es una entrega mas fresca que hoy: es un dato raro.
+    return max(d, 0)
 
 
 def _clientes():
@@ -54,7 +57,8 @@ def _estado(base, c):
     e = {'clave': c.clave, 'titulo': c.titulo, 'activo': c.activo,
          'K': c.K, 'sitios': [s.clave for s in c.sitios],
          'fecha': None, 'dias': None, 'archivos': [], 'alertados': None,
-         'atencion': 0, 'vigilancia': 0, 'sin_dato': 0, 'lotes': None}
+         'atencion': 0, 'vigilancia': 0, 'sin_dato': 0, 'lotes': None,
+         'error': None}
     meta = os.path.join(d, 'META.json')
     if os.path.exists(meta):
         try:
@@ -64,18 +68,71 @@ def _estado(base, c):
             e['archivos'] = m.get('archivos', [])
         except Exception:
             pass
-    rk = os.path.join(d, 'ranking.csv')
-    if os.path.exists(rk):
+    # UN ranking POR PROPIEDAD, y se SUMAN. Antes se leia un `ranking.csv` fijo que
+    # `publicar_ultimo` ya no escribe (publica `ranking_<SITIO>.csv`), el
+    # `except: pass` se tragaba el FileNotFoundError y el tablero mostraba CEROS EN
+    # VERDE con lotes alertados de verdad. Medido: 4 ATENCION + 6 VIGILANCIA
+    # publicados y el tablero decia "Ningun lote sale de control".
+    rankings = sorted(n for n in os.listdir(d)
+                      if n.startswith('ranking_') and n.endswith('.csv')) \
+        if os.path.isdir(d) else []
+    leidos, rotos = 0, []
+    for nom in rankings:
         try:
             import pandas as pd
-            r = pd.read_csv(rk)
-            e['lotes'] = len(r)
+            r = pd.read_csv(os.path.join(d, nom))
+            # Un ranking SIN columna `estado` no es un ranking con cero alertados: es
+            # un archivo que no se puede interpretar. El guard `else 0` evitaba el
+            # crash eligiendo la rama TRANQUILIZADORA, que es justo lo que el resto
+            # de este modulo esta construido para no hacer. Va a `rotos`.
+            if 'estado' not in r.columns:
+                raise KeyError('sin columna estado')
+            e['lotes'] = (e['lotes'] or 0) + len(r)
             for k, col in (('atencion', 'ATENCION'), ('vigilancia', 'VIGILANCIA'),
                            ('sin_dato', 'SIN DATO')):
-                e[k] = int((r['estado'] == col).sum()) if 'estado' in r else 0
-            e['alertados'] = e['atencion'] + e['vigilancia']
-        except Exception:
-            pass
+                e[k] += int((r['estado'] == col).sum())
+            leidos += 1
+        except Exception as ex:
+            rotos.append('%s (%s)' % (nom, type(ex).__name__))
+    if leidos:
+        e['alertados'] = e['atencion'] + e['vigilancia']
+    # Un ranking ilegible NO puede quedar como cero silencioso: el tablero existe
+    # para decir si hay a donde ir, y un cero falso en verde es lo peor que puede
+    # mostrar. Se deja `alertados=None` y el semaforo lo trata como dato ausente.
+    if rotos:
+        e['alertados'] = None
+        e['error'] = 'ranking ilegible: ' + ', '.join(rotos)
+        print('  [AVISO] %s: %s' % (e.get('clave', '?'), e['error']))
+    elif not rankings and e['fecha'] is not None:
+        # CAMPO CHICO: un sitio `solo_focos` no emite ranking POR DISEÑO —no tiene
+        # cohorte y no la va a tener— y entrega focos. Avisar "falta el ranking"
+        # todos los dias sobre un cliente que esta entregando bien es la forma de
+        # que el aviso se deje de leer, y el dia que falte de verdad tampoco se lea.
+        focos = sorted(n for n in os.listdir(d)
+                       if n.startswith('focos_') and n.endswith('.geojson')) \
+            if os.path.isdir(d) else []
+        n_focos = 0
+        for nom in focos:
+            try:
+                gj = json.load(open(os.path.join(d, nom), encoding='utf-8'))
+                n_focos += len([f for f in gj.get('features', [])
+                                if (f.get('properties') or {}).get('tipo') != 'perimetro'])
+            except Exception as ex:
+                focos, n_focos = [], 0
+                e['error'] = 'focos ilegibles: %s (%s)' % (nom, type(ex).__name__)
+                print('  [AVISO] %s: %s' % (e.get('clave', '?'), e['error']))
+                break
+        if focos and not e.get('error'):
+            # `alertados` es lo que mira el semaforo. Aca son focos, no lotes: se
+            # rotula para que nadie lea "3 lotes alertados" donde hay 3 manchas.
+            e['alertados'] = n_focos
+            e['modo'] = 'acercamiento'
+            e['nota'] = ('%d foco(s) intra-lote. Este cliente no emite ranking entre '
+                         'lotes: el campo no llega a la cohorte minima.' % n_focos)
+        elif not e.get('error'):
+            e['alertados'] = None
+            e['error'] = 'entrega publicada sin ranking_*.csv ni focos_*.geojson'
+            print('  [AVISO] %s: %s' % (e.get('clave', '?'), e['error']))
     return e
 
 
@@ -150,7 +207,19 @@ def generar(base, salida=None):
                  '<span class="mono">%s</span>'
                  '<span class="cli-m">ultima entrega: %s</span></div>'
                  % (cls, E(e['titulo']), E(e['clave']), E(txt)))
-        if e['fecha']:
+        if e['fecha'] and e.get('modo') == 'acercamiento':
+            # Campo chico: los contadores del ranking son cero POR DISEÑO, no porque
+            # el campo este tranquilo. Mostrarlos como "0 en atencion" al lado de 3
+            # focos reales es un cero falso en verde, que es justo lo que este
+            # tablero existe para no hacer.
+            P.append('<div class="grid">'
+                     '<div class="c at"><b>%d</b><span>focos intra-lote</span></div>'
+                     '<div class="c"><b>%s</b><span>escena</span></div></div>'
+                     % (e['alertados'] or 0, E(str(e['fecha']))))
+            P.append('<div class="arch">Este cliente NO emite ranking entre lotes: '
+                     'el campo no llega a la cohorte minima. El producto es el '
+                     'acercamiento dentro del lote.</div>')
+        elif e['fecha']:
             P.append('<div class="grid">'
                      '<div class="c at"><b>%d</b><span>en atencion</span></div>'
                      '<div class="c vi"><b>%d</b><span>en vigilancia</span></div>'
@@ -170,10 +239,25 @@ def generar(base, salida=None):
         elif e['dias'] and e['dias'] > DIAS_ALARMA:
             acc, ok = ('Hace %d dias que no entrega. Revisar la pestaña Actions: puede ser '
                        'nubes persistentes (normal) o el cron fallando (no).' % e['dias']), False
+        elif e.get('error'):
+            # NUNCA decir "no hay nada" cuando no se pudo leer. Un cero falso en
+            # verde es lo peor que puede mostrar un tablero de operacion.
+            acc, ok = ('<b>No se pudo leer el ranking publicado</b> (%s). El numero de '
+                       'lotes para recorrer es DESCONOCIDO, no cero: abrir la carpeta '
+                       'del cliente antes de dar por buena la corrida.'
+                       % E(e['error'])), False
+        elif e['alertados'] and e.get('modo') == 'acercamiento':
+            acc, ok = ('Mandar <code>%s</code> por WhatsApp. %d mancha(s) DENTRO de los '
+                       'lotes para ir a mirar (no son lotes enteros).'
+                       % (E(e['archivos'][0]) if e['archivos'] else 'el GeoJSON',
+                          e['alertados'])), True
         elif e['alertados']:
             acc, ok = ('Mandar <code>%s</code> por WhatsApp. %d lote(s) para recorrer.'
                        % (E(e['archivos'][0]) if e['archivos'] else 'el GeoJSON',
                           e['alertados'])), True
+        elif e.get('modo') == 'acercamiento':
+            acc, ok = ('Se miro y no hay manchas sobre la unidad minima. '
+                       'No hay a donde mandar al tecnico.'), True
         else:
             acc, ok = 'Ningun lote sale de control. No hay a donde mandar al tecnico.', True
         P.append('<div class="acc%s">%s</div></div>' % (' ok' if ok else '', acc))

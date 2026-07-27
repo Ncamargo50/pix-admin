@@ -180,7 +180,7 @@ def a_geojson_ciego(muestra, geoms_por_id, ruta):
     """
     import json
     feats = []
-    vistos = set()
+    vistos, sin_geom = set(), []
     for _, r in muestra.iterrows():
         lid = str(r['lote_id'])
         if lid in vistos:
@@ -188,20 +188,45 @@ def a_geojson_ciego(muestra, geoms_por_id, ruta):
         vistos.add(lid)
         g = geoms_por_id.get(lid)
         if g is None:
+            sin_geom.append(lid)
             continue
         feats.append({
             'type': 'Feature',
             'geometry': g,
             'properties': {
+                # --- INTERFAZ CON PIX SCOUT. Estos nombres no son decorativos.
+                # La app lee `id`, `lote` y `estrato` (geojson.js). Emitiendo solo
+                # `lote_id` caia a ids POSICIONALES F-1..F-n, que se renumeran en
+                # cada ronda porque el orden de visita se baraja: la validacion
+                # registrada hoy no se podia rastrear al lote la semana que viene,
+                # que es justo el dato con el que se mide la precision. El lazo de
+                # retorno NO CERRABA.
+                'id': lid,
+                'name': lid,
+                'lote': lid,
+                'etiqueta': lid,
                 'lote_id': lid,
                 'orden': int(r['orden_visita']),
                 'ciego': True,
-                '_estrato_oculto': r['estrato'],
-                'prob_inclusion': float(r['prob_inclusion']),
-                'peso_diseño': float(r['peso_diseño']),
+                # `estrato` viaja VACIO a proposito: la app lo guarda y lo devuelve,
+                # y asi el registro trae el campo que el analisis necesita sin que
+                # el tecnico pueda verlo. El estrato real vive SOLO en el CSV de
+                # analisis, que no baja al telefono.
+                'estrato': None,
                 'status': 'pending',
+                # NO se emiten `_estrato_oculto`, `prob_inclusion` ni `peso_diseño`.
+                # Los tres separan el estrato perfectamente: `prob_inclusion` es
+                # funcion DETERMINISTA del estrato (n_h/N_h), asi que alcanza con
+                # abrir el archivo en QGIS o en el Bloc de notas para romper el
+                # ciego, y el MODO_CIEGO de la APK no conoce esas claves. Se
+                # recuperan por join contra `muestra_*.csv` al analizar.
             },
         })
+    if sin_geom:
+        # Descartar en silencio hacia que el CSV dijera 54 visitas y el GeoJSON
+        # tuviera menos, sin ninguna señal.
+        print('   [aviso] %d lote(s) de la muestra sin geometria, NO van al GeoJSON: '
+              '%s' % (len(sin_geom), ', '.join(sin_geom[:8])))
     with open(ruta, 'w', encoding='utf-8') as fh:
         json.dump({'type': 'FeatureCollection', 'features': feats}, fh,
                   ensure_ascii=False)

@@ -58,9 +58,17 @@ function activeFoci(){ return LOADED_FOCI || (CFG.DEMO_FOCOS ? D.focos : []); }
 // antes de registrar. Sin esto el registro negativo no mide nada: el que sabe que va
 // a un rojo encuentra algo. Ver ESPECIFICACION.md §3 y §4.
 const CIEGO = !!CFG.MODO_CIEGO;
-const sevTxt = f => CIEGO ? '—' : SEVL[f.sev];
+// PUERTA 4.3 — CIEGO AUDITABLE. No alcanza con ocultar el nivel de alerta: al cerrar la
+// campaña hay que poder DEMOSTRAR que el técnico no lo vio antes de registrar. Sin este
+// rastro, el ciego se confía al procedimiento y un tercero hostil no puede verificarlo.
+// Se marca la primera vez que la pantalla revela el estrato (severidad, score o nivel).
+let ESTRATO_VISTO_EN = null;
+function marcarEstratoVisto(){
+  if(!ESTRATO_VISTO_EN) ESTRATO_VISTO_EN = new Date().toISOString();
+}
+const sevTxt = f => { if(CIEGO) return '—'; marcarEstratoVisto(); return SEVL[f.sev]; };
 const sevCls = f => CIEGO ? 'media' : sevC(f.sev);
-const scoreTxt = f => CIEGO ? '·' : f.score;
+const scoreTxt = f => { if(CIEGO) return '·'; marcarEstratoVisto(); return f.score; };
 /* Descarga el GeoJSON de focos del pipeline y lo deja cacheado para uso offline.
    CFG.FOCOS_ENDPOINT estaba declarado pero NINGUN modulo lo leia: cambiar de campo
    exigia recompilar el APK entera. Ahora: si hay endpoint se intenta la red primero,
@@ -503,6 +511,12 @@ function registrarSinHallazgo(f){
    hallazgo:'nada', categoria:null, fichaId:null, alcance:st.alcance,
    // dirigido = el satelite eligio el sitio. NO entra al calculo del umbral MIP.
    tipo_muestreo:'dirigido_satelital',
+   // PUERTA 4.3: queda registrado si el modo ciego estaba encendido y si la pantalla
+   // habia revelado el estrato ANTES de este registro. Sin esto el ciego no se puede
+   // auditar despues, y una campaña que no se puede auditar no prueba nada.
+   modo_ciego: CIEGO,
+   estrato_visto_en: ESTRATO_VISTO_EN,
+   registro_a_ciegas: CIEGO && !ESTRATO_VISTO_EN,
    // el historial pinta estos campos; sin ellos el registro negativo — que es el
    // que permite medir los falsos positivos — sale como una fila en blanco
    nombre:'Sin hallazgo', cultivo:(f?f.cultivoLabel:''), estadio:(f?f.estadio:''),
@@ -670,6 +684,12 @@ function openValidacion(f, cultivoFicha){
    // esta calibrado sobre muestreo representativo: este conteo NO es comparable
    // con el, y marcarlo es lo que evita que el producto empuje a sobre-aplicar.
    tipo_muestreo:'dirigido_satelital',
+   // PUERTA 4.3: queda registrado si el modo ciego estaba encendido y si la pantalla
+   // habia revelado el estrato ANTES de este registro. Sin esto el ciego no se puede
+   // auditar despues, y una campaña que no se puede auditar no prueba nada.
+   modo_ciego: CIEGO,
+   estrato_visto_en: ESTRATO_VISTO_EN,
+   registro_a_ciegas: CIEGO && !ESTRATO_VISTO_EN,
    coincide:st.coin,nde:st.nde,coord,acc,gps_real:gpsFix,foto:st.photo,
    // `supera_umbral` ahora es un CALCULO, no el boton que aprieta el tecnico (Puerta 3.2).
    // Vale null cuando no se pudo calcular, y `umbral_estado` dice por que. Nunca se
@@ -734,7 +754,17 @@ async function renderHistorial(){
   <p class="sub">${pend} pendiente${pend!==1?'s':''} de sincronizar · guardadas en el dispositivo (offline-first).</p>
   ${vs.length?vs.map(v=>{const s=sevC({Baja:'baja',Media:'media',Alta:'alta','Muy alta':'muy_alta'}[v.severidad]||'media');return `<div class="histrow"><span class="hi" style="background:${CAT_COL[v.categoria]||'var(--brand)'}">${CAT_ICON[v.categoria]||IC.check}</span><span class="ht"><b>${esc(v.nombre)}</b><span>${esc(v.cultivo||'')} · ${esc(v.estadio||'')} · ${esc(v.severidad)} · ${esc((v.created||'').slice(0,16).replace('T',' '))}</span></span><span class="chip ${v.synced?'baja':'alta'}">${v.synced?'sync':'pend'}</span></div>`;}).join(''):`<div class="empty">Todavía no registraste validaciones.<br>Diagnosticá un foco y confirmá el hallazgo.</div>`}
   ${vs.length&&pend?`<button class="btn brand big block" id="h-sync">${IC.sync} Sincronizar ${pend} pendiente${pend!==1?'s':''}</button>`:''}</div>`;
- const b=$('#h-sync'); if(b) b.onclick=async()=>{toast('Sincronizando…');const r=await Store.syncNow();updateSync();toast(r.sent?('Sincronizadas '+r.sent+' validaciones.'):'Sin conexión o sin backend configurado — quedan en cola segura.');renderHistorial();};
+ const b=$('#h-sync'); if(b) b.onclick=async()=>{toast('Sincronizando…');const r=await Store.syncNow();updateSync();toast(msgSync(r,' validaciones'));renderHistorial();};
+}
+
+/* Un RECHAZO del servidor NO es falta de señal, y decir "cola segura" cuando el
+   servidor esta rechazando es como se pierde una campaña entera de validaciones:
+   el tecnico sigue registrando y nada llega. Se nombra el caso. */
+function msgSync(r,suf){
+ if(r&&r.rechazadas) return 'El servidor RECHAZO '+r.rechazadas+' registro'+(r.rechazadas!==1?'s':'')+' ('+(r.ultimoError||'error')+'). NO se estan guardando: avisá al administrador.';
+ if(r&&r.sent) return 'Sincronizadas '+r.sent+suf+'.';
+ if(r&&r.reason==='offline_o_sin_config') return 'Sin conexión o sin backend configurado — quedan en cola segura.';
+ return 'Nada para sincronizar.';
 }
 
 /* ===== LOGIN / CUENTA / USUARIOS ===== */
@@ -906,7 +936,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{const x=t.dataset.ta
 $('#sunBtn').onclick=()=>{$('#app').classList.toggle('sun');$('#sunBtn').classList.toggle('act');};
 $('#themeBtn').onclick=()=>{const r=document.documentElement,c=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');r.setAttribute('data-theme',c==='dark'?'light':'dark');};
 $('#acctBtn').onclick=openAccount;
-$('#syncpill').onclick=async()=>{toast('Sincronizando…');const r=await Store.syncNow();updateSync();toast(r.sent?('Sincronizadas '+r.sent+'.'):'Sin conexión/backend — cola segura.');};
+$('#syncpill').onclick=async()=>{toast('Sincronizando…');const r=await Store.syncNow();updateSync();toast(msgSync(r,''));};
 
 // install
 let deferredPrompt=null;

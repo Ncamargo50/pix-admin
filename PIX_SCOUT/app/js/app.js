@@ -754,7 +754,17 @@ async function renderHistorial(){
   <p class="sub">${pend} pendiente${pend!==1?'s':''} de sincronizar · guardadas en el dispositivo (offline-first).</p>
   ${vs.length?vs.map(v=>{const s=sevC({Baja:'baja',Media:'media',Alta:'alta','Muy alta':'muy_alta'}[v.severidad]||'media');return `<div class="histrow"><span class="hi" style="background:${CAT_COL[v.categoria]||'var(--brand)'}">${CAT_ICON[v.categoria]||IC.check}</span><span class="ht"><b>${esc(v.nombre)}</b><span>${esc(v.cultivo||'')} · ${esc(v.estadio||'')} · ${esc(v.severidad)} · ${esc((v.created||'').slice(0,16).replace('T',' '))}</span></span><span class="chip ${v.synced?'baja':'alta'}">${v.synced?'sync':'pend'}</span></div>`;}).join(''):`<div class="empty">Todavía no registraste validaciones.<br>Diagnosticá un foco y confirmá el hallazgo.</div>`}
   ${vs.length&&pend?`<button class="btn brand big block" id="h-sync">${IC.sync} Sincronizar ${pend} pendiente${pend!==1?'s':''}</button>`:''}</div>`;
- const b=$('#h-sync'); if(b) b.onclick=async()=>{toast('Sincronizando…');const r=await Store.syncNow();updateSync();toast(r.sent?('Sincronizadas '+r.sent+' validaciones.'):'Sin conexión o sin backend configurado — quedan en cola segura.');renderHistorial();};
+ const b=$('#h-sync'); if(b) b.onclick=async()=>{toast('Sincronizando…');const r=await Store.syncNow();updateSync();toast(msgSync(r,' validaciones'));renderHistorial();};
+}
+
+/* Un RECHAZO del servidor NO es falta de señal, y decir "cola segura" cuando el
+   servidor esta rechazando es como se pierde una campaña entera de validaciones:
+   el tecnico sigue registrando y nada llega. Se nombra el caso. */
+function msgSync(r,suf){
+ if(r&&r.rechazadas) return 'El servidor RECHAZO '+r.rechazadas+' registro'+(r.rechazadas!==1?'s':'')+' ('+(r.ultimoError||'error')+'). NO se estan guardando: avisá al administrador.';
+ if(r&&r.sent) return 'Sincronizadas '+r.sent+suf+'.';
+ if(r&&r.reason==='offline_o_sin_config') return 'Sin conexión o sin backend configurado — quedan en cola segura.';
+ return 'Nada para sincronizar.';
 }
 
 /* ===== LOGIN / CUENTA / USUARIOS ===== */
@@ -926,7 +936,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{const x=t.dataset.ta
 $('#sunBtn').onclick=()=>{$('#app').classList.toggle('sun');$('#sunBtn').classList.toggle('act');};
 $('#themeBtn').onclick=()=>{const r=document.documentElement,c=r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');r.setAttribute('data-theme',c==='dark'?'light':'dark');};
 $('#acctBtn').onclick=openAccount;
-$('#syncpill').onclick=async()=>{toast('Sincronizando…');const r=await Store.syncNow();updateSync();toast(r.sent?('Sincronizadas '+r.sent+'.'):'Sin conexión/backend — cola segura.');};
+$('#syncpill').onclick=async()=>{toast('Sincronizando…');const r=await Store.syncNow();updateSync();toast(msgSync(r,''));};
 
 // install
 let deferredPrompt=null;

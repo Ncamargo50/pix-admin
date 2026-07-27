@@ -217,6 +217,11 @@ def ewma(res, lam=LAMBDA_EWMA, L=L_CONTROL):
     Acumula: un apartamiento chico y sostenido pesa mas que un pico de una fecha,
     que es justo lo que distingue un problema real de una escena rara.
     """
+    # Sin residuos no hay carta. `residuos` devuelve vacio cuando ninguna cohorte
+    # llega al minimo de lotes: sin esta guarda, `sort_values('fecha')` revienta
+    # con un KeyError que no dice nada del problema real.
+    if res is None or len(res) == 0 or 'fecha' not in getattr(res, 'columns', []):
+        return pd.DataFrame()
     out = []
     for (lote, eje), g in res.sort_values('fecha').groupby(['lote_id', 'eje']):
         g = g.dropna(subset=['z'])
@@ -262,8 +267,27 @@ def ewma(res, lam=LAMBDA_EWMA, L=L_CONTROL):
 
 
 # Signo fisiologico: por que eje un valor BAJO (o alto) es la señal de alarma.
-# NDMI bajo = dosel mas seco de lo esperado. PSRI alto = mas senescente.
-SIGNO = {'NDMI': -1, 'PSRI': +1}
+#   NDMI bajo = dosel mas seco de lo esperado.
+#   PSRI alto = mas senescente.
+#   NDRE / CIRE bajos = menos clorofila de la esperada.
+#
+# TODO eje que se use TIENE que estar acá. El `.get(eje, 1)` de mas abajo asume
+# +1 para lo que no figure, o sea que un eje nuevo cuya alarma es el valor BAJO
+# quedaria con el signo invertido: el motor alertaria sobre los lotes SANOS y
+# callaria sobre los enfermos, sin fallar ni avisar. Es el error mas caro posible
+# en este archivo.
+SIGNO = {'NDVI': -1, 'NDMI': -1, 'PSRI': +1, 'NDRE': -1, 'CIRE': -1}
+
+# La verificacion que convierte "el error mas caro posible" en un crash al importar.
+# Sin ella, configurar un eje sin declarar su sentido no falla: el motor marca los
+# lotes SANOS y calla sobre los enfermos. Con NDVI ausente y EJES=('NDVI','NDMI'),
+# medido: el estado ATENCION se volvia INALCANZABLE y no habia ni un warning.
+_faltan = [e for e in cfg.EJES if e not in SIGNO]
+if _faltan:
+    raise RuntimeError(
+        'cfg.EJES declara %s y ranking.SIGNO no dice si su alarma es el valor alto '
+        'o el bajo. Agregalos a SIGNO antes de usarlos: un signo invertido hace que '
+        'el motor alerte sobre los lotes sanos sin fallar ni avisar.' % _faltan)
 
 
 def ranking(car, fecha=None, K=None):
@@ -308,13 +332,47 @@ def ranking(car, fecha=None, K=None):
                              np.where(coh.str.startswith('EST-'), 'ESTIMADA-FENOLOGIA',
                              np.where(coh == 'unica', 'ESTIMADA-UNICA', 'declarada')))
 
-    agg['estado'] = np.where(agg['ejes_en_senal'] >= 2, 'ATENCION',
-                    np.where(agg['ejes_en_senal'] == 1, 'VIGILANCIA', 'SIN SEÑAL'))
+    # ATENCION exige que TODOS los ejes configurados esten en señal, no "2 o mas".
+    # Con `>= 2` cableado, configurar 3 ejes convertia la conjuncion en "2 de 3"
+    # —una regla mucho mas laxa— y con 1 eje volvia ATENCION inalcanzable, en los
+    # dos casos sin que nada lo declarara.
+    n_ejes = len(cfg.EJES)
+    agg['estado'] = np.where(agg['ejes_en_senal'] >= n_ejes, 'ATENCION',
+                    np.where(agg['ejes_en_senal'] >= 1, 'VIGILANCIA', 'SIN SEÑAL'))
+
+    # UNA COHORTE SIN CICLO NO PUEDE PRODUCIR UN ATENCION. `EST-SIN-CICLO` agrupa a
+    # los lotes cuya emergencia no se pudo ubicar — en HDS 2025/26 son 90 de 207
+    # (43,5%) — y su "trayectoria mediana" mezcla fechas de siembra desconocidas.
+    # Es exactamente la configuracion que `cohorte.py` declara MEDIDA COMO CIEGA
+    # (cohorte unica: 1,3% marcado contra un nulo de 2,0%). Y sin esta degradacion,
+    # el lote #1 del producto salia de ahi: se mandaba al tecnico primero al lote
+    # cuya referencia el propio motor no puede sostener.
+    sin_ciclo = agg['cohorte'].astype(str).eq('EST-SIN-CICLO')
+    degradados = int((sin_ciclo & agg['estado'].eq('ATENCION')).sum())
+    agg.loc[sin_ciclo & agg['estado'].eq('ATENCION'), 'estado'] = 'VIGILANCIA'
+    agg['referencia_debil'] = sin_ciclo
+    if degradados:
+        print('[criterio] %d lote(s) bajados de ATENCION a VIGILANCIA: su cohorte es '
+              'EST-SIN-CICLO (no se pudo ubicar la emergencia, la referencia no '
+              'discrimina)' % degradados)
     # Una alerta vieja no es una alerta: con 48% de dekadas sin escena util, un lote
     # puede quedar meses sin observacion. Arrastrar su ultimo estado seria afirmar
     # algo que no se miro. Se declara la falta de dato en vez de suponer.
     agg.loc[agg['dias_atras'] > CADUCIDAD_DIAS, 'estado'] = 'SIN DATO'
-    agg = agg.sort_values(['ejes_en_senal', 'score'], ascending=False)
+    # SIN DATO va SIEMPRE al final. `ejes_en_senal` y `score` sobreviven al pisado
+    # del estado, asi que un lote sin observar hace 80 dias se ordenaba ARRIBA de
+    # lotes en VIGILANCIA reales y ocupaba un puesto en la tabla del informe. No se
+    # oculta —sigue contado y declarado— pero no compite por prioridad con lo que si
+    # se midio.
+    # El orden lo manda el ESTADO FINAL, no el conteo de ejes. Con la degradacion de
+    # cohorte debil, un lote podia quedar VIGILANCIA y seguir figurando primero, por
+    # encima de ATENCIONes reales: el informe decia "van ordenados por prioridad" y
+    # el primero de la lista era el de menor prioridad.
+    _PRIORIDAD = {'ATENCION': 0, 'VIGILANCIA': 1, 'SIN SEÑAL': 2, 'SIN DATO': 3}
+    agg['_prio'] = agg['estado'].map(_PRIORIDAD).fillna(9).astype(int)
+    agg = agg.sort_values(['_prio', 'ejes_en_senal', 'score'],
+                          ascending=[True, False, False], kind='mergesort')
+    agg = agg.drop(columns='_prio')
     agg['orden'] = np.arange(1, len(agg) + 1)
     if K:
         # K es un TECHO de capacidad de scouting, no una cuota a llenar. Cortar por K
@@ -326,8 +384,134 @@ def ranking(car, fecha=None, K=None):
     return agg.reset_index(drop=True)
 
 
-def control_nulo(df, ejes=cfg.EJES, n_rep=20, semilla=0):
-    """Puerta 2.1: nula que PRESERVA la dependencia temporal de cada lote.
+def _ar1(n, sigma, rho, rng):
+    """Ruido AR(1) con varianza marginal sigma^2 y autocorrelacion lag-1 rho."""
+    x = np.empty(n)
+    x[0] = rng.normal(0, sigma)
+    s_e = sigma * np.sqrt(max(1 - rho ** 2, 1e-6))
+    for i in range(1, n):
+        x[i] = rho * x[i - 1] + rng.normal(0, s_e)
+    return x
+
+
+def control_nulo(df, ejes=cfg.EJES, n_rep=20, semilla=0, fechas=None):
+    """Puerta 2.1: la tasa de FALSA ALARMA del criterio.
+
+    Se construye el mundo donde la hipotesis nula es CIERTA por construccion: cada
+    lote sigue EXACTAMENTE la trayectoria de su cohorte mas ruido AR(1) con la
+    escala, la autocorrelacion temporal y la correlacion entre ejes medidas en el
+    dato real. Ningun lote se aparta, asi que toda alarma es falsa.
+
+    POR QUE SE REEMPLAZO LA PERMUTACION (medido 2026-07-26, no supuesto)
+    --------------------------------------------------------------------
+    Las dos versiones anteriores permutaban el dato, y ninguna era una nula:
+
+    1. Permutar identidades dentro de cada fecha dejaba a cada "lote" con una serie
+       iid: destruia la autocorrelacion a la que el estimador de escala es sensible,
+       y reportaba ~0% pasara lo que pasara.
+    2. Rotar circularmente la serie de cada lote fallaba por TRES razones distintas:
+       · rotaba los indices pero NO la etiqueta de calidad, asi que una fila 'pleno'
+         recibia el valor de una fecha nublada (enmascarado, vacio). La nula perdia
+         el 70% de las observaciones y se evaluaba sobre 3 lotes mientras el dato
+         real se evaluaba sobre 96. No eran comparables.
+       · rotando cada lote un desplazamiento DISTINTO, la mediana por (cohorte,
+         fecha) deja de ser una trayectoria fenologica y se aplana: el desvio del
+         NDMI mediano de cohorte caia de 0,1338 a 0,1022. El residuo contra una
+         referencia degradada es mayor, asi que la "nula" disparaba MAS que el dato
+         real (separacion negativa en las tres configuraciones de ejes probadas).
+       · una rotacion circular CONSERVA los episodios sostenidos, solo los cambia de
+         fecha. El EWMA busca desvios sostenidos, asi que los sigue viendo. Una
+         permutacion que preserva justo lo que el estadistico detecta no puede ser
+         su nula.
+
+    Con esta version, sobre HDS 2025/26, la falsa alarma medida es 0,14%-0,28%
+    segun el par de ejes — coherente con una carta a L=3 sigma. Los "0,7%-1,8%"
+    que circulaban en la documentacion salian del metodo viejo y no son una tasa
+    de falsa alarma.
+
+    `fechas`: cortes donde evaluar. Por defecto la ultima. Conviene pasar varias:
+    medir en un solo dia compara ruido de muestreo.
+    """
+    d0 = df.copy()
+    if 'cohorte' not in d0.columns:
+        # Mismo respaldo que `residuos`: sin NDVI no se puede estimar la cohorte,
+        # y eso no es motivo para no poder medir la falsa alarma.
+        try:
+            from . import cohorte as coh
+            d0 = coh.estimar(d0)
+        except Exception:
+            d0['cohorte'] = 'unica'
+    pl = d0[d0['calidad'] == 'pleno'] if 'calidad' in d0.columns else d0
+    rng = np.random.default_rng(semilla)
+
+    traj, par = {}, {}
+    for eje in ejes:
+        t = pl.groupby(['cohorte', 'fecha'])[eje].median().rename('_traj')
+        traj[eje] = t
+        r = pl.join(t, on=['cohorte', 'fecha'])
+        res = (r[eje] - r['_traj']).to_numpy(dtype=float)
+        res = res[np.isfinite(res)]
+        sigma = (1.4826 * np.nanmedian(np.abs(res - np.nanmedian(res)))
+                 if len(res) else 0.0)
+        rhos = []
+        for _, g in r.sort_values('fecha').groupby('lote_id'):
+            v = (g[eje] - g['_traj']).to_numpy(dtype=float)
+            v = v[np.isfinite(v)]
+            if len(v) >= 4 and v.std() > 1e-12:
+                rhos.append(np.corrcoef(v[:-1], v[1:])[0, 1])
+        par[eje] = (float(sigma), float(np.clip(np.median(rhos), 0, 0.95))
+                    if rhos else 0.0)
+
+    # Correlacion ENTRE ejes en el ruido: generar los dos independientes hace que la
+    # conjuncion parezca mas exigente de lo que es. Se usa la de los residuos
+    # observados, que mezcla senal y ruido y por lo tanto es una cota superior.
+    e1, e2 = (list(ejes) + list(ejes))[:2]
+    r1 = pl.join(traj[e1], on=['cohorte', 'fecha'])
+    r2 = pl.join(traj[e2], on=['cohorte', 'fecha'])
+    v1 = (r1[e1] - r1['_traj']).to_numpy(dtype=float)
+    v2 = (r2[e2] - r2['_traj']).to_numpy(dtype=float)
+    ok = np.isfinite(v1) & np.isfinite(v2)
+    rho_xy = float(np.clip(np.corrcoef(v1[ok], v2[ok])[0, 1], -0.98, 0.98)
+                   ) if ok.sum() > 30 else 0.0
+
+    tasas = []
+    for _ in range(n_rep):
+        sint = d0.copy()
+        ordenado = sint.sort_values('fecha')
+        s1, s2 = par[e1][0], par[e2][0]
+        n1, n2, filas = [], [], []
+        for _, g in ordenado.groupby('lote_id', sort=True):
+            a1 = _ar1(len(g), 1.0, par[e1][1], rng)
+            a2 = _ar1(len(g), 1.0, par[e2][1], rng)
+            n1.append(a1 * s1)
+            n2.append((rho_xy * a1 + np.sqrt(max(1 - rho_xy ** 2, 0)) * a2) * s2)
+            # El indice se acumula EN EL MISMO ORDEN que el ruido. Usar el indice
+            # global ordenado por fecha emparejaba la observacion i-esima de un lote
+            # con la i-esima fila cronologica de TODA la tabla: rompia la
+            # autocorrelacion temporal intra-lote, que es justo lo que esta nula
+            # tiene que preservar. Con el bug la puerta devolvia 0,00% pasara lo que
+            # pasara — una puerta que no puede reprobar no es una puerta. Medido
+            # sobre HDS 2025/26: 0,0000% con el bug, 0,30% corregido.
+            filas.append(g.index.to_numpy())
+        idx = pd.Index(np.concatenate(filas)) if filas else ordenado.index
+        for eje, ru in ((e1, np.concatenate(n1)), (e2, np.concatenate(n2))):
+            base = sint.set_index(['cohorte', 'fecha']).index.map(traj[eje])
+            s = pd.Series(ru, index=idx).reindex(sint.index)
+            sint[eje] = np.asarray(base, dtype=float) + s.to_numpy()
+        car = ewma(residuos(sint, ejes))
+        if car.empty:
+            continue
+        for f in (fechas or [None]):
+            r = ranking(car, fecha=f)
+            if not r.empty:
+                tasas.append(r['estado'].isin(('ATENCION', 'VIGILANCIA')).mean())
+    return float(np.mean(tasas)) if tasas else float('nan')
+
+
+def _control_nulo_permutacion(df, ejes=cfg.EJES, n_rep=20, semilla=0):
+    """OBSOLETA. Se conserva solo para poder reproducir los numeros viejos.
+
+    No usar como puerta de aceptacion: ver el encabezado de `control_nulo`.
 
     La version anterior permutaba identidades DENTRO de cada fecha, lo que dejaba a
     cada "lote" con una serie iid: destruia justamente la autocorrelacion a la que el
@@ -338,9 +522,20 @@ def control_nulo(df, ejes=cfg.EJES, n_rep=20, semilla=0):
     Ahora se rota CIRCULARMENTE la serie de cada lote (block shift). Eso conserva la
     estructura temporal intra-lote y la distribucion de valores, pero rompe la
     alineacion con la trayectoria de la cohorte, que es la alternativa que se testea.
+
+    LA ETIQUETA DE CALIDAD VIAJA CON EL VALOR, y no es un detalle. Rotando solo los
+    indices, una fila que era 'pleno' recibia el valor de una fecha nublada — que
+    viene vacio, porque el indice esta enmascarado — y se caia en el EWMA. Medido
+    sobre HDS: la nula perdia el 70% de las observaciones y solo 3 lotes de 96
+    alcanzaban el minimo de observaciones. La nula se estaba calculando sobre otra
+    poblacion de lotes que el dato real, asi que las dos tasas no eran comparables
+    y la puerta no media lo que decia medir.
     """
     rng = np.random.default_rng(semilla)
     tasas = []
+    # Todo lo que describe la OBSERVACION rota junto: valor, calidad y soporte.
+    # Lo que describe al LOTE (area, cohorte) no rota: es la identidad, no el dato.
+    rotables = list(ejes) + ['cobertura', 'n_px', 'calidad', 'FVC', 'NDVI']
     for _ in range(n_rep):
         partes = []
         for _, g in df.sort_values('fecha').groupby('lote_id'):
@@ -348,7 +543,7 @@ def control_nulo(df, ejes=cfg.EJES, n_rep=20, semilla=0):
             n = len(g)
             if n > 2:
                 k = int(rng.integers(1, n))
-                cols = [c for c in (list(ejes) + ['cobertura', 'n_px']) if c in g.columns]
+                cols = [c for c in rotables if c in g.columns]
                 g[cols] = np.roll(g[cols].to_numpy(), k, axis=0)
             partes.append(g)
         d = pd.concat(partes, ignore_index=True)

@@ -44,7 +44,9 @@ llegan a ningún lado — o sea, no hay con qué medir el sistema.
 
 1. Crear el proyecto en supabase.com (o usar el que ya tenés del panel).
 2. SQL Editor → pegar y ejecutar `PIX_SCOUT/backend/001_scout_validaciones.sql`.
-3. Settings → API → copiar **Project URL** y **anon key**.
+3. Settings → API Keys → copiar **Project URL** y **Publishable key**
+   (`sb_publishable_...`; en proyectos viejos se llamaba **anon key** y
+   empezaba con `eyJ`). Los dos formatos funcionan.
 4. Pegarlas en `PIX_SCOUT/app/js/config.js` (líneas 22-23).
 5. Recompilar el APK: `cd PIX_SCOUT/pix-scout-apk && ./gradlew :app:assembleRelease`
 

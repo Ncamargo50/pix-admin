@@ -80,3 +80,9 @@ _orphan_files/
 _pre_clone_backup/
 salida/
 scratch/
+
+# CREDENCIALES Y COPIAS: red de seguridad a nivel de workspace.
+# Los .gitignore de cada subproyecto ya lo cubren, pero uno solo que
+# falte —o un subproyecto nuevo— alcanza para publicar una clave.
+.env
+*.bak

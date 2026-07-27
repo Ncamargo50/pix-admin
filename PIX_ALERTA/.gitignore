@@ -1,0 +1,6 @@
+
+# credenciales locales: NUNCA al repositorio
+.env
+
+# copias de seguridad que deja el asistente de credenciales
+*.bak

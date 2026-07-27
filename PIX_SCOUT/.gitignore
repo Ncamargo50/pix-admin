@@ -5,3 +5,4 @@ release/SECRETS.local.txt
 pix-scout-apk/build/
 pix-scout-apk/app/build/
 app/data/*_ORIGINAL.geojson.bak
+*.bak

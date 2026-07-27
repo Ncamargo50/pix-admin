@@ -90,7 +90,8 @@ Esta es la puerta que separa este motor del de Syngenta, y la que hoy no se pasa
 
 | # | Qué | Prueba de aceptación |
 |---|---|---|
-| 2.1 | **Control nulo** — correr el criterio sobre datos donde no debería marcar nada (identidades de lote permutadas, o una campaña sin problema reportado) | Tasa de alarma **≈ α declarado**. El criterio actual reprueba: marca **30%** donde debería marcar ~5% |
+| 2.1 | **Control nulo** — correr el criterio sobre un mundo donde la hipótesis nula es CIERTA POR CONSTRUCCIÓN: cada lote sigue la trayectoria de su cohorte + ruido AR(1) con la escala, la autocorrelación temporal y la correlación entre ejes medidas en el dato real | Tasa de alarma **≈ α declarado**. **MEDIDO 2026-07-26: 0,16%-0,28%** según el par de ejes, coherente con una carta a L=3σ. Referencia: Gi* espacial sobre el índice crudo marca ~30% |
+| 2.1b | ⚠️ **NO usar permutación ni rotación como nula.** Medido: rotar la serie de cada lote (a) no movía la etiqueta de calidad, así que la nula se evaluaba sobre 3 lotes y el dato real sobre 96; (b) aplanaba la trayectoria de cohorte (desvío del NDMI mediano de 0,1338 → 0,1022), inflando el residuo; (c) **conserva los episodios sostenidos**, que es justo lo que el EWMA detecta. El número **"0,7%-1,8%"** que circulaba salió de ese método y **no es una tasa de falsa alarma** | Verificar siempre que la nula evalúe la MISMA población que el dato real |
 | 2.2 | **No es una cuota** | La fracción marcada **varía entre fechas**. Si es constante en ~30% campaña tras campaña, es un cuantil con otra cara |
 | 2.3 | **Puede decir "no pasa nada"** | Existe al menos una fecha del histórico en la que el sistema entrega **cero lotes** sobre el umbral de atención |
 | 2.4 | **Estabilidad de parámetros** | Mover cualquier parámetro ±50% conserva **≥70% del top-K**. Precedente propio: en el motor de caña, df=7 vs df=2 movía la superficie roja de 113 a 772 ha el mismo día |

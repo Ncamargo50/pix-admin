@@ -29,6 +29,32 @@ from datetime import datetime, timezone
 
 RE_FECHA = re.compile(r'(\d{4}-\d{2}-\d{2})')
 
+# prefijo del motor -> (extension, plantilla del nombre estable publicado).
+# EL NOMBRE ESTABLE LLEVA SIEMPRE LA PROPIEDAD. Con nombres fijos por cliente
+# (`informe.pdf`, `ranking.csv`), un cliente con dos haciendas publicaba UNA SOLA,
+# elegida por el orden de os.listdir: el productor recibia el informe de un campo
+# creyendo que era del otro.
+_PUBLICA = (('focos_', '.geojson', 'focos_%s.geojson'),
+            ('lotes_', '.geojson', 'lotes_%s.geojson'),
+            ('ranking_', '.csv', 'ranking_%s.csv'),
+            ('Informe_', '.pdf', 'Informe_%s.pdf'))
+
+
+def _sitio_de(nom, fecha):
+    """Clave de la propiedad a partir del nombre del entregable. None si no lo es."""
+    for pref, ext, _ in _PUBLICA:
+        if nom.startswith(pref) and nom.endswith(ext):
+            return nom[len(pref):].replace('_%s%s' % (fecha, ext), '')
+    return None
+
+
+def _nombre_estable(nom, fecha):
+    """Como se llama ese entregable dentro de `ultimo/`. None si no se publica."""
+    for pref, ext, plantilla in _PUBLICA:
+        if nom.startswith(pref) and nom.endswith(ext):
+            return plantilla % nom[len(pref):].replace('_%s%s' % (fecha, ext), '')
+    return None
+
 
 def publicar(base):
     if not os.path.isdir(base):
@@ -50,7 +76,22 @@ def publicar(base):
                 cand.append((m.group(1), nom))
         if not cand:
             continue
-        ultima = max(f for f, _ in cand)
+        # UNA FECHA POR PROPIEDAD, no una para todo el cliente. Con `max()` global,
+        # la hacienda que no emitio hoy DESAPARECIA de `ultimo/`: la APK pedia su
+        # GeoJSON y recibia 404, y el WhatsApp contaba solo los lotes de la otra.
+        # Pasa siempre que una propiedad emite y la otra no — nubes en una zona y no
+        # en la otra, o ventanas de campaña distintas, que es justo lo que el alta
+        # web fomenta al pedir una fecha de siembra POR PROPIEDAD.
+        ultima_de = {}
+        for fecha, nom in cand:
+            sitio = _sitio_de(nom, fecha)
+            if sitio is None:
+                continue
+            if sitio not in ultima_de or fecha > ultima_de[sitio]:
+                ultima_de[sitio] = fecha
+        if not ultima_de:
+            continue
+        ultima = max(ultima_de.values())       # la mas reciente, para el META
         dest = os.path.join(dcli, 'ultimo')
         # Se limpia antes: si la corrida de hoy no emitio GeoJSON, dejar el de la semana
         # pasada dentro de "ultimo" haria que el telefono lo baje como si fuera de hoy.
@@ -60,24 +101,66 @@ def publicar(base):
 
         publicados = []
         for fecha, nom in cand:
-            if fecha != ultima:
+            sitio_nom = _sitio_de(nom, fecha)
+            # Cada propiedad publica SU ultima fecha, no la del cliente.
+            if sitio_nom is None or fecha != ultima_de.get(sitio_nom):
                 continue
             src = os.path.join(dcli, nom)
-            if nom.endswith('.geojson'):
-                # nombre estable = clave del sitio, sin la fecha
-                sitio = nom.replace('lotes_', '').replace('_%s.geojson' % fecha, '')
-                nuevo = '%s.geojson' % sitio
-            elif nom.endswith('.pdf'):
-                nuevo = 'informe.pdf'
-            elif nom.endswith('.csv') and nom.startswith('ranking_'):
-                nuevo = 'ranking.csv'
-            else:
+            # EL NOMBRE ESTABLE LLEVA LA PROPIEDAD, SIEMPRE. Con nombres fijos por
+            # cliente (`informe.pdf`, `ranking.csv`, `focos.geojson`), un cliente con
+            # dos haciendas publicaba el informe y el ranking de UNA SOLA, la ultima
+            # que devolviera os.listdir — orden no determinista. El productor recibia
+            # el informe de un campo y creia que era del otro. Con multipropiedad
+            # recien habilitada, esto pasaba de ser teorico a seguro.
+            nuevo = _nombre_estable(nom, fecha)
+            if nuevo is None:
                 continue
             shutil.copy2(src, os.path.join(dest, nuevo))
             publicados.append(nuevo)
 
+        # Cuantos lotes hay para recorrer. Va en el META para que el aviso de
+        # WhatsApp pueda decirlo sin abrir el CSV, y para poder auditar despues
+        # cuantos se mandaron sin depender de que el archivo siga ahi.
+        # Se suman TODAS las propiedades del cliente: el aviso habla del cliente,
+        # no de una hacienda. Con un solo ranking.csv se contaba una sola.
+        alertados = None
+        import csv as _csv
+        for nom_r in sorted(os.listdir(dest)):
+            if not (nom_r.startswith('ranking_') and nom_r.endswith('.csv')):
+                continue
+            try:
+                with open(os.path.join(dest, nom_r), encoding='utf-8') as fh:
+                    filas = list(_csv.DictReader(fh))
+                n = sum(1 for r in filas
+                        if r.get('estado') in ('ATENCION', 'VIGILANCIA'))
+                alertados = n if alertados is None else alertados + n
+            except Exception:
+                alertados = None      # no se inventa: queda None y el aviso lo dice
+                break
+
+        # CAMPO CHICO: un cliente `solo_focos` no emite ranking POR DISEÑO, asi que
+        # `alertados` quedaba None SIEMPRE y el aviso caia invariablemente en la rama
+        # "Hay entrega nueva" — sin numero, y sin poder decir nunca "esta ronda no
+        # hay nada". Se cuentan los focos, que es lo que ese cliente entrega.
+        if alertados is None:
+            focos = [n for n in sorted(os.listdir(dest))
+                     if n.startswith('focos_') and n.endswith('.geojson')]
+            if focos:
+                try:
+                    total = 0
+                    for nom_f in focos:
+                        with open(os.path.join(dest, nom_f), encoding='utf-8') as fh:
+                            gjf = json.load(fh)
+                        total += len([f for f in gjf.get('features', [])
+                                      if (f.get('properties') or {}).get('tipo')
+                                      != 'perimetro'])
+                    alertados = total
+                except Exception:
+                    alertados = None
+
         with open(os.path.join(dest, 'META.json'), 'w', encoding='utf-8') as fh:
             json.dump({'cliente': cliente, 'fecha_entrega': ultima,
+                       'lotes_alertados': alertados,
                        'publicado_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
                        'archivos': sorted(publicados)}, fh, ensure_ascii=False, indent=2)
         print('  %-12s -> ultimo/ (%s) %s' % (cliente, ultima, ', '.join(sorted(publicados))))

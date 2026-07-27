@@ -1,0 +1,46 @@
+{
+  "clave": "TRIGO",
+  "titulo": "Trigo Santo Antonio / Sao Francisco",
+  "activo": true,
+  "sitios": [
+    {
+      "clave": "SANTO_ANTONIO",
+      "titulo": "Santo Antonio",
+      "lotes_geojson": "../lotes/santo_antonio.geojson",
+      "campo_id": "lote",
+      "cultivo": "trigo",
+      "epsg_metrico": "EPSG:31982",
+      "campanas": {
+        "2026": [
+          "2026-04-20",
+          "2026-07-29"
+        ]
+      },
+      "siembra": "2026-04-20",
+      "solo_focos": true
+    },
+    {
+      "clave": "SAO_FRANCISCO",
+      "titulo": "Sao Francisco",
+      "lotes_geojson": "../lotes/sao_francisco.geojson",
+      "campo_id": "lote",
+      "cultivo": "trigo",
+      "epsg_metrico": "EPSG:31982",
+      "campanas": {
+        "2026": [
+          "2026-04-20",
+          "2026-07-29"
+        ]
+      },
+      "siembra": "2026-04-20",
+      "solo_focos": true
+    }
+  ],
+  "entrega": {
+    "cadencia_dias": 10
+  },
+  "marca": {
+    "nombre": "Trigo Santo Antonio / Sao Francisco"
+  },
+  "K": 4
+}

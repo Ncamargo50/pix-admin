@@ -50,7 +50,12 @@ from . import config as cfg
 CAMPOS_SITIO = {f.name for f in dataclasses.fields(cfg.Sitio)}
 CAMPOS_CLIENTE = {
     'clave', 'titulo', 'activo', 'K', 'sitios', 'sitios_ref', 'entrega', 'marca', 'nota',
+    'contacto',
 }
+# A quien se le entrega. `whatsapp` es operativo, no un dato de agenda: es el numero
+# al que el cron manda el aviso de ese cliente. Sin esto todos los clientes comparten
+# el unico numero del secreto global, que es como empieza el envio cruzado.
+CAMPOS_CONTACTO = {'nombre', 'whatsapp', 'email', 'documento', 'telefono', 'direccion'}
 RUTAS_SITIO = ('lotes_geojson', 'unidades_csv')
 
 
@@ -63,12 +68,18 @@ class Cliente:
     activo: bool = True
     entrega: dict = field(default_factory=dict)
     marca: dict = field(default_factory=dict)
+    contacto: dict = field(default_factory=dict)
     nota: str = ''
     origen: str = ''               # de que archivo salio, para poder auditarlo
 
     def salida(self, base):
         """Carpeta propia. Ver REGLA DE AISLAMIENTO en el encabezado."""
         return os.path.join(base, self.clave)
+
+    @property
+    def whatsapp(self):
+        """Numero al que va el aviso de ESTE cliente, o None si no declaro."""
+        return (self.contacto or {}).get('whatsapp') or None
 
 
 def _sitio_desde_dict(d, base_dir):
@@ -89,6 +100,20 @@ def _sitio_desde_dict(d, base_dir):
         d['categorias_excluidas'] = tuple(d['categorias_excluidas'])
     if 'campanas' in d:
         d['campanas'] = {k: tuple(v) for k, v in d['campanas'].items()}
+    # La ventana de monitoreo puede venir escrita o derivarse de la siembra. Se
+    # deriva SOLO si no vino declarada: una ventana escrita a mano gana siempre,
+    # porque puede reflejar algo que el cliente sabe y la tabla de ciclos no.
+    if not d.get('campanas') and d.get('siembra'):
+        if not d.get('cultivo'):
+            raise ValueError('el sitio %r declara "siembra" pero no "cultivo": sin '
+                             'cultivo no se puede derivar la ventana de monitoreo'
+                             % d.get('clave', '?'))
+        from . import ciclos
+        try:
+            d['campanas'] = ciclos.campanas_desde_siembra(
+                d['cultivo'], d['siembra'], d.get('ciclo_dias'))
+        except ValueError as e:
+            raise ValueError('sitio %r: %s' % (d.get('clave', '?'), e))
     return cfg.Sitio(**d)
 
 
@@ -124,9 +149,25 @@ def cargar(ruta):
         # corte del ranking pierde sentido.
         raise ValueError('%s: K debe ser un entero >= 1, es %r' % (ruta, K))
 
+    contacto = d.get('contacto', {}) or {}
+    if not isinstance(contacto, dict):
+        raise ValueError('%s: "contacto" tiene que ser un objeto' % ruta)
+    extra_c = set(contacto) - CAMPOS_CONTACTO
+    if extra_c:
+        # Un typo como "wathsapp" dejaria al cliente sin aviso y sin error.
+        raise ValueError('%s: campos desconocidos en "contacto": %s'
+                         % (ruta, ', '.join(sorted(extra_c))))
+    wa = contacto.get('whatsapp')
+    if wa is not None:
+        limpio = str(wa).replace(' ', '').replace('-', '')
+        if not limpio.lstrip('+').isdigit():
+            raise ValueError('%s: whatsapp %r no es un numero. CallMeBot pide el '
+                             'formato internacional, ej "+59170000000".' % (ruta, wa))
+        contacto = dict(contacto, whatsapp=limpio)
+
     return Cliente(clave=d['clave'], titulo=d['titulo'], sitios=sitios, K=K,
                    activo=bool(d.get('activo', True)), entrega=d.get('entrega', {}),
-                   marca=d.get('marca', {}), nota=d.get('nota', ''),
+                   marca=d.get('marca', {}), contacto=contacto, nota=d.get('nota', ''),
                    origen=os.path.abspath(ruta))
 
 

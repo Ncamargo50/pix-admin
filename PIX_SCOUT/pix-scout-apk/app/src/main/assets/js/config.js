@@ -3,14 +3,20 @@
    Dejar vacío = la app funciona 100% offline y encola las validaciones localmente. */
 window.PIXCONFIG = {
   APP_NAME: 'PIX Scout',
-  APP_VERSION: '1.0.10',
+  APP_VERSION: '1.0.11',
   // Focos de ejemplo (5 haciendas distintas). SOLO para capturas: si el GeoJSON real
   // falla, con esto en true el tecnico navega a otra finca sin enterarse.
   DEMO_FOCOS: false,
   // MODO CIEGO (protocolo de validacion). Oculta severidad, score y nivel ANTES de
   // que el tecnico registre: si sabe que va a un rojo, encuentra algo. El dato se
-  // guarda igual en `estrato`. Encender durante la campaña de validacion.
-  MODO_CIEGO: false,
+  // guarda igual en `estrato`.
+  //
+  // ENCENDIDO 2026-07-27 para la campaña de trigo Santo Antonio / Sao Francisco.
+  // No es una preferencia: es la condicion que hace que el numero signifique algo.
+  // Con el estrato a la vista, la precision que salga mide el sesgo de verificacion
+  // del tecnico, no la punteria del satelite, y no se puede corregir despues.
+  // La app deja constancia auditable en `registro_a_ciegas` (Puerta 4.3).
+  MODO_CIEGO: true,
   // Modo desarrollo: habilita atajos ?demo= (capturas). DEBE ir en false en producción.
   DEV_MODE: false,
   // PEGAR ACA las dos credenciales de Supabase (Project Settings -> API) para encender
@@ -18,9 +24,10 @@ window.PIXCONFIG = {
   // Mientras esten vacias, la app funciona 100% offline y las validaciones se acumulan
   // en el telefono sin llegar nunca al servidor.
   // OJO: esta clave queda DENTRO del APK, o sea es publica. La tabla es append-only a
-  // proposito (solo INSERT); leer se hace server-side con la service_role key.
-  SUPABASE_URL: '',          // p.ej. 'https://xxxx.supabase.co'
-  SUPABASE_ANON_KEY: '',
+  // proposito (solo INSERT); leer se hace server-side con la clave SECRETA
+  // (hoy "Secret key", sb_secret_...; antes "service_role", eyJ...).
+  SUPABASE_URL: 'https://fnoocboaupjmxpkhdnij.supabase.co',          // p.ej. 'https://xxxx.supabase.co'
+  SUPABASE_ANON_KEY: 'sb_publishable_NruWLhLBw9iVP8gTCmLYUQ_7AkH-vOW',
   VALIDACIONES_TABLE: 'scout_validaciones',
   // Endpoint del pipeline de anomalías (GeoJSON de focos). Vacío = usar focos empaquetados.
   // Acepta {campo} como marcador; si no lo lleva, se le agrega /<campo>.geojson al final.

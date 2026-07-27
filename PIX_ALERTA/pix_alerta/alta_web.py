@@ -17,6 +17,7 @@ Al terminar deja el cliente escrito en el repo y te dice el comando para publica
 """
 import html
 import io
+import json
 import os
 import sys
 import tempfile
@@ -53,6 +54,8 @@ def _multipart(headers, cuerpo):
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RAIZ)
 
+from pix_alerta import ciclos  # noqa: E402
+from pix_alerta import clientes as cl  # noqa: E402
 from pix_alerta.alta_cliente import CULTIVOS, leer_lotes, main as alta_main  # noqa: E402
 
 CSS = """
@@ -82,7 +85,44 @@ button.sec{background:transparent;color:var(--ink2);border:1px solid var(--line)
 .msg ul{margin:.4rem 0 0;padding-left:1.2rem}
 code{background:var(--bg);border:1px solid var(--line);padding:.08em .35em;font-family:ui-monospace,Consolas,monospace;font-size:.86em}
 pre{background:var(--bg);border:1px solid var(--line);padding:.7rem .9rem;overflow-x:auto;font-size:.82rem}
+.cartera{border:1px solid var(--line);background:var(--card);padding:.8rem 1.1rem;margin-bottom:1.2rem}
+.cartera summary{cursor:pointer;color:var(--teal)}
+.cli{margin:.8rem 0 0}.cli h4{margin:0 0 .25rem;font-size:.95rem}
+.cli ul{margin:.2rem 0 0;padding-left:1.1rem;font-size:.86rem;color:var(--ink2)}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:.82em;color:var(--ink2)}
 """
+
+
+def _cartera():
+    """Lo que ya esta dado de alta, para no cadastrar dos veces ni pisar nada.
+
+    Sin esta lista el operador no tiene forma de saber que clientes existen ni con
+    que clave, y termina inventando una nueva — que es como un mismo campo entra
+    dos veces con dos nombres.
+    """
+    try:
+        todos = cl.cargar_todos(solo_activos=False)
+    except Exception as e:
+        return ('<div class="msg err"><h3>Hay clientes mal declarados</h3>'
+                '<pre>%s</pre></div>' % html.escape(str(e)))
+    if not todos:
+        return ''
+    filas = []
+    for c in todos:
+        props = ''.join(
+            '<li><b>%s</b> <span class="mono">%s</span> · %s%s</li>'
+            % (html.escape(s.titulo), html.escape(s.clave),
+               html.escape(s.cultivo or 'sin cultivo'),
+               ' · siembra %s' % html.escape(s.siembra) if s.siembra else '')
+            for s in c.sitios)
+        filas.append(
+            '<div class="cli"><h4>%s <span class="mono">%s</span>%s</h4><ul>%s</ul></div>'
+            % (html.escape(c.titulo), html.escape(c.clave),
+               '' if c.activo else ' <em>(inactivo)</em>', props))
+    return ('<details class="cartera" open><summary><b>Cartera actual</b> — %d '
+            'cliente(s)</summary>%s<p class="hint">Para agregarle una propiedad a '
+            'uno de estos, usa su misma clave y ponele otro nombre de propiedad.</p>'
+            '</details>' % (len(todos), ''.join(filas)))
 
 
 def _pagina(cuerpo, msg=''):
@@ -90,23 +130,49 @@ def _pagina(cuerpo, msg=''):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pixadvisor — cadastro de cliente</title><style>%s</style>
 <div class="w"><header><h1>Cadastro de cliente</h1>
-<p class="sub">La propiedad, los lotes y el cultivo. Despues de esto la maquina corre sola.</p>
-</header>%s%s</div>""" % (CSS, msg, cuerpo))
+<p class="sub">El cliente, sus propiedades y sus lotes. Despues de esto la maquina corre sola.</p>
+</header>%s%s%s</div>""" % (CSS, _cartera(), msg, cuerpo))
 
 
 FORM = """
 <form method="post" enctype="multipart/form-data">
- <fieldset><legend>Cliente</legend>
+ <fieldset><legend>1 · El cliente</legend>
   <div class="row">
    <div><label>Clave <span class="hint">Corto, MAYUSCULAS. Da nombre a su carpeta de entregas.</span>
     <input name="clave" required pattern="[A-Z][A-Z0-9_]{1,15}" placeholder="CERRO"></label></div>
-   <div><label>Nombre <span class="hint">Como va en el informe del cliente.</span>
+   <div><label>Nombre del cliente <span class="hint">Quien contrata. Encabeza el informe.
+    Sus propiedades se cargan abajo, una por vez.</span>
     <input name="titulo" required placeholder="Cerro Alto"></label></div>
+  </div>
+  <div class="row">
+   <div><label>Persona de contacto <input name="contacto" placeholder="Marcelo Aguilera"></label></div>
+   <div><label>Documento <span class="hint">CNPJ, NIT o equivalente.</span>
+    <input name="documento" placeholder="41.196.481/0001-30"></label></div>
+  </div>
+  <div class="row">
+   <div><label>WhatsApp <span class="hint">Formato internacional. Es el numero al que el
+     cron le manda el aviso a ESTE cliente.</span>
+    <input name="whatsapp" placeholder="+59170000000"></label></div>
+   <div><label>Email <input type="email" name="email" placeholder="cliente@ejemplo.com"></label></div>
   </div>
  </fieldset>
 
- <fieldset><legend>Los lotes</legend>
-  <label>Archivo de lotes <span class="hint">KMZ, KML, SHP (zip), GeoJSON o GPKG — lo que mande el cliente.</span>
+ <fieldset><legend>2 · La propiedad y sus lotes</legend>
+  <label>Nombre de la propiedad
+   <span class="hint">La hacienda. Un cliente puede tener varias: para agregar la
+    segunda, repeti el alta con la MISMA clave de cliente y otro nombre de propiedad.
+    Vacio = se llama como el cliente.</span>
+   <input name="propiedad" placeholder="Los Angeles"></label>
+  <label>Clave de la propiedad <span class="hint">Vacio = se deriva del nombre.
+    Ponela a mano si dos haciendas tuyas empiezan igual: la derivada se recorta y
+    dos nombres parecidos dan la MISMA clave.</span>
+   <input name="sitio_clave" placeholder="CERRO_NORTE" pattern="[A-Z][A-Z0-9_]{1,31}"></label>
+  <label><input type="checkbox" name="reemplazar" value="1" style="width:auto;margin-right:.4rem">
+   Actualizar esta propiedad si ya existe
+   <span class="hint">Sin esto, una propiedad repetida se rechaza en vez de pisarse.
+    Las demas propiedades del cliente nunca se tocan.</span></label>
+  <label>Archivo de lotes <span class="hint">KMZ, KML, SHP (zip), GeoJSON o GPKG — lo que mande el cliente.
+   Entran todos de una vez, con su nombre y su area. Uno por propiedad.</span>
    <input type="file" name="lotes" required accept=".kmz,.kml,.shp,.geojson,.json,.gpkg,.zip"></label>
   <label>Columna con el identificador del lote
    <span class="hint">El nombre del lote dentro del archivo. Si no sabes cual es, mandalo igual: te va a decir cuales hay.</span>
@@ -116,22 +182,44 @@ FORM = """
    <input name="epsg" value="EPSG:32720"></label>
  </fieldset>
 
- <fieldset><legend>Cultivo y campaña</legend>
-  <label>Cultivo <span class="hint">Define que banco de fichas abre la app para diagnosticar.</span>
-   <select name="cultivo">%s</select></label>
+ <fieldset><legend>3 · Cultivo y cuanto se monitorea</legend>
   <div class="row">
-   <div><label>La campaña arranca <input type="date" name="desde" required></label></div>
-   <div><label>y termina <input type="date" name="hasta" required></label></div>
+   <div><label>Cultivo <span class="hint">Define que banco de fichas abre la app de campo.</span>
+    <select name="cultivo" id="cultivo">%(opts)s</select></label></div>
+   <div><label>Fecha de siembra <span class="hint">De aca sale sola la ventana.</span>
+    <input type="date" name="siembra" id="siembra" required></label></div>
   </div>
-  <span class="hint">Fuera de esta ventana el motor no emite: en madurez el cultivo se seca y
-   senesce, que es la misma firma que busca el criterio, y no puede distinguir cosecha de deterioro.</span>
+  <div id="preview" class="msg av" style="margin:.9rem 0 0"><h3>Ventana de monitoreo</h3>
+   <p id="pv">Elegi cultivo y fecha de siembra.</p></div>
+  <label>Dias de ciclo <span class="hint">Solo si el cultivar no es el tipico. Vacio = el
+    valor por defecto del cultivo.</span>
+   <input type="number" name="ciclo_dias" id="ciclo" min="30" max="600" placeholder="por defecto"></label>
   <label>Lotes que el cliente puede recorrer por vez (K)
    <span class="hint">Su capacidad real de scouting. Es donde se corta la lista.</span>
    <input type="number" name="K" min="1" value="10"></label>
+  <span class="hint">Fuera de la ventana el motor no emite: en madurez el cultivo se seca y
+   senesce, que es la misma firma que busca el criterio, y no puede distinguir cosecha de deterioro.</span>
  </fieldset>
 
  <button type="submit">Dar de alta</button>
 </form>
+<script>
+const CICLOS = %(ciclos)s;
+function pv(){
+  const c=document.getElementById('cultivo').value,
+        s=document.getElementById('siembra').value,
+        o=parseInt(document.getElementById('ciclo').value||'0',10),
+        el=document.getElementById('pv');
+  if(!s){el.textContent='Elegi cultivo y fecha de siembra.';return}
+  const n=o>0?o:CICLOS[c];
+  const d=new Date(s+'T00:00:00'); const f=new Date(d.getTime()+n*86400000);
+  const iso=x=>x.toISOString().slice(0,10);
+  el.innerHTML='Se monitorea del <b>'+iso(d)+'</b> al <b>'+iso(f)+'</b> ('+n+' dias de ciclo).';
+}
+for(const id of ['cultivo','siembra','ciclo'])
+  document.getElementById(id).addEventListener('input',pv);
+pv();
+</script>
 """
 
 
@@ -147,34 +235,55 @@ class H(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b)
 
-    def do_GET(self):
-        opts = ''.join('<option value="%s">%s</option>' % (c, c.replace('_', ' '))
+    def _form(self, sel=''):
+        opts = ''.join('<option value="%s"%s>%s</option>'
+                       % (c, ' selected' if c == sel else '', c.replace('_', ' '))
                        for c in CULTIVOS)
-        self._html(_pagina(FORM % opts))
+        # La tabla de ciclos viaja al navegador para que la vista previa de la
+        # ventana sea la MISMA que va a calcular el servidor. Dos tablas distintas
+        # es como el formulario empieza a mentir.
+        return FORM % {'opts': opts,
+                       'ciclos': json.dumps({c: ciclos.ciclo_dias(c)
+                                             for c in CULTIVOS})}
+
+    def do_GET(self):
+        self._html(_pagina(self._form()))
 
     def do_POST(self):
         n = int(self.headers.get('Content-Length', 0))
         campos, archivos = _multipart(self.headers, self.rfile.read(n))
         g = lambda k, d='': campos.get(k, d) or d
-        opts = ''.join('<option value="%s"%s>%s</option>'
-                       % (c, ' selected' if c == g('cultivo') else '', c.replace('_', ' '))
-                       for c in CULTIVOS)
+        form = self._form(g('cultivo'))
 
         # El archivo subido va a un temporal: la validacion es la MISMA de alta_cliente.
         if 'lotes' not in archivos or not archivos['lotes'][1]:
-            return self._html(_pagina(FORM % opts,
+            return self._html(_pagina(form,
                                       _msg('err', 'Falta el archivo de lotes.')))
         fn, datos = archivos['lotes']
         tmp = os.path.join(tempfile.gettempdir(), fn)
         with open(tmp, 'wb') as fh:
             fh.write(datos)
 
+        # OJO: NADA de --forzar. El panel lo mandaba siempre, y con eso dar de alta
+        # la segunda hacienda de un cliente le BORRABA la primera sin decir nada.
+        # Sin la bandera, el alta agrega la propiedad y conserva las demas.
         argv = ['--clave', g('clave'), '--titulo', g('titulo'), '--lotes', tmp,
                 '--campo-id', g('campo_id', 'lote'), '--cultivo', g('cultivo', 'soya'),
-                '--epsg', g('epsg', 'EPSG:32720'), '--forzar']
-        if g('desde') and g('hasta'):
-            argv += ['--campana', '%s/%s' % (g('desde')[:4], g('hasta')[:4]),
-                     g('desde'), g('hasta')]
+                '--epsg', g('epsg', 'EPSG:32720')]
+        if g('propiedad'):
+            argv += ['--propiedad', g('propiedad')]
+        if g('sitio_clave'):
+            argv += ['--sitio-clave', g('sitio_clave')]
+        if g('reemplazar'):
+            argv += ['--reemplazar-propiedad']
+        if g('siembra'):
+            argv += ['--siembra', g('siembra')]
+        if g('ciclo_dias'):
+            argv += ['--ciclo-dias', g('ciclo_dias')]
+        for flag, campo in (('--contacto', 'contacto'), ('--whatsapp', 'whatsapp'),
+                            ('--email', 'email'), ('--documento', 'documento')):
+            if g(campo):
+                argv += [flag, g(campo)]
         if g('K'):
             argv += ['--K', g('K')]
 
@@ -205,7 +314,7 @@ class H(BaseHTTPRequestHandler):
                      'Corregi lo de arriba y volve a mandar el archivo. Estos errores no '
                      'fallan ahora: fallan dentro de la corrida programada, semanas '
                      'despues, sin nadie mirando.')
-        self._html(_pagina(FORM % opts, m))
+        self._html(_pagina(form, m))
 
 
 def _msg(tipo, titulo, detalle='', nota='', cmd=''):

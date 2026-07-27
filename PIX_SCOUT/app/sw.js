@@ -1,5 +1,5 @@
 /* PIX Scout — Service Worker (offline-first). SUBIR CACHE en cada cambio de assets. */
-const CACHE = 'pixscout-v15';
+const CACHE = 'pixscout-v16';
 // Cachés que NO se borran en activate: son datos de campo, no assets versionados.
 // `pixscout-tiles` = tiles satelitales. `pixscout-focos` = ultimo GeoJSON descargado del
 // pipeline; sin esta entrada, cada actualizacion de la app dejaba al tecnico sin los

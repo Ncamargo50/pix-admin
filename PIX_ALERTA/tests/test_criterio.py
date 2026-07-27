@@ -9,7 +9,25 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from pix_alerta import config as cfg
 from pix_alerta import ranking as rk
+
+# Las puertas NO dependen de que ejes esten configurados: se fabrican los que
+# declara `cfg.EJES` y el deterioro se aplica en la direccion que dice `rk.SIGNO`.
+# Cablear PSRI acá hizo que cambiar de segundo eje rompiera 14 pruebas que no
+# tenian nada que ver con el cambio.
+EJE2 = cfg.EJES[1]
+S2 = rk.SIGNO.get(EJE2, 1)
+
+# eje -> (valor al inicio de campaña, al final, ruido, magnitud de deterioro).
+# El "final" va SIEMPRE hacia la senescencia, o sea en el sentido de alarma.
+ESCALAS = {
+    'PSRI': (0.02, 0.08, 0.003, 0.020),
+    'NDRE': (0.45, 0.25, 0.012, 0.080),
+    'CIRE': (3.00, 1.50, 0.100, 0.600),
+}
+LO2, HI2, RUIDO2, DET2 = ESCALAS.get(EJE2, (0.02, 0.08, 0.003, 0.020))
+DET_NDMI = 0.060
 
 
 def campo_sintetico(n_lotes=60, n_fechas=14, semilla=0, offsets=True):
@@ -22,19 +40,26 @@ def campo_sintetico(n_lotes=60, n_fechas=14, semilla=0, offsets=True):
     fechas = pd.date_range('2025-11-01', periods=n_fechas, freq='7D')
     # el dosel se seca y senesce a lo largo de la campaña, igual para todos
     tray_ndmi = np.linspace(0.35, 0.20, n_fechas)
-    tray_psri = np.linspace(0.02, 0.08, n_fechas)
+    tray_2 = np.linspace(LO2, HI2, n_fechas)
     filas = []
     for i in range(n_lotes):
         off_n = rng.normal(0, 0.05) if offsets else 0.0
-        off_p = rng.normal(0, 0.01) if offsets else 0.0
+        off_2 = rng.normal(0, RUIDO2 * 3.3) if offsets else 0.0
         for j, f in enumerate(fechas):
             filas.append({
                 'lote_id': f'L{i:03d}', 'fecha': f, 'area_ha': 50.0,
                 'calidad': 'pleno',
                 'NDMI': tray_ndmi[j] + off_n + rng.normal(0, 0.01),
-                'PSRI': tray_psri[j] + off_p + rng.normal(0, 0.003),
+                EJE2: tray_2[j] + off_2 + rng.normal(0, RUIDO2),
             })
     return pd.DataFrame(filas)
+
+
+def deteriorar(df, m, k=1.0):
+    """Empuja los dos ejes en la direccion de alarma que declara `rk.SIGNO`."""
+    df.loc[m, 'NDMI'] += rk.SIGNO['NDMI'] * DET_NDMI * k
+    df.loc[m, EJE2] += S2 * DET2 * k
+    return df
 
 
 def evaluar(df):
@@ -70,8 +95,7 @@ def test_no_es_una_cuota():
     df = campo_sintetico(semilla=1)
     afectados = [f'L{i:03d}' for i in range(10)]
     m = df.lote_id.isin(afectados) & (df.fecha >= '2025-12-15')
-    df.loc[m, 'NDMI'] -= 0.06
-    df.loc[m, 'PSRI'] += 0.02
+    deteriorar(df, m)
     enfermo = (evaluar(df)['estado'] != 'SIN SEÑAL').mean()
     assert enfermo > sano + 0.05, (
         f'campo sano {sano:.1%} vs afectado {enfermo:.1%}: la fraccion no responde')
@@ -88,8 +112,7 @@ def test_puede_decir_que_no_pasa_nada():
 def test_detecta_un_deterioro_real():
     df = campo_sintetico(semilla=2)
     m = (df.lote_id == 'L042') & (df.fecha >= '2025-12-01')
-    df.loc[m, 'NDMI'] -= 0.07      # se seca sostenidamente
-    df.loc[m, 'PSRI'] += 0.025     # y senesce
+    deteriorar(df, m, k=1.17)      # se seca y pierde pigmento, sostenido
     r = evaluar(df)
     fila = r.loc[r.lote_id == 'L042'].iloc[0]
     assert fila['estado'] == 'ATENCION', f"L042 quedo en {fila['estado']}"
@@ -100,7 +123,7 @@ def test_signo_fisiologico():
     """Un dosel MAS humedo que lo esperado no es una alerta de plaga."""
     df = campo_sintetico(semilla=4)
     m = (df.lote_id == 'L011') & (df.fecha >= '2025-12-01')
-    df.loc[m, 'NDMI'] += 0.07       # sentido contrario al deterioro
+    df.loc[m, 'NDMI'] -= rk.SIGNO['NDMI'] * 0.07   # sentido CONTRARIO al deterioro
     r = evaluar(df)
     assert r.loc[r.lote_id == 'L011', 'estado'].iloc[0] == 'SIN SEÑAL'
 
@@ -110,8 +133,7 @@ def test_estabilidad_de_parametros():
     """Mover lambda +-50% debe conservar la mayoria del top-K."""
     df = campo_sintetico(semilla=5)
     m = df.lote_id.isin([f'L{i:03d}' for i in range(8)]) & (df.fecha >= '2025-12-01')
-    df.loc[m, 'NDMI'] -= 0.06
-    df.loc[m, 'PSRI'] += 0.02
+    deteriorar(df, m)
     res = rk.residuos(df)
     base = set(rk.ranking(rk.ewma(res, lam=rk.LAMBDA_EWMA)).head(10).lote_id)
     for lam in (rk.LAMBDA_EWMA * 0.5, rk.LAMBDA_EWMA * 1.5):
@@ -137,8 +159,7 @@ def test_la_alerta_se_resuelve():
     """
     df = campo_sintetico(n_fechas=20, semilla=7)
     m = (df.lote_id == 'L003') & (df.fecha >= '2025-11-22') & (df.fecha < '2025-12-20')
-    df.loc[m, 'NDMI'] -= 0.07
-    df.loc[m, 'PSRI'] += 0.025
+    deteriorar(df, m, k=1.17)
     car = rk.ewma(rk.residuos(df))
     durante = rk.ranking(car, fecha='2025-12-13')
     despues = rk.ranking(car, fecha='2026-03-14')
@@ -225,3 +246,83 @@ def test_cohorte_estimada_no_se_rotula_declarada():
     declarada = campo_sintetico(semilla=13)
     declarada['cohorte'] = '2025-10-22'       # sin prefijo EST- = fecha del cliente
     assert (evaluar(declarada)['cohorte_origen'] == 'declarada').all()
+
+
+# --- Puerta 2.1, version corregida ------------------------------------------
+def test_la_nula_evalua_los_mismos_lotes_que_el_dato_real():
+    """El defecto que invalidaba la puerta: la nula perdia el 70% de las
+    observaciones y se medía sobre 3 lotes mientras el real se medía sobre 96."""
+    df = campo_sintetico(semilla=11)
+    n_real = len(rk.ranking(rk.ewma(rk.residuos(df))))
+    assert n_real > 0
+    # La nula sintetica conserva fechas, calidad y soporte, asi que tiene que poder
+    # producir una tasa sobre la misma poblacion en vez de quedarse sin lotes.
+    tasa = rk.control_nulo(df, n_rep=3)
+    assert np.isfinite(tasa), 'la nula se quedo sin lotes que evaluar'
+
+
+def test_la_nula_marca_poco_sobre_un_mundo_sin_senal():
+    """Si la puerta no puede reprobar no es una puerta; si marca mucho, tampoco
+    sirve. Con una carta a L=3 sigma la falsa alarma tiene que ser chica."""
+    tasa = rk.control_nulo(campo_sintetico(semilla=12), n_rep=5)
+    assert tasa < 0.05, f'falsa alarma {tasa:.1%} sobre una nula construida sin señal'
+
+
+def test_la_nula_no_conserva_el_episodio():
+    """Una rotacion circular movia el episodio de fecha pero lo conservaba, asi que
+    el EWMA lo seguia viendo. La nula sintetica no puede contener episodios."""
+    df = campo_sintetico(semilla=13)
+    m = df.lote_id.isin([f'L{i:03d}' for i in range(15)]) & (df.fecha >= '2025-12-01')
+    deteriorar(df, m, k=1.5)
+    real = (rk.ranking(rk.ewma(rk.residuos(df)))['estado'] != 'SIN SEÑAL').mean()
+    nula = rk.control_nulo(df, n_rep=5)
+    assert real > nula, f'real {real:.1%} no supera a la nula {nula:.1%}'
+
+
+def test_el_ruido_de_la_nula_cae_en_las_filas_DEL_LOTE_que_lo_genero(monkeypatch):
+    """Bug real encontrado en auditoria, y la prueba que lo caza.
+
+    El ruido AR(1) se construia recorriendo los lotes, pero se asignaba con el
+    indice global ordenado por FECHA: la observacion i-esima de un lote caia en la
+    i-esima fila cronologica de TODA la tabla. Eso destruye la autocorrelacion
+    intra-lote —justo lo que esta nula debe preservar— y la puerta devolvia
+    0,0000% pasara lo que pasara. Medido sobre HDS: 0,0000% con el bug, 0,30%
+    corregido.
+
+    No se testea la TASA (con datos sinteticos limpios da ~0 legitimamente y la
+    prueba seria ciega): se testea el MECANISMO. Se inyecta ruido en un solo lote y
+    se verifica que solo ESE lote se aparta.
+    """
+    df = campo_sintetico(n_lotes=8, n_fechas=10, semilla=31)
+    lotes = sorted(df.lote_id.unique())
+    marcado = lotes[3]                      # el unico que va a recibir ruido
+
+    llamadas = {'n': 0}
+
+    def _ar1_falso(n, sigma, rho, rng):
+        # Dos llamadas por lote (un eje cada una), en orden de lote_id.
+        idx_lote = llamadas['n'] // 2
+        llamadas['n'] += 1
+        # Grande a proposito: control_nulo lo multiplica por la escala
+        # estimada del residuo (~0,01), asi que 1e6 llega como ~1e4.
+        return np.full(n, 1e6 if lotes[idx_lote] == marcado else 0.0)
+
+    capturado = {}
+
+    def _residuos_falso(d, ejes=None, **kw):
+        capturado['df'] = d.copy()
+        # Vacio PERO con las columnas que espera `ewma`: corta la corrida sin
+        # simular una condicion que no ocurre en la realidad.
+        return pd.DataFrame(columns=['lote_id', 'fecha', 'eje', 'z'])
+
+    monkeypatch.setattr(rk, '_ar1', _ar1_falso)
+    monkeypatch.setattr(rk, 'residuos', _residuos_falso)
+    rk.control_nulo(df, n_rep=1)
+
+    d = capturado['df']
+    eje = cfg.EJES[0]
+    med = d.groupby('fecha')[eje].transform('median')
+    aparta = d.loc[(d[eje] - med).abs() > 100, 'lote_id'].unique()
+    assert set(aparta) == {marcado}, (
+        'el ruido de %s aparecio en %s: se esta asignando por orden de fecha y no '
+        'por lote' % (marcado, sorted(aparta)))

@@ -37,6 +37,35 @@ Z95 = 1.9600
 N_MINIMO_CONFIABLE = 5
 
 
+def ic_wilson(exitos, n, z=None):
+    """IC de Wilson para una proporcion. SIN correccion por poblacion finita.
+
+    POR QUE HACE FALTA Y POR QUE SIN fpc.
+    La PRECISION del sistema —de los lotes a los que mando, cuantos tenian
+    problema— es un parametro de RENDIMIENTO que tiene que generalizar a la
+    proxima ronda, no un total finito de esta. El estimador de diseño con fpc es
+    correcto para la PREVALENCIA del campo (ahi si hay una poblacion finita que se
+    quiere estimar), y **catastrofico para la precision**: cuando un estrato se
+    censa (n == N) la fpc vale 0 y la varianza da 0.
+
+    Medido sobre el dimensionamiento REAL de HDS (4 ATENCION + 2 VIGILANCIA, que
+    `dimensionar` manda visitar enteros): el informe imprimia
+    `precision 50,0% IC95 [50,0% - 50,0%]` sobre SEIS observaciones. Un intervalo
+    de ancho CERO. `VALIDACION.md` dice que con n=6 el intervalo es +-44 puntos.
+
+    Wilson y no la normal simple porque con n chico y p cerca de 0 o de 1 la normal
+    devuelve limites fuera de [0,1] y un ancho ridiculamente angosto.
+    """
+    z = Z95 if z is None else z
+    if n <= 0:
+        return (float('nan'), float('nan'))
+    p = exitos / n
+    d = 1 + z * z / n
+    centro = (p + z * z / (2 * n)) / d
+    medio = (z / d) * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return (max(0.0, centro - medio), min(1.0, centro + medio))
+
+
 def _p_var_estrato(n, N, exitos):
     """Proporcion y varianza dentro de un estrato (SRS sin reemplazo)."""
     if n <= 0:
@@ -68,14 +97,17 @@ def _combinar(res, estratos):
     """Estimador estratificado sobre un subconjunto de estratos."""
     d = res[res['estrato'].isin(estratos)]
     if d.empty:
-        return float('nan'), float('nan'), 0, 0
+        return float('nan'), float('nan'), 0, 0, 0
     Ntot = d['N'].sum()
     if Ntot == 0:
-        return float('nan'), float('nan'), 0, int(d['n'].sum())
+        return (float('nan'), float('nan'), 0, int(d['n'].sum()),
+                int(d['con_problema'].sum()))
     w = d['N'] / Ntot
     p = float((w * d['p']).sum())
-    var = float((w ** 2 * d['var'].fillna(0)).sum())
-    return p, var, int(Ntot), int(d['n'].sum())
+    # `fillna(0)` sobre la varianza de un estrato con n=1 la convierte en CERO y
+    # angosta el IC sin avisar: el `nan` honesto se perdia en el camino. Se propaga.
+    var = float((w ** 2 * d['var']).sum()) if d['var'].notna().all() else float('nan')
+    return p, var, int(Ntot), int(d['n'].sum()), int(d['con_problema'].sum())
 
 
 def _ic(p, var, z=Z95):
@@ -98,8 +130,8 @@ def evaluar(val, col_estrato='estrato', col_hallazgo='hubo_problema',
         return {'concluyente': False, 'motivo': 'no hay observaciones de campo'}
 
     alertados = ['ATENCION', 'VIGILANCIA']
-    prec, var_prec, N_al, n_al = _combinar(res, alertados)
-    prev, var_prev, N_tot, n_tot = _combinar(res, list(ESTRATOS))
+    prec, var_prec, N_al, n_al, exitos_al = _combinar(res, alertados)
+    prev, var_prev, N_tot, n_tot, _ = _combinar(res, list(ESTRATOS))
 
     # Recall = P(alertado | problema). Cociente de dos totales estimados; el IC seria
     # por metodo delta y con n chico no aporta, asi que se reporta el punto y se declara.
@@ -108,15 +140,24 @@ def evaluar(val, col_estrato='estrato', col_hallazgo='hubo_problema',
     tot_prob_all = float((res['N'] * res['p']).sum())
     recall = tot_prob_al / tot_prob_all if tot_prob_all > 0 else float('nan')
 
+    # `_resumen_estratos` OMITE los estratos con n=0, asi que `res['n'].min()` no los
+    # ve: con 30 visitas solo en verde el informe salia `concluyente: si` y precision
+    # `nan`, sin un solo lote alertado visitado.
     n_min = int(res['n'].min())
+    n_alertados_vistos = int(res[res['estrato'].isin(alertados)]['n'].sum())
     faltan = res[res['n'] < N_MINIMO_CONFIABLE]['estrato'].tolist()
     verde = res[res['estrato'] == 'SIN SEÑAL']
 
     out = {
-        'concluyente': n_min >= N_MINIMO_CONFIABLE and not verde.empty,
+        'concluyente': (n_min >= N_MINIMO_CONFIABLE and not verde.empty
+                        and n_alertados_vistos >= N_MINIMO_CONFIABLE),
+        'n_alertados_vistos': n_alertados_vistos,
         'por_estrato': res,
         'precision_en_alerta': prec,
-        'precision_ic95': _ic(prec, var_prec),
+        # WILSON, no el IC de diseño: la precision generaliza, no es un total finito.
+        # Con los estratos censados la fpc anulaba la varianza y salia ancho CERO.
+        'precision_ic95': ic_wilson(exitos_al, n_al),
+        'precision_n': n_al,
         'prevalencia': prev,
         'prevalencia_ic95': _ic(prev, var_prev),
         'recall_aprox': recall,
@@ -126,6 +167,16 @@ def evaluar(val, col_estrato='estrato', col_hallazgo='hubo_problema',
         'lotes_en_poblacion': N_tot,
         'avisos': [],
     }
+    if n_alertados_vistos == 0:
+        out['avisos'].append(
+            'NO SE VISITO NINGUN LOTE ALERTADO. La precision es la metrica que el '
+            'producto vende y no se pudo estimar: sale `nan`, no cero. El resultado '
+            'NO es concluyente por mas visitas en verde que haya.')
+    elif n_alertados_vistos < N_MINIMO_CONFIABLE:
+        out['avisos'].append(
+            'Solo %d lote(s) alertado(s) visitado(s): la precision no distingue nada '
+            'a esta altura. Hacen falta 40-60 acumulados a lo largo de la campaña '
+            '(ver campana.agregar).' % n_alertados_vistos)
     if verde.empty:
         # Sin verde no hay forma de saber cuantos focos se escaparon: la precision sale
         # alta por construccion. Es el sesgo de verificacion, y invalida la campaña.

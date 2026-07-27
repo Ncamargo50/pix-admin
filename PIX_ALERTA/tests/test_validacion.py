@@ -66,18 +66,71 @@ def test_el_orden_de_visita_no_revela_el_estrato():
     assert len(set(primeros)) > 1, 'los primeros 15 son todos del mismo estrato'
 
 
-def test_geojson_ciego_no_expone_el_estrato_como_campo_visible(tmp_path):
+def test_ninguna_propiedad_del_geojson_ciego_separa_los_estratos(tmp_path):
+    """El ciego se prueba por SEPARABILIDAD, no por nombres de campo.
+
+    La version anterior de este test CERTIFICABA LA FUGA: exigia que
+    `_estrato_oculto` viajara, con el argumento de que el nombre no se pinta. Pero
+    el archivo se abre en QGIS, en un visor o en el Bloc de notas. Y peor: viajaban
+    `prob_inclusion` y `peso_diseño`, que son funcion DETERMINISTA del estrato
+    (n_h/N_h) — separaban perfectamente aunque se borrara el campo del estrato, y
+    el MODO_CIEGO de la APK no conoce ninguna de las tres claves.
+
+    Lo que hay que verificar es que, agrupando por el estrato REAL, ninguna
+    propiedad del archivo tenga rangos disjuntos entre grupos.
+    """
     import json
     m = ms.sortear(poblacion(), n_por_estrato={e: 3 for e in ms.ESTRATOS})
     geoms = {lid: {'type': 'Point', 'coordinates': [0, 0]} for lid in m['lote_id']}
     p = tmp_path / 'ciego.geojson'
-    n = ms.a_geojson_ciego(m, geoms, str(p))
+    ms.a_geojson_ciego(m, geoms, str(p))
     gj = json.load(open(p, encoding='utf-8'))
-    assert n == len(gj['features'])
-    props = gj['features'][0]['properties']
-    assert props['ciego'] is True
-    assert 'estrato' not in props and 'estado' not in props
-    assert '_estrato_oculto' in props        # viaja, pero con nombre que no se pinta
+    real = dict(zip(m['lote_id'].astype(str), m['estrato']))
+
+    porestrato = {}
+    for f in gj['features']:
+        pr = f['properties']
+        e = real[str(pr['lote_id'])]
+        porestrato.setdefault(e, []).append(pr)
+
+    # Ninguna propiedad NUMERICA puede tener rangos disjuntos entre estratos, y
+    # ninguna propiedad de texto puede tomar valores distintos segun el estrato.
+    claves = set().union(*[set(d[0]) for d in porestrato.values()])
+    claves -= {'lote_id', 'id', 'name', 'lote', 'etiqueta', 'orden'}   # identidad
+    for k in claves:
+        vals = {e: [pr.get(k) for pr in lst] for e, lst in porestrato.items()}
+        nums = {e: [v for v in vs if isinstance(v, (int, float))
+                    and not isinstance(v, bool)] for e, vs in vals.items()}
+        if all(nums.values()):
+            rangos = {e: (min(v), max(v)) for e, v in nums.items()}
+            ordenados = sorted(rangos.values())
+            for a, b in zip(ordenados, ordenados[1:]):
+                assert not (a[1] < b[0]), (
+                    'la propiedad %r tiene rangos disjuntos entre estratos: %s. '
+                    'Separa el ciego.' % (k, rangos))
+        distintos = {tuple(sorted(map(str, set(vs)))) for vs in vals.values()}
+        assert len(distintos) == 1, (
+            'la propiedad %r toma valores distintos segun el estrato (%s): '
+            'separa el ciego.' % (k, {e: sorted(set(map(str, vs)))
+                                      for e, vs in vals.items()}))
+
+
+def test_el_geojson_ciego_trae_las_claves_que_la_app_devuelve(tmp_path):
+    """Sin `id` y `lote`, PIX Scout cae a ids POSICIONALES F-1..F-n que se
+    renumeran en cada ronda (el orden de visita se baraja). La validacion
+    registrada hoy no se podria rastrear al lote la semana que viene, y sin eso no
+    hay precision medible: el lazo de retorno no cierra."""
+    import json
+    m = ms.sortear(poblacion(), n_por_estrato={e: 3 for e in ms.ESTRATOS})
+    geoms = {lid: {'type': 'Point', 'coordinates': [0, 0]} for lid in m['lote_id']}
+    p = tmp_path / 'ciego.geojson'
+    ms.a_geojson_ciego(m, geoms, str(p))
+    props = json.load(open(p, encoding='utf-8'))['features'][0]['properties']
+    for k in ('id', 'name', 'lote', 'lote_id', 'estrato', 'status'):
+        assert k in props, 'falta %r: la app lo lee y lo devuelve' % k
+    # `estrato` viaja VACIO: la app lo guarda y lo devuelve, sin poder mostrarlo.
+    assert props['estrato'] is None
+    assert props['id'] == props['lote_id']
 
 
 # --- Puerta 4.2: n calculado, no adivinado -----------------------------------

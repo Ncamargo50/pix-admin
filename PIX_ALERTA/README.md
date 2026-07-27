@@ -140,6 +140,9 @@ agrega columnas, no información.
 | Test | Qué garantiza |
 |---|---|
 | `test_control_nulo_cerca_de_alfa` | Sobre campo sano marca poco, no un 30% fijo |
+| `test_la_nula_evalua_los_mismos_lotes_que_el_dato_real` | La nula no puede quedarse sin lotes: si evalúa otra población, las tasas no son comparables |
+| `test_la_nula_marca_poco_sobre_un_mundo_sin_senal` | Falsa alarma < 5% sobre una nula construida sin señal |
+| `test_la_nula_no_conserva_el_episodio` | Una rotación circular preserva el desvío sostenido; la nula sintética no |
 | `test_desnivel_propio_no_se_marca` | Un lote constantemente distinto no es una alerta |
 | `test_no_es_una_cuota` | La fracción marcada responde a lo que pasa |
 | `test_puede_decir_que_no_pasa_nada` | El sistema puede no mandar a nadie |

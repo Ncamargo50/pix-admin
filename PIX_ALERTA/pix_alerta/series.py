@@ -23,9 +23,15 @@ def _mascara(img):
 
 
 def _indices(img):
-    """Los dos ejes de dosel + NDVI para la compuerta de vegetacion."""
+    """Los ejes de dosel candidatos + NDVI para la compuerta de vegetacion.
+
+    Cuales de estos ENTRAN al criterio lo decide `cfg.EJES`, no este modulo. Se
+    calculan todos porque la eleccion del par de ejes es una decision medible
+    (ver `medicion/comparar_ejes.py`) y para medirla hacen falta en la serie.
+    """
     b = lambda n: img.select(n).divide(10000)
-    B2, B4, B6, B8, B8A, B11 = b('B2'), b('B4'), b('B6'), b('B8'), b('B8A'), b('B11')
+    B2, B4, B5, B6, B7, B8, B8A, B11 = (b('B2'), b('B4'), b('B5'), b('B6'),
+                                        b('B7'), b('B8'), b('B8A'), b('B11'))
     ndvi = B8.subtract(B4).divide(B8.add(B4)).rename('NDVI')
     # HUMEDAD DE DOSEL. Es NDMI/NDII, NO el "NDWI de Gao": Gao (1996) usa 1240 nm y
     # Sentinel-2 NO TIENE esa banda (B9=945, B10=1373, B11=1614), asi que su NDWI es
@@ -43,7 +49,14 @@ def _indices(img):
     # (R678 - R500)/R750. Con S2: B4 (665) - B2 (493, contiene 500) / B6 (740).
     # B2 y no B3: B3 va de 542 a 577 nm y NO contiene 500 nm.
     psri = B4.subtract(B2).divide(B6).rename('PSRI')
-    return ndvi.addBands(ndmi).addBands(psri)
+    # CANDIDATOS DE BORDE ROJO, para comparar contra PSRI como segundo eje.
+    # Los dos son NATIVOS de 20 m (B5=705, B7=783, B8A=865), asi que no mezclan
+    # resoluciones. El PSRI si: combina B2 y B4 (10 m) con B6 (20 m), y ademas usa
+    # la banda azul, la de peor relacion senal-ruido sobre vegetacion y la mas
+    # afectada por la atmosfera. Cual de los tres queda es una MEDICION, no un gusto.
+    ndre = B8A.subtract(B5).divide(B8A.add(B5)).rename('NDRE')
+    cire = B7.divide(B5.max(1e-6)).subtract(1).rename('CIRE')
+    return (ndvi.addBands(ndmi).addBands(psri).addBands(ndre).addBands(cire))
 
 
 def _fvc(ndvi, geom, escala=20):
@@ -132,7 +145,12 @@ def extraer(sitio, ini, fin, escala=20, verbose=True):
         util = valido.And(fvc.gte(cfg.FVC_MINIMA)).rename('util')
         campos = idx.addBands(fvc).updateMask(util)
         # cobertura = fraccion del lote con observacion utilizable
-        pila = campos.addBands(util.unmask(0).rename('cob'))
+        # `unmask(0, False)`: sin el segundo argumento el relleno respeta la huella
+        # del granulo (sameFootprint=True), asi que los pixeles del lote que caen en
+        # otro tile quedan FUERA DEL DENOMINADOR y la cobertura sale inflada en todo
+        # lote que cruce un borde MGRS. Es la columna que decide `calidad` (pleno /
+        # parcial), o sea que entra en el % de observaciones plenas del informe.
+        pila = campos.addBands(util.unmask(0, False).rename('cob'))
         stats = pila.reduceRegions(
             collection=lotes,
             reducer=ee.Reducer.mean().combine(ee.Reducer.count(), '', True),
@@ -158,7 +176,7 @@ def extraer(sitio, ini, fin, escala=20, verbose=True):
 
     # reduceRegions devuelve <banda>_mean / <banda>_count
     df = df.rename(columns={f'{b}_mean': b for b in
-                            ('NDVI', 'NDMI', 'PSRI', 'FVC')})
+                            ('NDVI', 'NDMI', 'PSRI', 'NDRE', 'CIRE', 'FVC')})
     # n_px = pixeles LIMPIOS. `cob` esta unmask(0), asi que `cob_count` cuenta todo
     # el footprint del lote: era constante a lo largo de la campaña (corr con
     # cobertura = -0,016) y el filtro de MIN_PIXELES descartaba 0 de 2.537 filas.
@@ -176,7 +194,7 @@ def extraer(sitio, ini, fin, escala=20, verbose=True):
         labels=['descartado', 'parcial', 'pleno'])
     df['fecha'] = pd.to_datetime(df['fecha'])
     cols = ['lote_id', 'fecha', 'area_ha', 'cobertura', 'n_px', 'calidad',
-            'NDVI', 'NDMI', 'PSRI', 'FVC']
+            'NDVI', 'NDMI', 'PSRI', 'NDRE', 'CIRE', 'FVC']
     df = df[[c for c in cols if c in df.columns]]
     # Un lote puede caer en dos tiles MGRS y aparecer dos veces la misma fecha.
     # Se conserva la observacion con mejor cobertura, no la ultima que llego.

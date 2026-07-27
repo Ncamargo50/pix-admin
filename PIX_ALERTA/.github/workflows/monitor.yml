@@ -23,6 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      # BANDERA, no el secreto. Declarar la clave a nivel de job la mete en el entorno
+      # de `checkout`, `pip install`, `pytest`, `upload-artifact` y el paso que hace
+      # `git push`: cualquiera de esos —o una dependencia transitiva comprometida
+      # instalada por ese mismo pip— la puede leer. Solo hace falta en UN paso.
+      # Esto evalua a la cadena 'true'/'false': no expone nada.
+      LAZO_ACTIVO: ${{ secrets.SUPABASE_SERVICE_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,33 +47,69 @@ jobs:
         env:
           GEE_SA_JSON: ${{ secrets.GEE_SA_JSON }}
 
+      # Las puertas de aceptacion corren ANTES de tocar nada del cliente. Un motor
+      # que despliega sin pasar sus propios tests no tiene puertas, tiene adornos.
+      - name: Puertas de aceptacion
+        run: |
+          python -m pip install pytest
+          python -m pytest tests/ -q
+
       - name: Correr el monitoreo de todos los clientes
         env:
           GEE_SA_KEY: ${{ runner.temp }}/gee_sa.json
+          # Por `env:` y entre comillas: interpolar `${{ }}` dentro del `run:` deja
+          # que un valor con `;` ejecute comandos en un job que tiene permiso de
+          # escritura, la clave de servicio de GEE en disco y las apikeys en el entorno.
+          IN_CLIENTE: ${{ github.event.inputs.cliente }}
+          IN_HASTA: ${{ github.event.inputs.hasta }}
         run: |
           set +e
           ARGS="--salida entregas"
-          if [ -n "${{ github.event.inputs.cliente }}" ]; then ARGS="$ARGS --cliente ${{ github.event.inputs.cliente }}"; fi
-          if [ -n "${{ github.event.inputs.hasta }}" ];   then ARGS="$ARGS --hasta ${{ github.event.inputs.hasta }}"; fi
+          if [ -n "$IN_CLIENTE" ]; then ARGS="$ARGS --cliente $IN_CLIENTE"; fi
+          if [ -n "$IN_HASTA" ];    then ARGS="$ARGS --hasta $IN_HASTA"; fi
           python -m pix_alerta.correr_todos $ARGS 2>&1 | tee corrida.log
           echo "RC=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
 
+      # EL LAZO DE RETORNO. Sin este paso el sistema entrega avisos y nunca se entera
+      # de si acerto: la precision —lo unico propio que el producto puede afirmar— no
+      # se puede calcular sin lo que el tecnico registro al llegar al foco.
+      #
+      # Baja y audita, NO acumula. `--agregar` cierra una RONDA contra la muestra que
+      # se sorteo para esa ronda; hacerlo automatico todos los dias etiquetaria mal las
+      # rondas y contaminaria el acumulado de campaña. Eso se corre a mano al cerrar
+      # cada ronda, con `--ronda` y `--muestra`.
+      - name: Traer lo que valido el tecnico en campo
+        if: always() && env.LAZO_ACTIVO == 'true'
+        continue-on-error: true      # que no vuelva no puede tumbar la entrega del dia
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          mkdir -p entregas
+          python -m pix_alerta.lazo --csv entregas/validaciones_campo.csv
+
       # `ultimo/` es lo que descarga la APK: una ruta ESTABLE por cliente, para que el
       # telefono no tenga que saber la fecha de la ultima corrida.
+      #
+      # SE PUBLICA TAMBIEN CON RC=1. `correr_todos` devuelve 1 si ALGUN cliente fallo,
+      # y gatear con RC==10 destruia por YAML la propiedad que el modulo declara
+      # innegociable: "un cliente que falla no frena a los demas". El entregable del
+      # cliente sano quedaba escrito en el runner y se descartaba con el runner.
       - name: Publicar la ultima entrega de cada cliente
-        if: env.RC == '10'
+        if: env.RC == '10' || env.RC == '1'
         run: python scripts/publicar_ultimo.py entregas
 
       # El tablero se regenera SIEMPRE, tambien cuando no hubo entrega: si solo se
       # actualizara al entregar, se quedaria congelado mostrando la ultima buena y
       # nadie se enteraria de que hace tres semanas que no entra una escena limpia.
       - name: Regenerar el tablero
-        if: env.RC == '10' || env.RC == '0'
+        if: always()
         run: python scripts/tablero.py entregas
 
       - name: Commitear entregables
-        # Tambien con RC=0: el no-op deja rastro de que se miro y no habia nada nuevo.
-        if: env.RC == '10' || env.RC == '0'
+        # Tambien con RC=0 (no-op: deja rastro de que se miro y no habia nada nuevo)
+        # y con RC=1 (un cliente fallo pero los otros entregaron).
+        if: env.RC == '10' || env.RC == '0' || env.RC == '1'
         run: |
           git config user.name  "pixadvisor-monitor[bot]"
           git config user.email "monitor@pixadvisor.local"
@@ -77,20 +120,24 @@ jobs:
       - name: Avisar por WhatsApp
         # Solo cuando hay algo que mirar. Un aviso diario que casi siempre dice "nada"
         # se deja de leer, y el dia que importa tampoco se lee.
-        if: env.RC == '10' && env.WHATSAPP_PHONE != ''
+        #
+        # UN AVISO POR CLIENTE, con SUS numeros. El aviso global unico decia "hubo
+        # entrega" sin decir de quien: con varios clientes obligaba a abrir el repo
+        # para averiguarlo, que es justo lo que el aviso venia a evitar.
+        # Si el cliente declaro telefono Y existe su secreto CALLMEBOT_<CLAVE>, le
+        # llega directo; si no, le llega al admin con la leyenda de a quien reenviar.
+        if: env.RC == '10' || env.RC == '1'
         env:
           WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
           CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
-        run: |
-          RESUMEN=$(grep -E '^\s+[A-Z0-9_]+\s' corrida.log | tail -8 | tr '\n' ' ')
-          MSG="Pixadvisor Monitor $(date -u +%d-%m): $RESUMEN | https://github.com/${{ github.repository }}/tree/main/entregas"
-          curl -s -G "https://api.callmebot.com/whatsapp.php" \
-            --data-urlencode "phone=$WHATSAPP_PHONE" \
-            --data-urlencode "text=$MSG" \
-            --data-urlencode "apikey=$CALLMEBOT_APIKEY" || echo "aviso no enviado"
+          # Una clave por cliente. CallMeBot exige que CADA destinatario autorice al
+          # bot y le da SU propia apikey: no hay forma de mandarle a un numero nuevo
+          # con la clave de otro. Agregar aca el secreto de cada cliente nuevo.
+          CALLMEBOT_HDS: ${{ secrets.CALLMEBOT_HDS }}
+        run: python scripts/avisar.py entregas
 
       - name: Guardar entregables como artifact
-        if: env.RC == '10'
+        if: env.RC == '10' || env.RC == '1'
         uses: actions/upload-artifact@v4
         with:
           name: entregas
@@ -99,8 +146,17 @@ jobs:
 
       # Que un fallo se VEA. Sin esto, el job sale verde y un cliente deja de recibir
       # su informe sin que nadie se entere hasta que reclama.
+      # NO EVALUABLE (20) tiene que VERSE. No es un fallo del programa, pero tampoco
+      # es una corrida buena: significa que el motor no pudo mirar. Si sale verde,
+      # un cliente puede pasar semanas sin ser observado y nadie se entera.
+      - name: Avisar que no se pudo evaluar
+        if: env.RC == '20'
+        run: |
+          echo "::warning title=Sin evaluar::La corrida no pudo evaluar ningun sitio."
+          grep -A 20 'NO EVALUABLE. el motor NO pudo mirar' corrida.log || tail -40 corrida.log
+
       - name: Fallar si la corrida fallo
-        if: env.RC != '10' && env.RC != '0'
+        if: env.RC != '10' && env.RC != '0' && env.RC != '20'
         run: |
           echo "La corrida termino con RC=$RC"
           tail -40 corrida.log
