@@ -1,3 +1,53 @@
+PIX SCOUT — RELEASE v1.0.11
+==========================================
+Archivo:      pix-scout-v1.0.11.apk   (2.4 MB)
+Paquete:      network.pixadvisor.scout
+versionCode:  11    versionName: 1.0.11
+SHA-256:      0d135928733edffec6d935d1a6d2c29e392a7e24e68ddd3f130e098885c99283
+
+minSdk:       26 (Android 8.0)     targetSdk: 34 (Android 14)
+Firma:        APK Signature Scheme v2/v3 — VERIFICADO
+Certificado:  SHA-256 8bb2ffcc010fae5b2be131e74d0a8e049742a94540c7350ca6cb5419d3c05a65
+              MISMO certificado que 1.0.6/1.0.8/1.0.10: se instala ENCIMA de la
+              version instalada, sin desinstalar y sin perder la cola de validaciones.
+
+NUEVO EN 1.0.11 — LA APP NUNCA HABIA PODIDO SINCRONIZAR
+Medido el 2026-07-27 contra el proyecto Supabase real: el 100% de los POST daba
+401 / 42501 "new row violates row-level security policy".
+
+  · CAUSA. La app mandaba `?on_conflict=id` + `Prefer: resolution=ignore-duplicates`.
+    Ese encabezado manda a PostgREST por el camino de UPSERT, y un `ON CONFLICT`
+    necesita mirar la fila en conflicto — o sea policy de SELECT. La tabla no la
+    tiene A PROPOSITO: la clave viaja dentro del APK, asi que nadie puede volcarse
+    la tabla entera con ella.
+  · SINTOMA. El peor posible: el tecnico veia "guardado offline", la cola no se
+    vaciaba NUNCA, y la campaña habria cerrado sin un solo dato de retorno
+    creyendo que no hubo validaciones. Ningun error visible en el telefono.
+  · ARREGLO. INSERT pelado. La idempotencia del reintento se resuelve donde
+    corresponde: un 409 con 23505 significa "el servidor YA la tiene" y cuenta como
+    enviada. Verificado en el navegador: primer envio OK, reenvio de la misma fila
+    OK, cola en cero.
+
+NUEVO EN 1.0.11 — la app deja de decir "cola segura" cuando el servidor rechaza
+Un 4xx del servidor se mostraba igual que la falta de señal. Es exactamente por que
+el 401 anterior paso inadvertido: se saco la causa, faltaba sacar la ceguera. Ahora
+`syncNow` cuenta los rechazos permanentes y el aviso dice "El servidor RECHAZO N
+registros — NO se estan guardando: avisá al administrador".
+
+NUEVO EN 1.0.11 — lazo de retorno encendido y MODO CIEGO activado
+  · SUPABASE_URL y la clave publica (formato nuevo `sb_publishable_`) cargadas.
+  · MODO_CIEGO: true. El tecnico NO ve el nivel de alerta antes de registrar. Sin
+    esto, la precision que salga de la campaña mide el sesgo de verificacion del
+    tecnico, no la punteria del satelite, y no se puede corregir despues.
+  · Probado de punta a punta: la app inserta, la clave publica NO puede leer la
+    tabla (correcto), el motor lee con la secreta y traduce a lote_id/hubo_problema.
+
+MANTENIMIENTO
+  · Cache-busting de index.html a ?v=1.0.11 y service worker a pixscout-v16. Sin el
+    primero, el navegador servia el JS viejo aunque el archivo estuviera actualizado.
+
+------------------------------------------------------------------------------
+
 PIX SCOUT — RELEASE v1.0.8
 ==========================================
 Archivo:      pix-scout-v1.0.8.apk   (2,3 MB)
