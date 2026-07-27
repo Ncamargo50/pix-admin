@@ -12,11 +12,11 @@
       "epsg_metrico": "EPSG:31982",
       "campanas": {
         "2026": [
-          "2026-04-20",
-          "2026-07-29"
+          "2026-04-26",
+          "2026-08-04"
         ]
       },
-      "siembra": "2026-04-20",
+      "siembra": "2026-04-26",
       "solo_focos": true
     },
     {
@@ -28,11 +28,11 @@
       "epsg_metrico": "EPSG:31982",
       "campanas": {
         "2026": [
-          "2026-04-20",
-          "2026-07-29"
+          "2026-04-22",
+          "2026-07-31"
         ]
       },
-      "siembra": "2026-04-20",
+      "siembra": "2026-04-22",
       "solo_focos": true
     }
   ],
@@ -42,5 +42,6 @@
   "marca": {
     "nombre": "Trigo Santo Antonio / Sao Francisco"
   },
-  "K": 4
+  "K": 4,
+  "nota": "Trigo de invierno 2026. Siembra declarada por el cliente: Sao Francisco 22/04 al 25/04; Santo Antonio 26/04 al 04/05. La ventana se calcula desde el INICIO de siembra de cada propiedad (el lote mas adelantado es el que primero madura y el que primero invalida el criterio). OJO: en Santo Antonio la siembra se extendio 9 dias, asi que la madurez dentro del campo va a ser ASINCRONICA."
 }
