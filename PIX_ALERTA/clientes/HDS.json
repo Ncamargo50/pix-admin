@@ -1,7 +1,7 @@
 {
   "clave": "HDS",
   "titulo": "Hacienda del Señor",
-  "activo": true,
+  "activo": false,
   "sitios": [
     {
       "clave": "HDS_PRINCIPAL",
@@ -34,5 +34,6 @@
   "marca": {
     "nombre": "Hacienda del Señor"
   },
-  "K": 10
+  "K": 10,
+  "nota": "INACTIVO desde 2026-07-27: la unica campaña en curso es el trigo de invierno de Santo Antonio y Sao Francisco. Reactivar poniendo \"activo\": true antes de la siembra de soya de octubre."
 }

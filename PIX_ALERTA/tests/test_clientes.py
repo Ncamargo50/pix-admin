@@ -177,7 +177,11 @@ def test_sitio_de_cliente_no_pisa_uno_ya_definido(tmp_path):
 
 # --- el cliente real declarado en el repo ------------------------------------
 def test_cliente_HDS_del_repo_carga():
-    cs = cl.cargar_todos()
+    """`solo_activos=False`: se prueba que el ARCHIVO este bien declarado, no que el
+    cliente este corriendo. HDS quedo inactivo el 2026-07-27 —la unica campaña en
+    curso es el trigo— y un test que exige que este activo convierte una decision
+    comercial en un test roto."""
+    cs = cl.cargar_todos(solo_activos=False)
     hds = [c for c in cs if c.clave == 'HDS']
     assert hds, 'no se pudo cargar clientes/HDS.json'
     c = hds[0]
@@ -208,8 +212,19 @@ def test_los_clientes_del_repo_son_AUTOCONTENIDOS():
 def test_el_filtro_de_unidades_descarta_lo_que_no_es_cultivo():
     """Sin el, el ranking manda al tecnico al monte o a la pista de aterrizaje —
     paso de verdad: "PISTA" (2,78 ha) salio PRIMERA en la corrida del 2026-05-06."""
-    hds = [c for c in cl.cargar_todos() if c.clave == 'HDS'][0]
+    hds = [c for c in cl.cargar_todos(solo_activos=False) if c.clave == 'HDS'][0]
     s = hds.sitios[0]
     assert s.unidades_csv, 'HDS perdio el filtro de unidades'
     validas = cfg.unidades_validas(s)
     assert validas is not None and 150 < len(validas) < 220
+
+
+def test_solo_corre_lo_que_esta_declarado_ACTIVO():
+    """La campaña en curso es UNA: trigo de invierno en Santo Antonio y Sao Francisco.
+    Que un cliente fuera de campaña "no moleste porque igual no entrega" no alcanza:
+    aparece en el tablero como "nunca entrego", gasta una corrida y confunde sobre
+    que se esta mirando de verdad. Lo que no se monitorea se declara inactivo."""
+    activos = {c.clave for c in cl.cargar_todos()}
+    assert 'TRIGO' in activos
+    assert 'HDS' not in activos, ('HDS volvio a quedar activo. Si es a proposito '
+                                  '(siembra de soya), actualizar este test.')
