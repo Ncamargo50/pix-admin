@@ -151,6 +151,49 @@ def _geojson_salida(sitio, rank, ruta):
 COBERTURA_MINIMA_SITIO = 0.70
 
 
+def _paquete_validacion(sitio, gj, por_lote, a):
+    """Focos + puntos de control, mezclados a ciegas, con la clave en otro archivo.
+
+    Se llama DESPUES de escribir la entrega normal: esto es un producto adicional para
+    la campaña de validacion, no un reemplazo. Nunca levanta.
+    """
+    from . import controles as ct
+    feats = {str(f['properties'].get(sitio.campo_id)): f for f in gj['features']}
+    ctrl = {}
+    try:
+        for lid, r in sorted(por_lote.items()):
+            f = feats.get(lid)
+            if f is None or not r.get('fecha_img'):
+                continue          # sin escena evaluada no hay area donde muestrear
+            # Tantos controles como focos, con el piso y el techo del modulo: el
+            # tecnico camina el doble, no diez veces mas.
+            n = max(len(r.get('focos') or []), ct.CONTROLES_MIN)
+            # Las areas de los focos viajan para que los controles tengan las MISMAS
+            # areas: si no, el punto con area distinta ES el foco y el ciego se pierde.
+            areas = [x['properties'].get('area_ha') for x in (r.get('focos') or [])]
+            c = ct.controles_lote(sitio, f, a.hasta, n=n, areas_foco=areas)
+            if c.get('error'):
+                print('  [validacion] controles %s: %s' % (lid, c['error']))
+            elif c.get('nota'):
+                print('  [validacion] %s: %s' % (lid, c['nota']))
+            ctrl[lid] = c
+        gjv, clave = ct.paquete_ciego(sitio, por_lote, ctrl,
+                                      a.hasta, perimetro=_perimetro(gj))
+        if clave['n_focos'] + clave['n_controles'] == 0:
+            print('  [validacion] no hay ningun punto para esta ronda')
+            return None
+        f_gj, f_cl = ct.guardar(a.salida, sitio, a.hasta, gjv, clave)
+        print('  -> %s  (%d punto(s): %d foco(s) + %d control(es), a ciegas)'
+              % (f_gj, clave['n_focos'] + clave['n_controles'],
+                 clave['n_focos'], clave['n_controles']))
+        print('     CLAVE (NO mandar al telefono): %s' % f_cl)
+        return f_gj
+    except Exception as e:                        # noqa: BLE001
+        print('  [validacion] no se pudo armar el paquete: %s: %s'
+              % (type(e).__name__, str(e)[:120]))
+        return None
+
+
 def _capas_de_contexto(sitio, gj, por_lote, a):
     """Zonas y estratos de cada lote mirado, en `contexto_<sitio>_<fecha>.geojson`.
 
@@ -373,6 +416,12 @@ def _entregar_acercamiento(sitio, a):
     # Y son NO BLOQUEANTES por diseño: si fallan, la entrega principal sale igual.
     # Una capa de contexto que voltea la corrida nocturna cuesta mas de lo que vale.
     capas_por_lote = _capas_de_contexto(sitio, gj, por_lote, a)
+
+    # --- PAQUETE DE VALIDACION A CIEGAS --------------------------------------
+    # Solo si el cliente lo pidio. Agrega puntos de control y escribe la clave en un
+    # archivo separado. NO BLOQUEANTE: si falla, la entrega normal sale igual.
+    if getattr(sitio, 'validacion_campo', False):
+        _paquete_validacion(sitio, gj, por_lote, a)
 
     print('\n%d de %d lote(s) evaluado(s):' % (len(mirados), len(ids)))
     for lid, r in sorted(por_lote.items()):

@@ -23,7 +23,8 @@
         "2026-04-26",
         "2026-04-29",
         "2026-05-05"
-      ]
+      ],
+      "validacion_campo": true
     },
     {
       "clave": "SAO_FRANCISCO",
@@ -40,7 +41,8 @@
       },
       "siembra": "2026-04-22",
       "solo_focos": true,
-      "ciclo_dias": 120
+      "ciclo_dias": 120,
+      "validacion_campo": true
     }
   ],
   "entrega": {

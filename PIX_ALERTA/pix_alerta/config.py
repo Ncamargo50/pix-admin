@@ -59,6 +59,18 @@ class Sitio:
     # `medicion/calibrar_criterio.py` sobre fechas sin evento de ese cliente.
     sigma_minima: float = None     # pisa el piso de escala (unidades del indice)
     mmu_ha: float = None           # pisa la unidad minima de mapeo de los focos
+    # CAMPAÑA DE VALIDACION A CAMPO. Con esto en true, cada entrega agrega PUNTOS DE
+    # CONTROL —lugares que el criterio NO marco— mezclados a ciegas con los focos, y
+    # escribe la clave de correspondencia en un archivo APARTE que no va al telefono.
+    #
+    # POR QUE NO ESTA SIEMPRE PRENDIDO: el tecnico camina aproximadamente el DOBLE de
+    # puntos. Es una decision del cliente, no del motor.
+    #
+    # POR QUE VALE LA PENA PRENDERLO: sin puntos de control, un recorrido solo mide
+    # PRECISION (de lo que marque, cuanto tenia algo) y NO puede medir si el motor esta
+    # dejando pasar cosas. Un motor sordo da precision excelente y no sirve. Ver
+    # `pix_alerta/controles.py`.
+    validacion_campo: bool = False
     solo_focos: bool = False
     unidades_csv: str = ''
     unidades_col_id: str = 'lote_id'
