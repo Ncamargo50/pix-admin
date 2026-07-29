@@ -420,6 +420,10 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
         # Sin esto no se puede juzgar si el "0 focos" significa campo limpio o
         # analisis hecho sobre media hectarea.
         'cobertura_img': round(act[2], 3), 'cobertura_ref': round(ref[2], 3),
+        # Id de la escena usada. Lo necesita el informe para pedir el MISMO recorte
+        # RGB de fondo: un mapa con la foto de otra fecha le mostraria al tecnico un
+        # campo que no es el que se analizo.
+        '_idx_escena': act[1],
     })
     if not focos:
         # NO se afirma que el lote "salio de control por su promedio": en el modo

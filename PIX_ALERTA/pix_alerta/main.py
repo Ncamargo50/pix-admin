@@ -318,15 +318,17 @@ def _entregar_acercamiento(sitio, a):
     pdf = None
     try:
         from . import clientes as cl
-        from . import informe as inf
+        from . import informe_focos as inf
         cliente = cl.de_sitio(sitio.clave)
         if cliente is not None:
             geoms = {str(f['properties'].get(sitio.campo_id)): f['geometry']
                      for f in gj['features']}
-            pdf = inf.generar_acercamiento(
+            feats = {str(f['properties'].get(sitio.campo_id)): f
+                     for f in gj['features']}
+            pdf = inf.generar(
                 cliente, sitio, por_lote, geoms,
                 os.path.join(a.salida, 'Informe_%s_%s.pdf' % (sitio.clave, a.hasta)),
-                a.hasta)
+                a.hasta, feats=feats)
     except Exception as e:                       # noqa: BLE001 — se declara y sigue
         # El PDF es importante pero no puede tumbar la entrega del GeoJSON, que es
         # lo que el tecnico necesita para salir. Se avisa fuerte.

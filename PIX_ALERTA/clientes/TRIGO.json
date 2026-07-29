@@ -1,6 +1,6 @@
 {
   "clave": "TRIGO",
-  "titulo": "Trigo Santo Antonio / Sao Francisco",
+  "titulo": "Trigo Santo Antonio / São Francisco",
   "activo": true,
   "sitios": [
     {
@@ -22,7 +22,7 @@
     },
     {
       "clave": "SAO_FRANCISCO",
-      "titulo": "Sao Francisco",
+      "titulo": "São Francisco",
       "lotes_geojson": "../lotes/sao_francisco.geojson",
       "campo_id": "lote",
       "cultivo": "trigo",
