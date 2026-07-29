@@ -31,6 +31,44 @@ es la escena medio tapada por nube. `COB_MINIMA_ACTUAL` esta demasiado abajo.
 
 --- diseño ---
 
+BITACORA DE CALIBRACION (para el que siga; no repetir lo ya descartado)
+-----------------------------------------------------------------------
+Objetivo: SD(z) = 1. Todo lo medido sobre los 4 lotes de trigo, corte 2026-07-27.
+
+  intento                                          SD(z)        veredicto
+  -----------------------------------------------  -----------  -------------
+  1. mediana como referencia                       0,14 - 0,55  aplastado
+  2. recta por pixel                               0,20 - 0,70  aplastado
+  3. barrido ventana x grado                       "0,000"      ARNES ROTO
+  4. sigma por diferencias sucesivas               0,03 - 0,85  aplastado
+
+Sobre el intento 3: los ceros NO eran un resultado. El z salia **enteramente
+enmascarado** (px=0) porque la coleccion base incluia escenas del tile MGRS vecino
+que apenas rozan el lote, y las dos mas recientes no se solapaban. Se arreglo
+filtrando la base por cobertura real sobre el lote (`COB_MINIMA_BASE`). Leccion:
+imprimir SIEMPRE el conteo de pixeles antes de una SD; un cero de una serie vacia
+se parece demasiado a un numero.
+
+Sobre el intento 4, que es donde esta la pista viva: se estima sigma como
+`mediana(|diferencias sucesivas|) * 1,4826 / sqrt(2)`. Dos defectos identificados y
+NO corregidos todavia:
+
+  a) `mediana(|dif|)` no es la MAD. La MAD es `mediana(|dif - mediana(dif)|)`. Con
+     las diferencias NO centradas en cero —y no lo estan, porque la fenologia mete
+     una componente sistematica— el estimador sale inflado.
+  b) **SE MEZCLAN ESCALAS DE TIEMPO.** Las diferencias tienen huecos de 5, 10 y 20
+     dias segun la nubosidad. El componente fenologico crece con el hueco, el ruido
+     no. Promediar todos los huecos juntos sobreestima el ruido por observacion, y
+     por eso SAO_FRANCISCO-01 —el lote con mas escenas y huecos mas variados— da el
+     SD mas bajo de todos (0,03): su sigma es ~30x lo que deberia.
+
+  PROXIMO A PROBAR, en este orden:
+    · centrar las diferencias antes de la MAD;
+    · normalizar por el hueco (dividir la diferencia por sqrt(dias) o restringirse
+      a pares con hueco parecido al del par que se evalua);
+    · recien despues volver al barrido ventana x grado.
+
+
 QUE REEMPLAZA
 -------------
 El criterio v1 hacia: residuo contra LA ESCENA LIMPIA ANTERIOR, z por eje con MAD
@@ -109,7 +147,16 @@ class SinBase(Exception):
     """No hay observaciones limpias suficientes para armar la trayectoria."""
 
 
-def _coleccion_limpia(geom, desde, hasta):
+# Fraccion MINIMA de pixel valido sobre el lote para que una escena entre a la base.
+# NO es cosmetico: sin esto la coleccion incluye escenas del tile MGRS vecino que
+# apenas rozan el lote, y tambien las tapadas por nube. MEDIDO: con la base sin
+# filtrar, las dos escenas mas recientes de cada lote no se solapaban y el z salia
+# **enteramente enmascarado** (px=0) — que era el origen de los "SD = 0,000" que
+# parecian un resultado y eran una serie vacia.
+COB_MINIMA_BASE = 0.30
+
+
+def _coleccion_limpia(geom, desde, hasta, cob_minima=COB_MINIMA_BASE):
     """Imagenes con los ejes, enmascaradas a pixel valido. Sin compuerta de dosel.
 
     La compuerta de dosel NO va aca: se aplica una sola vez, sobre la linea base
@@ -127,11 +174,20 @@ def _coleccion_limpia(geom, desde, hasta):
         # una imagen NUEVA y sin eso la marca de tiempo se pierde. El ajuste de la
         # trayectoria necesita el tiempo de cada escena, y sin el fallaba con
         # "Date: Parameter 'value' is required and may not be null".
-        return (ejes.select(list(cfg.EJES) + ['NDVI']).updateMask(valido)
-                .copyProperties(img, ['system:time_start'])
-                .set('fecha', ee.Date(img.get('system:time_start'))
-                     .format('YYYY-MM-dd')))
-    return col.map(lambda i: ee.Image(preparar(i)))
+        out = (ejes.select(list(cfg.EJES) + ['NDVI']).updateMask(valido)
+               .copyProperties(img, ['system:time_start'])
+               .set('fecha', ee.Date(img.get('system:time_start'))
+                    .format('YYYY-MM-dd')))
+        out = ee.Image(out)
+        cob = valido.unmask(0, False).reduceRegion(
+            reducer=ee.Reducer.mean(), geometry=geom, scale=ESCALA,
+            maxPixels=1e9, bestEffort=True).values().get(0)
+        return out.set('cob', ee.Algorithms.If(cob, cob, 0))
+
+    salida = col.map(lambda i: ee.Image(preparar(i)))
+    if cob_minima:
+        salida = salida.filter(ee.Filter.gte('cob', cob_minima))
+    return salida
 
 
 def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
