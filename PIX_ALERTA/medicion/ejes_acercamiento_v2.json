@@ -1,0 +1,154 @@
+[
+  {
+    "lote": "SANTO_ANTONIO-01",
+    "fecha": "2026-07-15",
+    "ref": "2026-07-10",
+    "px_utiles": 447,
+    "cor": {
+      "CIRE~NDVI": 0.182,
+      "CIRE~PSRI": 0.053,
+      "NDMI~CIRE": 0.225,
+      "NDMI~NDRE": 0.596,
+      "NDMI~NDVI": 0.143,
+      "NDMI~PSRI": 0.02,
+      "NDRE~CIRE": 0.521,
+      "NDRE~NDVI": 0.082,
+      "NDRE~PSRI": 0.06,
+      "PSRI~NDVI": -0.587
+    },
+    "par_pct": {
+      "CIRE+NDVI": 0.0,
+      "CIRE+PSRI": 0.0,
+      "NDMI+CIRE": 1.342,
+      "NDMI+NDRE": 1.342,
+      "NDMI+NDVI": 0.0,
+      "NDMI+PSRI": 0.0,
+      "NDRE+CIRE": 0.895,
+      "NDRE+NDVI": 0.0,
+      "NDRE+PSRI": 0.0,
+      "PSRI+NDVI": 0.0
+    },
+    "solo_pct": {
+      "CIRE": 4.473,
+      "NDMI": 3.579,
+      "NDRE": 2.013,
+      "NDVI": 0.0,
+      "PSRI": 0.0
+    },
+    "sitio": "SANTO_ANTONIO"
+  },
+  {
+    "lote": "SANTO_ANTONIO-02",
+    "fecha": "2026-07-15",
+    "ref": "2026-07-10",
+    "px_utiles": 2241,
+    "cor": {
+      "CIRE~NDVI": -0.329,
+      "CIRE~PSRI": 0.265,
+      "NDMI~CIRE": -0.283,
+      "NDMI~NDRE": 0.818,
+      "NDMI~NDVI": 0.867,
+      "NDMI~PSRI": -0.6,
+      "NDRE~CIRE": -0.014,
+      "NDRE~NDVI": 0.841,
+      "NDRE~PSRI": -0.591,
+      "PSRI~NDVI": -0.772
+    },
+    "par_pct": {
+      "CIRE+NDVI": 0.0,
+      "CIRE+PSRI": 0.0,
+      "NDMI+CIRE": 0.58,
+      "NDMI+NDRE": 0.268,
+      "NDMI+NDVI": 0.0,
+      "NDMI+PSRI": 0.0,
+      "NDRE+CIRE": 0.312,
+      "NDRE+NDVI": 0.0,
+      "NDRE+PSRI": 0.0,
+      "PSRI+NDVI": 0.0
+    },
+    "solo_pct": {
+      "CIRE": 4.818,
+      "NDMI": 1.517,
+      "NDRE": 0.446,
+      "NDVI": 0.0,
+      "PSRI": 0.0
+    },
+    "sitio": "SANTO_ANTONIO"
+  },
+  {
+    "lote": "SAO_FRANCISCO-01",
+    "fecha": "2026-07-15",
+    "ref": "2026-07-10",
+    "px_utiles": 1286,
+    "cor": {
+      "CIRE~NDVI": 0.247,
+      "CIRE~PSRI": -0.159,
+      "NDMI~CIRE": 0.38,
+      "NDMI~NDRE": 0.595,
+      "NDMI~NDVI": 0.461,
+      "NDMI~PSRI": -0.28,
+      "NDRE~CIRE": 0.53,
+      "NDRE~NDVI": 0.474,
+      "NDRE~PSRI": -0.272,
+      "PSRI~NDVI": -0.677
+    },
+    "par_pct": {
+      "CIRE+NDVI": 0.233,
+      "CIRE+PSRI": 0.078,
+      "NDMI+CIRE": 1.4,
+      "NDMI+NDRE": 0.544,
+      "NDMI+NDVI": 0.233,
+      "NDMI+PSRI": 0.156,
+      "NDRE+CIRE": 1.166,
+      "NDRE+NDVI": 0.156,
+      "NDRE+PSRI": 0.0,
+      "PSRI+NDVI": 0.0
+    },
+    "solo_pct": {
+      "CIRE": 6.687,
+      "NDMI": 3.11,
+      "NDRE": 1.244,
+      "NDVI": 0.233,
+      "PSRI": 0.156
+    },
+    "sitio": "SAO_FRANCISCO"
+  },
+  {
+    "lote": "SAO_FRANCISCO-02",
+    "fecha": "2026-07-15",
+    "ref": "2026-07-10",
+    "px_utiles": 1117,
+    "cor": {
+      "CIRE~NDVI": 0.289,
+      "CIRE~PSRI": -0.139,
+      "NDMI~CIRE": 0.358,
+      "NDMI~NDRE": 0.538,
+      "NDMI~NDVI": 0.43,
+      "NDMI~PSRI": -0.203,
+      "NDRE~CIRE": 0.567,
+      "NDRE~NDVI": 0.328,
+      "NDRE~PSRI": -0.142,
+      "PSRI~NDVI": -0.571
+    },
+    "par_pct": {
+      "CIRE+NDVI": 0.179,
+      "CIRE+PSRI": 0.0,
+      "NDMI+CIRE": 0.716,
+      "NDMI+NDRE": 0.447,
+      "NDMI+NDVI": 0.089,
+      "NDMI+PSRI": 0.0,
+      "NDRE+CIRE": 0.537,
+      "NDRE+NDVI": 0.179,
+      "NDRE+PSRI": 0.0,
+      "PSRI+NDVI": 0.0
+    },
+    "solo_pct": {
+      "CIRE": 3.311,
+      "NDMI": 1.521,
+      "NDRE": 0.626,
+      "NDVI": 0.179,
+      "PSRI": 0.0
+    },
+    "sitio": "SAO_FRANCISCO"
+  }
+]
