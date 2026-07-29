@@ -187,7 +187,16 @@ def _coleccion_limpia(geom, desde, hasta, cob_minima=COB_MINIMA_BASE):
     salida = col.map(lambda i: ee.Image(preparar(i)))
     if cob_minima:
         salida = salida.filter(ee.Filter.gte('cob', cob_minima))
-    return salida
+    # UNA OBSERVACION POR FECHA. Un lote sobre un borde MGRS recibe DOS granulos de
+    # la MISMA adquisicion (T22KEU y T22KEV): son la misma foto, no dos
+    # observaciones. Contarlas dos veces metia pares con hueco CERO en la serie, y
+    # esos pares —diferencia casi nula, fenologia nula— arrastraban el estimador de
+    # ruido a cero. MEDIDO: SAO_FRANCISCO-01 daba dt=0 y SD(z)=0,03, o sea un sigma
+    # ~30x lo que corresponde.
+    # `distinct` conserva la PRIMERA de cada fecha, asi que se ordena por cobertura
+    # descendente antes: queda la que mas lote cubre.
+    salida = salida.sort('cob', False).distinct(['fecha'])
+    return salida.sort('system:time_start')
 
 
 def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
