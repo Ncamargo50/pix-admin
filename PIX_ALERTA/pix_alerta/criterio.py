@@ -335,6 +335,92 @@ def compuerta_dosel(geom, hasta, ventana=VENTANA_BASE_DIAS, escala=ESCALA):
     return fvc.gte(cfg.FVC_MINIMA).rename('dosel')
 
 
+# --- SEGUNDA CAPA: zonas por debajo de su propio porte ------------------------
+#
+# Responde una pregunta DISTINTA de la del criterio temporal, y por eso convive con
+# el en vez de reemplazarlo:
+#
+#     temporal (`evaluar`)  ->  "acá CAMBIÓ algo esta semana"        -> ALERTA
+#     zonas    (`zonas`)    ->  "esta zona VIENE peor de lo que su   -> ZONA DE
+#                                porte indica"                          MANEJO
+#
+# MEDIDO 2026-07-29 sobre los 4 lotes: **0% de solapamiento entre las dos capas.**
+# Marcan lugares completamente distintos. Ninguna sobra.
+#
+# COMO SE CONSTRUYE, Y POR QUE ASI
+# --------------------------------
+# Medido sobre imagen limpia (SANTO_ANTONIO-02, 2026-06-22, cobertura 1,000): los
+# cinco indices correlacionan ESPACIALMENTE entre 0,97 y 0,998. Son biomasa con
+# cinco nombres. Exigir varios sobre la imagen cruda NO es redundancia: es pedir la
+# misma condicion tres veces.
+#
+# La informacion util aparece al SACAR ese factor: se regresa cada indice contra
+# NDVI pixel a pixel y se mira el residuo. Ahi los residuos de NDMI, NDRE y CIRE
+# correlacionan entre 0,62 y 0,74 — una segunda dimension REAL, chica (7-19% de la
+# varianza) pero confirmada por tres indices independientes.
+#
+# Que significa un residuo negativo: un punto con LA MISMA BIOMASA que sus pares
+# pero mas seco o con menos clorofila de la que le corresponde a su porte. No es
+# "creció menos" —eso es biomasa— es "está mal para lo que creció".
+#
+# Y RESUELVE SOLO EL PROBLEMA DE LAS FECHAS DE SIEMBRA. Sembrar 9 dias mas tarde se
+# manifiesta sobre todo como MENOS BIOMASA; al sacar el NDVI se saca tambien esa
+# parte. No hace falta estimar la fenologia por pixel, que ademas no se puede: con
+# ~10 escenas limpias en 80 dias el estimador de emergencia por medio-maximo da el
+# mismo dia para casi todo el lote y confunde "sembrado tarde" con "crece poco".
+#
+# LAS DOS PRUEBAS QUE LO HABILITARON
+# ----------------------------------
+# 1. NO ES CUOTA. La fraccion marcada varia de 0,00% a 3,28% entre lotes y fechas —
+#    SANTO_ANTONIO-01 marca 4x mas que SANTO_ANTONIO-02, en el mismo campo. Una
+#    cuota marcaria lo mismo siempre. (La nula espacial es falsa por construccion y
+#    esta es la unica defensa honesta: medir que la fraccion se mueva.)
+# 2. ES PERSISTENTE. El solapamiento entre fechas consecutivas es de **18x a 73x**
+#    lo que daria el azar. Una zona real esta en el mismo lugar la semana siguiente;
+#    el ruido se mueve.
+#
+# LIMITE QUE HAY QUE DECLARAR: la persistencia prueba que es REAL, no que sea un
+# PROBLEMA. Una mancha estable puede ser suelo, un bajo, un borde de terraza o una
+# compactacion vieja. Por eso esta capa se entrega como ZONA A INVESTIGAR y no como
+# alerta: la urgencia la marca la capa temporal.
+
+Z_ZONA = 2.0          # sigmas del residuo, en ambos ejes
+MMU_ZONA_HA = 0.30    # una zona de manejo mas chica que esto no se maneja distinto
+
+
+def zonas(geom, fecha, z=Z_ZONA):
+    """Zonas por debajo de su propio porte en la escena `fecha`.
+
+    Devuelve (mascara, {eje: z del residuo}). Ver el bloque de arriba para el
+    diseño y la evidencia.
+    """
+    img = ee.Image(ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+                   .filterDate(fecha, ee.Date(fecha).advance(1, 'day'))
+                   .filterBounds(geom).sort('CLOUDY_PIXEL_PERCENTAGE').first())
+    idx = sr._indices(img).updateMask(sr._mascara(img))
+    zs = {}
+    for e in cfg.EJES:
+        # Recta espacial del indice contra NDVI: es el "porte esperado" de cada
+        # punto. El residuo es lo que le sobra o le falta respecto de su biomasa.
+        fit = idx.select(['NDVI', e]).reduceRegion(
+            reducer=ee.Reducer.linearFit(), geometry=geom, scale=ESCALA,
+            maxPixels=1e9, bestEffort=True)
+        esperado = (idx.select('NDVI').multiply(ee.Number(fit.get('scale')))
+                    .add(ee.Number(fit.get('offset'))))
+        r = idx.select(e).subtract(esperado)
+        s = ee.Number(r.reduceRegion(
+            reducer=ee.Reducer.stdDev(), geometry=geom, scale=ESCALA,
+            maxPixels=1e9, bestEffort=True).values().get(0))
+        zs[e] = r.divide(s.max(1e-6)).rename('zr_' + e)
+    from .ranking import SIGNO
+    m = None
+    for e in cfg.EJES:
+        # Mismo sentido de deterioro que declara SIGNO, aplicado al RESIDUO.
+        cond = zs[e].multiply(SIGNO[e]).gte(z)
+        m = cond if m is None else m.And(cond)
+    return m.rename('zona'), zs
+
+
 # --- puente hacia focos.py ----------------------------------------------------
 
 def para_focos(geom, hasta, alfa=ALFA):
