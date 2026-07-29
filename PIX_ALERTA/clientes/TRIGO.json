@@ -18,7 +18,12 @@
       },
       "siembra": "2026-04-26",
       "solo_focos": true,
-      "ciclo_dias": 120
+      "ciclo_dias": 120,
+      "siembras": [
+        "2026-04-26",
+        "2026-04-29",
+        "2026-05-05"
+      ]
     },
     {
       "clave": "SAO_FRANCISCO",

@@ -151,6 +151,68 @@ def _geojson_salida(sitio, rank, ruta):
 COBERTURA_MINIMA_SITIO = 0.70
 
 
+def _capas_de_contexto(sitio, gj, por_lote, a):
+    """Zonas y estratos de cada lote mirado, en `contexto_<sitio>_<fecha>.geojson`.
+
+    Devuelve el dict que consume el informe. Nunca levanta: cualquier averia se
+    imprime y se sigue, porque esto es contexto y el producto es el foco.
+    """
+    from . import capas as cp
+    vacio = {'zonas': {}, 'estratos': {}, 'resumen': None, 'ruta': None}
+    feats = {str(f['properties'].get(sitio.campo_id)): f for f in gj['features']}
+    zonas, estr = {}, {}
+    try:
+        for lid, r in sorted(por_lote.items()):
+            f = feats.get(lid)
+            if f is None:
+                continue
+            # ESTRATOS: no dependen de que hoy haya escena limpia — se separan con
+            # una escena TEMPRANA de la campaña. Se calculan aunque el lote no se
+            # haya podido mirar hoy.
+            e = cp.estratos_lote(sitio, f, a.hasta)
+            if e.get('error'):
+                print('  [contexto] estratos %s: %s' % (lid, e['error']))
+            estr[lid] = e
+            # ZONAS: si que necesitan la escena de hoy, porque miden el estado
+            # espacial de ESA imagen. Sin fecha evaluada no hay zonas que calcular.
+            if r.get('fecha_img'):
+                zz = cp.zonas_lote(sitio, f, r['fecha_img'])
+                if zz.get('error'):
+                    print('  [contexto] zonas %s: %s' % (lid, zz['error']))
+                zonas[lid] = zz
+    except Exception as e:                        # noqa: BLE001
+        print('  [contexto] no se pudieron calcular las capas: %s: %s'
+              % (type(e).__name__, str(e)[:120]))
+        return vacio
+
+    res = cp.resumen(zonas, estr)
+    ruta = None
+    try:
+        paquete = cp.a_geojson(sitio, zonas, estr, perimetro=_perimetro(gj))
+        # SOLO si hay algo ADEMAS del perimetro. Un archivo con el contorno del campo
+        # y nada mas parece una entrega y no dice nada: Sao Francisco lo generaba en
+        # cada corrida porque no declara varias siembras y no tuvo zonas.
+        util = [f for f in paquete['features']
+                if f['properties'].get('tipo') != 'perimetro']
+        if util:
+            ruta = os.path.join(a.salida,
+                                'contexto_%s_%s.geojson' % (sitio.clave, a.hasta))
+            with open(ruta, 'w', encoding='utf-8') as fh:
+                json.dump(paquete, fh, ensure_ascii=False)
+    except Exception as e:                        # noqa: BLE001
+        print('  [contexto] no se pudo escribir el geojson: %s' % e)
+        ruta = None
+
+    if res['n_zonas']:
+        print('   contexto: %d zona(s) a investigar, %.2f ha  (NO son alerta)'
+              % (res['n_zonas'], res['area_zonas_ha']))
+    for b in res['bloques_en_atencion']:
+        print('   contexto: %s bloque B%s se implanto %.0f dia(s) mas tarde de lo '
+              'que su fecha de siembra explica' % (b['lote_id'], b['estrato'],
+                                                   b['diferencia_dias']))
+    return {'zonas': zonas, 'estratos': estr, 'resumen': res, 'ruta': ruta}
+
+
 def _entregar_acercamiento(sitio, a):
     """Producto para campos CHICOS: focos DENTRO del lote, sin ranking entre lotes.
 
@@ -302,6 +364,16 @@ def _entregar_acercamiento(sitio, a):
     with open(ruta, 'w', encoding='utf-8') as fh:
         json.dump(paquete, fh, ensure_ascii=False)
 
+    # --- CAPAS DE CONTEXTO ----------------------------------------------------
+    # Zonas estructurales y estratos de siembra. Van a SU PROPIO archivo y NO al
+    # geojson de la app: PIX Scout convierte en foco todo lo que no sea perimetro,
+    # asi que mezclarlas mandaria al tecnico a caminar una zona de suelo como si
+    # fuera un brote de la semana. Ver la cabecera de `capas.py`.
+    #
+    # Y son NO BLOQUEANTES por diseño: si fallan, la entrega principal sale igual.
+    # Una capa de contexto que voltea la corrida nocturna cuesta mas de lo que vale.
+    capas_por_lote = _capas_de_contexto(sitio, gj, por_lote, a)
+
     print('\n%d de %d lote(s) evaluado(s):' % (len(mirados), len(ids)))
     for lid, r in sorted(por_lote.items()):
         if not r.get('fecha_img'):
@@ -328,7 +400,7 @@ def _entregar_acercamiento(sitio, a):
             pdf = inf.generar(
                 cliente, sitio, por_lote, geoms,
                 os.path.join(a.salida, 'Informe_%s_%s.pdf' % (sitio.clave, a.hasta)),
-                a.hasta, feats=feats)
+                a.hasta, feats=feats, contexto=capas_por_lote)
     except Exception as e:                       # noqa: BLE001 — se declara y sigue
         # El PDF es importante pero no puede tumbar la entrega del GeoJSON, que es
         # lo que el tecnico necesita para salir. Se avisa fuerte.

@@ -89,10 +89,41 @@ ESCALA = 20               # m
 # Observaciones limpias MINIMAS en la linea base. Con menos, la mediana y la MAD
 # temporal son ruido: dos puntos no definen una trayectoria ni una dispersion.
 MIN_BASE = 4
-VENTANA_BASE_DIAS = 75    # hacia atras desde la fecha evaluada
+# VENTANA DE LINEA BASE. El default de 75 dias sirve para un cultivo anual de ciclo
+# corto; para caña (300-550 dias) es demasiado corta y para una hortaliza de 70
+# dias se come la campaña entera. `ventana_de(sitio)` la deriva del ciclo declarado
+# del cultivo — hay una tabla por especie en `ciclos.py`— y este valor solo se usa
+# cuando no hay sitio de donde sacarla.
+VENTANA_BASE_DIAS = 75
+# Fraccion del ciclo del cultivo que abarca la linea base. Con 0,6 el motor mira
+# poco mas de la mitad del ciclo hacia atras: suficiente para tener trayectoria y
+# poco como para no arrastrar una fenologia de hace tres meses.
+FRACCION_CICLO_BASE = 0.60
+
+
+def ventana_de(sitio, default=VENTANA_BASE_DIAS):
+    """Dias de linea base segun el CICLO del cultivo del sitio.
+
+    Un motor que sirva para varios cultivos no puede tener 75 dias cableados: es
+    medio ciclo de trigo, un quinto de un ciclo de caña y toda la vida de una
+    hortaliza. Se deriva del ciclo declarado y se acota para que siga siendo
+    manejable en cultivos muy largos.
+    """
+    from . import ciclos
+    try:
+        ciclo = (getattr(sitio, 'ciclo_dias', None)
+                 or ciclos.CICLOS[getattr(sitio, 'cultivo', '')][0])
+    except Exception:
+        return default
+    return int(min(max(ciclo * FRACCION_CICLO_BASE, 40), 180))
 # Piso de escala en unidades del indice. Mismo argumento que en `focos.SIGMA_MINIMA`:
 # por debajo de esto la diferencia entre dos fechas no se puede atribuir al cultivo
 # con S2, es ruido radiometrico + BRDF + aerosol residual.
+# ⚠️ MEDIDO SOBRE TRIGO EN PARANA. Es el orden del ruido radiometrico + BRDF +
+# aerosol residual de S2 entre dos fechas, y **hay que recalibrarlo por cultivo y
+# region**: `medicion/calibrar_criterio.py` mide la tasa de marcado sobre fechas sin
+# evento, que es lo que dice si el piso esta bien puesto. Un piso demasiado bajo
+# hace que el criterio corra sobre ruido; demasiado alto lo vuelve sordo.
 SIGMA_MINIMA = 0.010
 # alfa NOMINAL del criterio. chi2 con 2 grados de libertad: d2 >= 9,21 <=> alfa=0,01.
 # Es el numero que la conjuncion NO podia fijar.
@@ -175,7 +206,7 @@ def _coleccion_limpia(geom, desde, hasta, cob_minima=COB_MINIMA_BASE):
 
 
 def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
-            ventana=VENTANA_BASE_DIAS, escala=ESCALA):
+            ventana=None, escala=ESCALA, sitio=None, piso=None):
     """Mahalanobis del residuo de la fecha `hasta` contra la trayectoria del pixel.
 
     Devuelve dict con:
@@ -187,6 +218,9 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
         umbral    el chi2 usado
     """
     import pandas as pd
+    ventana = ventana or ventana_de(sitio)
+    if piso is None:
+        piso = cfg.valor_de(sitio, 'sigma_minima', SIGMA_MINIMA)
     desde = str(pd.Timestamp(hasta) - pd.Timedelta(days=ventana))[:10]
     fin_base = str(pd.Timestamp(hasta) - pd.Timedelta(days=1))[:10]
 
@@ -265,7 +299,7 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
         return ee.Image.cat(cap)
 
     mad = base.map(resid).median().multiply(1.4826)
-    sigma = mad.max(SIGMA_MINIMA)
+    sigma = mad.max(piso if piso is not None else SIGMA_MINIMA)
 
     r_actual = ee.Image.cat(
         [actual.select(e).subtract(_esperado(e, t_act)).rename(e) for e in ejes])
@@ -312,7 +346,7 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
             'mediana': med, 'residuo': r_actual}
 
 
-def compuerta_dosel(geom, hasta, ventana=VENTANA_BASE_DIAS, escala=ESCALA):
+def compuerta_dosel(geom, hasta, ventana=None, escala=ESCALA, sitio=None):
     """Dosel util segun la LINEA BASE, no segun la fecha evaluada.
 
     La pregunta correcta es «¿este pixel alguna vez fue cultivo?», no «¿lo es hoy?».
@@ -320,6 +354,7 @@ def compuerta_dosel(geom, hasta, ventana=VENTANA_BASE_DIAS, escala=ESCALA):
     dosel es exactamente la anomalia buscada, y la compuerta lo borraba.
     """
     import pandas as pd
+    ventana = ventana or ventana_de(sitio)
     desde = str(pd.Timestamp(hasta) - pd.Timedelta(days=ventana))[:10]
     fin = str(pd.Timestamp(hasta) - pd.Timedelta(days=1))[:10]
     base = _coleccion_limpia(geom, desde, fin)
@@ -388,15 +423,31 @@ Z_ZONA = 2.0          # sigmas del residuo, en ambos ejes
 MMU_ZONA_HA = 0.30    # una zona de manejo mas chica que esto no se maneja distinto
 
 
+class SinEscena(Exception):
+    """No hay imagen en esa fecha sobre ese lote. NO es una averia.
+
+    Existe como excepcion propia porque el modo de falla importa: sin esto, una
+    fecha sin pasada del satelite se registraba como
+    `EEException: Image.constant: Parameter value is required`, o sea como si el
+    servicio se hubiera roto. Un log lleno de averias inventadas hace que las
+    averias de verdad no se vean.
+    """
+
+
 def zonas(geom, fecha, z=Z_ZONA):
     """Zonas por debajo de su propio porte en la escena `fecha`.
 
     Devuelve (mascara, {eje: z del residuo}). Ver el bloque de arriba para el
-    diseño y la evidencia.
+    diseño y la evidencia. Lanza `SinEscena` si ese dia no hubo pasada util.
     """
-    img = ee.Image(ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-                   .filterDate(fecha, ee.Date(fecha).advance(1, 'day'))
-                   .filterBounds(geom).sort('CLOUDY_PIXEL_PERCENTAGE').first())
+    col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+           .filterDate(fecha, ee.Date(fecha).advance(1, 'day'))
+           .filterBounds(geom).sort('CLOUDY_PIXEL_PERCENTAGE'))
+    # Se pregunta ANTES de construir el calculo. Con la coleccion vacia, `first()`
+    # es null y el error aparece recien al final, disfrazado de `Image.constant`.
+    if int(col.size().getInfo() or 0) == 0:
+        raise SinEscena('no hay escena Sentinel-2 del %s sobre este lote' % fecha)
+    img = ee.Image(col.first())
     idx = sr._indices(img).updateMask(sr._mascara(img))
     zs = {}
     for e in cfg.EJES:
@@ -423,7 +474,7 @@ def zonas(geom, fecha, z=Z_ZONA):
 
 # --- puente hacia focos.py ----------------------------------------------------
 
-def para_focos(geom, hasta, alfa=ALFA):
+def para_focos(geom, hasta, alfa=ALFA, sitio=None):
     """Lo que `focos.detectar_lote` necesita, calculado con el criterio v2.
 
     Devuelve exactamente la misma interfaz que ya consumia el vectorizador, para
@@ -443,13 +494,13 @@ def para_focos(geom, hasta, alfa=ALFA):
     inventar una fecha de referencia que ya no existe.
     """
     import pandas as pd
-    r = evaluar(geom, hasta, alfa=alfa)
-    dosel = compuerta_dosel(geom, hasta)
+    r = evaluar(geom, hasta, alfa=alfa, sitio=sitio)
+    dosel = compuerta_dosel(geom, hasta, sitio=sitio)
     ejes = list(cfg.EJES)
     zs = {e: r['z'][e].updateMask(dosel).rename('z_' + e) for e in ejes}
     foco = r['anomalia'].And(dosel).rename('foco')
     evaluada = zs[ejes[0]].mask().rename('u')
-    desde = str(pd.Timestamp(hasta) - pd.Timedelta(days=VENTANA_BASE_DIAS))[:10]
+    desde = str(pd.Timestamp(hasta) - pd.Timedelta(days=ventana_de(sitio)))[:10]
     return {'zs': zs, 'foco': foco, 'evaluada': evaluada,
             'ref': zs[ejes[0]], 'fecha_img': r['fecha'],
             'n_base': r['n_base'], 'base_desde': desde,

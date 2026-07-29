@@ -56,18 +56,43 @@ def test_la_coherencia_minima_es_exigente():
     tiene que estar MUY por encima de eso o cualquier ruido pasa.
 
     Medido: los tres lotes de una sola siembra dieron 0,69 / 0,78 / 0,73 y el lote
-    con tres pasadas reales dio 0,93. El umbral de 0,80 los separa con margen."""
-    assert es.COHERENCIA_MINIMA >= 0.75, 'demasiado permisivo: entraria ruido'
-    assert es.COHERENCIA_MINIMA <= 0.90, 'demasiado estricto: rechazaria bloques reales'
+    con tres pasadas reales dio 0,93. Para n=3 el umbral cae en 0,80 y los separa
+    con margen."""
+    u3 = es.umbral_coherencia(3)
+    assert u3 >= 0.75, 'demasiado permisivo: entraria ruido'
+    assert u3 <= 0.90, 'demasiado estricto: rechazaria bloques reales'
     # queda por encima de los tres lotes sin estratos y por debajo del que si tiene
-    assert 0.78 < es.COHERENCIA_MINIMA < 0.93
+    assert 0.78 < u3 < 0.93
 
 
-def test_el_ndvi_de_referencia_esta_antes_de_la_saturacion():
-    """El atraso se mide por el dia en que cada estrato ALCANZA un NDVI. Si ese
-    nivel esta en la zona de saturacion (>0,90) todos los estratos llegan casi
-    juntos y el atraso medido se aplasta."""
-    assert 0.6 <= es.NDVI_REFERENCIA <= 0.85
+def test_el_umbral_de_coherencia_sale_de_la_nula_no_de_un_cultivo():
+    """El umbral NO puede ser un numero fijo ajustado a los 4 lotes de trigo: el
+    motor tiene que servir para otros cultivos y para otra cantidad de pasadas.
+
+    Se deriva de la nula: con `n` estratos, clasificar al azar acierta 1/n. El
+    umbral se pone a `FACTOR_COHERENCIA` del camino entre esa nula y el 1,0."""
+    # siempre MUY por encima de lo que da el azar
+    for n in (2, 3, 4, 5, 8):
+        assert es.umbral_coherencia(n) > 1.0 / n + 0.3, n
+        assert es.umbral_coherencia(n) < 1.0
+    # con mas estratos la nula baja, asi que el umbral tambien puede bajar: exigir
+    # 0,85 con 8 bloques seria absurdo cuando el azar da 0,125
+    assert es.umbral_coherencia(2) > es.umbral_coherencia(5)
+
+
+def test_el_ndvi_de_referencia_sale_del_rango_observado_del_propio_cultivo():
+    """El atraso se mide por el dia en que cada estrato ALCANZA un NDVI. Ese nivel
+    NO puede ser fijo: 0,80 es cierre de dosel en trigo, pero es inalcanzable en un
+    cultivo de porte bajo y esta saturado en caña. Se toma una fraccion del rango
+    que el propio lote recorrio en la ventana, que es una medida del cultivo real.
+
+    Tiene que caer lejos de los dos extremos: pegado al minimo mide emergencia (muy
+    ruidosa) y pegado al maximo cae en saturacion, donde todos los estratos llegan
+    casi juntos y el atraso se aplasta."""
+    assert 0.5 <= es.FRACCION_REFERENCIA <= 0.85
+    # sobre el rango real medido en trigo (0,15 -> 0,90) cae donde tiene que caer
+    ref = 0.15 + es.FRACCION_REFERENCIA * (0.90 - 0.15)
+    assert 0.6 <= ref <= 0.85
 
 
 # --- el orden de los estratos -------------------------------------------------

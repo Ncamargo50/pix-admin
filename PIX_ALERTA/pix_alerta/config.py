@@ -36,6 +36,29 @@ class Sitio:
     # el mismo lote en la escena limpia anterior y no necesita cohorte.
     # OJO: el acercamiento NO tiene tasa de falsa alarma validada (su nula fue
     # auditada y rechazada). Entrega poligonos y hectareas para ir a mirar.
+    # SIEMBRAS DECLARADAS POR EL CLIENTE, de la mas temprana a la mas tardia.
+    # Lista de fechas 'YYYY-MM-DD'. Cuando el lote se sembro en varias pasadas, el
+    # motor contrasta el atraso MEDIDO de cada bloque contra el que estas fechas
+    # implican. Una diferencia grande no es un error del satelite: es que ese bloque
+    # tardo mas en implantarse de lo que su fecha explica.
+    #
+    # MEDIDO en Santo Antonio-02 (declarado 26/04, 29/04 y +9 dias): los atrasos
+    # reales dieron 0 / 12,0 / 36,9 dias. El cliente confirmo que el fondo NO se
+    # resembro — fue siembra normal corrida por lluvias. O sea que el desfase real
+    # era mayor que el anotado, y el satelite lo midio bien.
+    siembras: tuple = ()
+    # --- AJUSTES QUE NO PUEDEN SER GLOBALES -----------------------------------
+    # Los dos defaults de abajo se MIDIERON sobre un cultivo concreto: el piso de
+    # escala sobre TRIGO en Parana, la unidad minima de mapeo sobre lotes de 40-90
+    # ha. Sirven como punto de partida razonable, no como constantes universales:
+    # un cultivo de porte bajo, una region con otra atmosfera o un cliente que
+    # trabaja a otra escala pueden necesitar otro valor. Se declaran por sitio y
+    # quedan a la vista en el JSON del cliente, en vez de escondidos en el codigo.
+    #
+    # Vacio / None = usar el default medido. Cambiarlos EXIGE volver a correr
+    # `medicion/calibrar_criterio.py` sobre fechas sin evento de ese cliente.
+    sigma_minima: float = None     # pisa el piso de escala (unidades del indice)
+    mmu_ha: float = None           # pisa la unidad minima de mapeo de los focos
     solo_focos: bool = False
     unidades_csv: str = ''
     unidades_col_id: str = 'lote_id'
@@ -112,6 +135,21 @@ def unidades_validas(sitio):
 # Cambiar de eje es cambiar `EJES` y nada mas — todo el resto lo lee de aca, y
 # `ranking.SIGNO` tiene que declarar el sentido de alarma del eje nuevo.
 EJES = ('NDMI', 'NDRE')          # humedad de dosel, clorofila de borde rojo
+
+# NO hay override de ejes por sitio, a proposito. Serian dos: el par de arriba se
+# eligio contra una nula sintetica sobre TRES campañas de CAÑA, o sea que ya es
+# evidencia de otro cultivo y no un ajuste al trigo; y todos los modulos leen `EJES`
+# directo, asi que un override parcial dejaria medio motor con un par y medio con
+# otro. Si algun dia hace falta, se cambia aca y en `ranking.SIGNO`, no por cliente.
+
+
+def valor_de(sitio, atributo, default):
+    """Lee un ajuste por sitio y cae al default MEDIDO si no esta declarado.
+
+    Un `0` declarado a proposito se respeta; solo `None` y `''` caen al default.
+    """
+    v = getattr(sitio, atributo, None)
+    return default if v is None or v == '' else v
 
 # Calidad de observacion por lote y fecha. La etiqueta viaja DENTRO del dato:
 # sin esto no se puede distinguir un falso negativo real de una dekada nublada.

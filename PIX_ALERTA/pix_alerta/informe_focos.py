@@ -149,7 +149,8 @@ def _tabla_focos(B, r):
     return t
 
 
-def generar(cliente, sitio, por_lote, geometrias, ruta, fecha, feats=None):
+def generar(cliente, sitio, por_lote, geometrias, ruta, fecha, feats=None,
+            contexto=None):
     """PDF de marca. `por_lote` = {lote_id: resultado de focos.detectar_lote}."""
     if not HAY_MARCA:
         from . import informe as inf
@@ -312,6 +313,12 @@ def generar(cliente, sitio, por_lote, geometrias, ruta, fecha, feats=None):
         if n < len(mirados):
             st.append(PageBreak())
 
+    # --- 2 bis. Contexto: lo que NO es alerta --------------------------------
+    # Va DESPUES de los focos y ANTES del metodo, y con otro lenguaje. Si esta
+    # seccion habla de "alerta" o de "severidad", la distincion que la justifica se
+    # perdio y el tecnico sale a caminar una mancha de suelo.
+    n = _seccion_contexto(B, st, n, contexto)
+
     # --- 3. Método y límites, completos y al final ---------------------------
     st.append(PageBreak())
     from . import config as cfg
@@ -367,6 +374,81 @@ def generar(cliente, sitio, por_lote, geometrias, ruta, fecha, feats=None):
                            % (cliente.titulo, sitio.titulo,
                               ' y '.join(fechas) or str(fecha)))
     return ruta
+
+
+def _seccion_contexto(B, st, n, contexto):
+    """Zonas estructurales y bloques de siembra. Devuelve el nuevo numero de seccion.
+
+    Se OMITE entera cuando no hay nada que decir: una seccion que dice "no se
+    encontraron zonas" en todos los informes se vuelve invisible y ademas ocupa la
+    pagina que necesita lo que si importa.
+    """
+    if not contexto:
+        return n
+    res = contexto.get('resumen') or {}
+    zonas = contexto.get('zonas') or {}
+    bloques = res.get('bloques_en_atencion') or []
+    if not res.get('n_zonas') and not bloques:
+        return n
+
+    st.append(PageBreak())
+    n += 1
+    st.append(B.sec(n, 'Contexto del lote — para investigar, no para recorrer'))
+    st.append(B.P(
+        'Lo que sigue <b>no es una alerta</b>. Las manchas de la sección anterior '
+        'dicen «acá cambió algo esta semana» y se van a mirar ya. Esto dice otra '
+        'cosa: «esta parte viene distinta desde hace tiempo». No hace falta salir '
+        'hoy; hace falta entender por qué.'))
+
+    if res.get('n_zonas'):
+        st.append(Spacer(1, 0.3 * cm))
+        st.append(B.P('Zonas por debajo de lo que su porte indica', 'H2'))
+        st.append(B.P(
+            'Dentro de una misma imagen se compara cada punto con los puntos del '
+            'mismo lote que tienen <b>su mismo desarrollo</b>. Una zona aparece '
+            'cuando, teniendo el mismo porte que sus pares, está más seca o con '
+            'menos pigmento del que le correspondería. Por eso <b>no la explica la '
+            'fecha de siembra</b>: sembrar más tarde da menos porte, y el porte ya '
+            'está descontado.'))
+        filas = [['Lote', 'Zona', 'Superficie', '% del lote', 'Cuánto le falta']]
+        for lid, r in sorted(zonas.items()):
+            for zz in r.get('zonas', []):
+                p = zz['properties']
+                filas.append([lid, p['etiqueta'], '%.2f ha' % p['area_ha'],
+                              ('%.1f%%' % p['pct_lote']) if p.get('pct_lote') else '—',
+                              '%.1f σ' % (p.get('deficit_z') or 0)])
+        st.append(B.tbl(filas, [4.2 * cm, 2.0 * cm, 3.0 * cm, 2.6 * cm, 3.2 * cm],
+                        aligns={2: 'CENTER', 3: 'CENTER', 4: 'CENTER'}))
+        st.append(B.P(
+            'Que una zona vuelva a salir en el mismo lugar semana tras semana prueba '
+            'que <b>es real</b>, no que sea un problema: puede ser un bajo, un cambio '
+            'de suelo o una compactación vieja que el productor ya conoce. Se '
+            'entrega para que la mire quien conoce el lote.', 'Note'))
+
+    if bloques:
+        st.append(Spacer(1, 0.4 * cm))
+        st.append(B.P('Bloques de siembra que se implantaron más tarde de lo previsto',
+                      'H2'))
+        st.append(B.P(
+            'Cuando el lote se sembró en varias pasadas, cada bloque se sigue por '
+            'separado y se mide <b>en qué día alcanzó el mismo desarrollo</b>. Ese '
+            'atraso medido se compara con el que las fechas de siembra declaradas '
+            'explican. La diferencia es el dato: un bloque que tardó bastante más de '
+            'lo que su fecha justifica tuvo un problema de implantación.'))
+        filas = [['Lote', 'Bloque', 'Atraso medido', 'Según la siembra', 'Diferencia']]
+        for b in bloques:
+            filas.append([b['lote_id'], 'B%s' % b['estrato'],
+                          '%.0f días' % (b.get('medido') or 0),
+                          '%.0f días' % (b.get('declarado') or 0),
+                          '%.0f días' % b['diferencia_dias']])
+        st.append(B.tbl(filas, [4.2 * cm, 2.0 * cm, 3.2 * cm, 3.4 * cm, 2.2 * cm],
+                        aligns={2: 'CENTER', 3: 'CENTER', 4: 'CENTER'}))
+        st.append(B.P(
+            'Ningún criterio por punto ve esto: dentro del bloque todas las plantas '
+            'están igual de atrasadas entre sí, así que no hay contraste interno que '
+            'marcar. Sólo se ve comparando el bloque con los demás a la misma edad.',
+            'Note'))
+    return n
 
 
 def _mmu():

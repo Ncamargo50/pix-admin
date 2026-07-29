@@ -297,7 +297,7 @@ def _imagen_util(idx_escena, geom):
 SIGMA_MINIMA = 0.010
 
 
-def _z_robusto(delta, geom, banda):
+def _z_robusto(delta, geom, banda, piso=None):
     """(delta - mediana) / (1,4826 * MAD), con la escala de ESE par de fechas.
 
     Piso en la escala: ver `SIGMA_MINIMA`. Sin el, un lote parejo hace que el z se
@@ -315,7 +315,7 @@ def _z_robusto(delta, geom, banda):
         reducer=ee.Reducer.median(), geometry=geom, scale=ESCALA,
         maxPixels=1e9, bestEffort=True).get(banda))
     mad = ee.Number(ee.Algorithms.If(mad, mad, 0))
-    sigma = mad.multiply(1.4826).max(SIGMA_MINIMA)
+    sigma = mad.multiply(1.4826).max(piso if piso is not None else SIGMA_MINIMA)
     return d.subtract(med).divide(sigma).rename('z_' + banda)
 
 
@@ -346,7 +346,7 @@ def _mascara_focos(zs, z=Z_FOCO, invertir=False):
     return m.rename('foco')
 
 
-def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
+def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=None):
     """Focos de un lote: poligonos, area y porcentaje del lote comprometido.
 
     Devuelve dict con `focos` (lista de features GeoJSON), `area_focos_ha`,
@@ -354,6 +354,12 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
     fechas utilizable lo declara en `nota` y devuelve cero focos.
     """
     lote_id = str(feat['properties'].get(sitio.campo_id))
+    # Los dos parametros que un cliente puede necesitar distintos: la unidad minima
+    # de mapeo (cuan chico es un foco que igual vale la pena caminar) y el piso de
+    # escala (el ruido del sensor sobre ESE cultivo). Ver `config.Sitio`.
+    if mmu_ha is None:
+        mmu_ha = cfg.valor_de(sitio, 'mmu_ha', MMU_HA)
+    piso = cfg.valor_de(sitio, 'sigma_minima', SIGMA_MINIMA)
     geom = _geom_lote(sitio, feat)
     desde = str(__import__('pandas').Timestamp(hasta)
                 - __import__('pandas').Timedelta(days=VENTANA_DIAS))[:10]
@@ -372,7 +378,7 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
     if getattr(cfg, 'CRITERIO', 'v2') == 'v2':
         from . import criterio as cri
         try:
-            r2 = cri.para_focos(geom, hasta)
+            r2 = cri.para_focos(geom, hasta, sitio=sitio)
         except cri.SinBase as e:
             base['nota'] = 'Sin acercamiento: %s.' % e
             return base
@@ -397,7 +403,7 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
         # La compuerta de dosel se exige SOLO en la referencia.
         ia, ir = _par_enmascarado(act[1], ref[1], geom)
         delta = ia.subtract(ir)
-        zs = {e: _z_robusto(delta, geom, e) for e in cfg.EJES}
+        zs = {e: _z_robusto(delta, geom, e, piso) for e in cfg.EJES}
         foco = _mascara_focos(zs, z)
         evaluada = delta.select(cfg.EJES[0]).mask().rename('u')
 
