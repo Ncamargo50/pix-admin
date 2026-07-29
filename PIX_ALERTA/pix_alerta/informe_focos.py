@@ -313,6 +313,9 @@ def generar(cliente, sitio, por_lote, geometrias, ruta, fecha, feats=None,
         if n < len(mirados):
             st.append(PageBreak())
 
+    # --- 2 ter. Confirmacion entre imagenes ---------------------------------
+    _seccion_confirmacion(B, st, por_lote)
+
     # --- 2 bis. Contexto: lo que NO es alerta --------------------------------
     # Va DESPUES de los focos y ANTES del metodo, y con otro lenguaje. Si esta
     # seccion habla de "alerta" o de "severidad", la distincion que la justifica se
@@ -374,6 +377,51 @@ def generar(cliente, sitio, por_lote, geometrias, ruta, fecha, feats=None,
                            % (cliente.titulo, sitio.titulo,
                               ' y '.join(fechas) or str(fecha)))
     return ruta
+
+
+def _seccion_confirmacion(B, st, por_lote):
+    """Explica la etiqueta de confirmacion, y SOLO si algun foco la trae.
+
+    Va como nota y no como seccion numerada: es una propiedad de los focos que ya se
+    listaron, no un hallazgo aparte.
+    """
+    estados = [f['properties'].get('confirmacion')
+               for r in (por_lote or {}).values() for f in (r.get('focos') or [])]
+    estados = [e for e in estados if e]
+    if not estados:
+        return
+    st.append(Spacer(1, 0.3 * cm))
+    st.append(B.P('¿La mancha ya estaba en la imagen anterior?', 'H2'))
+    st.append(B.P(
+        'Un deterioro del cultivo no se mueve: si una parte del lote está afectada hoy, '
+        'en la imagen limpia anterior ya debería aparecer algo en el mismo lugar — aunque '
+        'todavía fuera demasiado chico para reportarlo. Una bruma, en cambio, está en una '
+        'imagen y no en la otra. Cada mancha lleva ese dato.'))
+    filas = [['Mancha', 'Superficie', 'Ya estaba', 'Por azar sería', 'Lectura']]
+    LECT = {'persistente': 'ya estaba antes',
+            'sin_confirmar': 'aparece por primera vez',
+            'no_evaluable': 'no había imagen anterior utilizable'}
+    for lid, r in sorted((por_lote or {}).items()):
+        for f in (r.get('focos') or []):
+            p = f['properties']
+            e = p.get('confirmacion')
+            if not e:
+                continue
+            pp, az = p.get('persistencia_pct'), p.get('persistencia_azar_pct')
+            filas.append(['%s / %s' % (lid, p.get('etiqueta')),
+                          '%.2f ha' % (p.get('area_ha') or 0),
+                          ('%.0f%%' % pp) if pp is not None else '—',
+                          ('%.1f%%' % az) if az is not None else '—',
+                          LECT.get(e, e)])
+    if len(filas) > 1:
+        st.append(B.tbl(filas, [3.8 * cm, 2.4 * cm, 2.2 * cm, 2.8 * cm, 4.0 * cm],
+                        aligns={1: 'CENTER', 2: 'CENTER', 3: 'CENTER'}))
+    st.append(B.P(
+        '<b>«Aparece por primera vez» no quiere decir que sea falso.</b> Un problema que '
+        'recién empieza tampoco estaba en la imagen anterior. Lo que la columna dice es '
+        'cuánta confianza da <i>esta</i> imagen sola, no si hay que ir o no: se va a '
+        'mirar igual.', 'Note'))
+    return
 
 
 def _seccion_contexto(B, st, n, contexto):

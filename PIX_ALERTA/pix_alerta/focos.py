@@ -346,6 +346,104 @@ def _mascara_focos(zs, z=Z_FOCO, invertir=False):
     return m.rename('foco')
 
 
+# --- PERSISTENCIA: ¿el foco tambien estaba en la escena limpia anterior? ------
+#
+# LA IDEA. Un deterioro del cultivo no se mueve: un foco real deberia estar en el MISMO
+# lugar cinco a diez dias despues. Una bruma no.
+#
+# ⚠️ LA COMPARACION CORRECTA NO ES LA OBVIA, Y ESTO COSTO UNA CONCLUSION EQUIVOCADA.
+#
+# El primer intento comparo los POLIGONOS entregados de una fecha contra los POLIGONOS
+# entregados de la anterior, y dio **0% de solape** entre el 07-15 y el 07-10 — lo que
+# parecia decir que el motor marcaba ruido. Era la pregunta equivocada: preguntaba
+# «¿ya era REPORTABLE?» y no «¿ya ESTABA?».
+#
+# Un foco entregado es lo que quedo despues del filtro de mayoria y de la unidad minima de
+# mapeo. Una anomalia que existe pero todavia es chica NO produce poligono. Comparando
+# contra la MASCARA de anomalia de la escena anterior —no contra sus poligonos— el
+# resultado se da vuelta:
+#
+#     foco entregado el 2026-07-15 (0,44 ha) en SANTO_ANTONIO-02
+#         ya estaba marcado en la escena del 2026-07-10 en el  81,8% de su superficie
+#         solape esperado POR AZAR                              2,72%
+#         ->  30 VECES EL AZAR
+#
+# O sea que el foco que se le reporto al cliente **no es ruido**: ya estaba cinco dias
+# antes, por debajo del tamano reportable, y crecio hasta pasar el umbral. Es exactamente
+# lo que parece un problema que avanza.
+#
+# POR QUE SIGUE SIENDO ETIQUETA Y NO FILTRO
+# -----------------------------------------
+# 1. Un evento REAL Y NUEVO tampoco estaba antes. Filtrar por persistencia convertiria el
+#    motor en un detector de anomalias viejas y agregaria un retraso de una imagen a TODA
+#    alerta real.
+# 2. Hay UN solo foco medido. Un caso a 30x el azar es alentador y no es una calibracion.
+#
+# Y ADEMAS QUEDO A LA VISTA OTRA COSA, que es la que mas importa: MEDIDO sobre la campana
+# (`medicion/persistencia_focos.py`), el motor marco en 1 de 5 fechas en SANTO_ANTONIO-02 y
+# en 0 de 5 en SANTO_ANTONIO-01. **Marca tan poco que casi no se puede validar con su
+# propia salida.** Converge con lo ya medido: la escala del criterio es 2,7 a 6,5 veces el
+# ruido real. Cuando eso se corrija, esta medicion se vuelve concluyente sola.
+#
+# TRES ESTADOS, y el tercero importa:
+#   'persistente'    el foco ya estaba, por encima de lo que daria el azar
+#   'sin_confirmar'  no estaba. NO significa falso: un evento nuevo tampoco estaba
+#   'no_evaluable'   NO HAY escena anterior utilizable, asi que no se sabe. Paso con los
+#                    3 focos del 07-10: el 06-30 tenia 17% de cobertura y el 07-05 lo
+#                    rechaza la puerta de bruma. 'no se sabe' no comparte rotulo con 'no'.
+
+# Cuantas veces el azar tiene que superar el solape para llamarlo persistente. El azar es
+# la fraccion del area evaluada que estaba marcada en la escena anterior: si los focos de
+# hoy cayeran en cualquier parte, se solaparian aproximadamente en esa proporcion.
+# 3 veces es una eleccion declarada, no medida — con un solo foco no hay que calibrar.
+# El caso medido dio 30x, asi que el umbral no esta ni cerca de decidir nada todavia.
+FACTOR_PERSISTENCIA = 3.0
+
+
+def _persistencia(sitio, feat, fecha_actual, focos, escala=ESCALA):
+    """Fraccion de cada foco que TAMBIEN estaba marcada en la escena limpia anterior.
+
+    Devuelve (lista de fracciones alineada con `focos`, fraccion marcada antes, fecha
+    anterior) o (None, None, None) si no se pudo evaluar la escena anterior.
+
+    Se llama SOLO cuando hay focos: en la mayoria de las corridas no hay ninguno y el
+    costo es cero. Cuando hay, cuesta una evaluacion extra del criterio.
+    """
+    import pandas as pd
+
+    from . import criterio as cri
+    if not focos:
+        return None, None, None
+    try:
+        # ⚠️ EL CORTE VA UN DIA ANTES. La ventana de candidatas del criterio es
+        # `filterDate(hasta - N, hasta + 1)`, o sea que INCLUYE `hasta`: pasandole la
+        # fecha actual volvia a elegir la MISMA escena y la persistencia salia
+        # `no_evaluable` siempre. Con un dia menos, la ventana la excluye y elige la
+        # anterior — para el 2026-07-15 elige el 2026-07-10.
+        corte = str(pd.Timestamp(fecha_actual) - pd.Timedelta(days=1))[:10]
+        r = cri.para_focos(_geom_lote(sitio, feat), corte, sitio=sitio)
+    except Exception:                                    # noqa: BLE001
+        return None, None, None
+    if not r.get('fecha_img') or str(r['fecha_img'])[:10] >= str(fecha_actual)[:10]:
+        return None, None, None
+    geom = _geom_lote(sitio, feat)
+    antes = r['foco'].unmask(0, False)
+    # cuanto del area evaluada estaba marcada: es el solape que daria el azar
+    base = antes.rename('a').reduceRegion(
+        reducer=ee.Reducer.mean(), geometry=geom, scale=escala,
+        maxPixels=1e9, bestEffort=True).get('a').getInfo()
+    fc = ee.FeatureCollection([
+        ee.Feature(ee.Geometry(f['geometry']), {'i': i})
+        for i, f in enumerate(focos)])
+    d = antes.rename('p').reduceRegions(
+        collection=fc, reducer=ee.Reducer.mean().setOutputs(['p']),
+        scale=escala, tileScale=4).getInfo()
+    por_i = {int(x['properties']['i']): x['properties'].get('p')
+             for x in d.get('features', [])}
+    return ([por_i.get(i) for i in range(len(focos))],
+            float(base or 0.0), str(r['fecha_img'])[:10])
+
+
 def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=None):
     """Focos de un lote: poligonos, area y porcentaje del lote comprometido.
 
@@ -487,6 +585,28 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=None):
             props[k] = round(float(p.get(k, 0)), 2)
         focos.append({'type': 'Feature', 'geometry': f['geometry'],
                       'properties': props})
+
+    # PERSISTENCIA. Solo si hay focos: sin focos no hay nada que confirmar y no se
+    # gasta una evaluacion extra del criterio.
+    if focos:
+        pers, azar, fecha_ant = _persistencia(sitio, feat, base['fecha_img'], focos)
+        if pers is not None:
+            piso = (azar or 0.0) * FACTOR_PERSISTENCIA
+            for f_, p_ in zip(focos, pers):
+                pp = float(p_ or 0.0)
+                f_['properties']['persistencia_pct'] = round(100 * pp, 1)
+                f_['properties']['persistencia_azar_pct'] = round(100 * (azar or 0), 2)
+                f_['properties']['fecha_anterior'] = fecha_ant
+                # 'sin_confirmar' NO significa falso: un evento nuevo y real tampoco
+                # estaba antes. Significa que esta escena sola no lo confirma.
+                f_['properties']['confirmacion'] = (
+                    'persistente' if pp > piso else 'sin_confirmar')
+        else:
+            for f_ in focos:
+                # No se pudo mirar la escena anterior. NO es 'sin_confirmar': es que no
+                # se sabe, y las dos cosas no pueden compartir rotulo.
+                f_['properties']['confirmacion'] = 'no_evaluable'
+                f_['properties']['persistencia_pct'] = None
 
     base.update({
         'focos': focos, 'area_focos_ha': round(total, 3),
@@ -666,6 +786,10 @@ def a_geojson(sitio, resultados, perimetro=None):
             p = dict(f['properties'])
             p.update({'hacienda': sitio.titulo,
                       'cultivo': getattr(sitio, 'cultivo', '') or None,
+                      # `confirmacion` viaja para que el registro del tecnico quede
+                      # atado a si el foco ya estaba antes o no. NO se muestra como
+                      # severidad: es trazabilidad, no prioridad.
+                      'confirmacion': p.get('confirmacion'),
                       'name': '%s / %s' % (lid, p['etiqueta']),
                       # z_sev orientado: mas negativo = peor, para cualquier eje.
                       'sev': 'alta' if (p.get('z_sev') or 0) <= -(Z_FOCO + 1) else 'media'})
