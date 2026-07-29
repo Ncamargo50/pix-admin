@@ -637,6 +637,23 @@ def zonas(geom, fecha, z=Z_ZONA, escala=ESCALA):
             reducer=ee.Reducer.stdDev(), geometry=geom, scale=escala,
             maxPixels=1e9, bestEffort=True).values().get(0)
         sg = ee.Number(ee.Algorithms.If(_sd, _sd, 0))
+        # ⚠️ MEDIDO 2026-07-29: EL NDVI DE ESTOS LOTES ESTA SATURADO Y LA REGRESION
+        # FUNCIONA IGUAL. Se sospecho —a partir de Herrmann et al. 2011, que mide que
+        # el NDVI pierde sensibilidad al LAI sobre LAI=2— que esta regresion corriera
+        # contra una variable sin gradiente. Sobre los 4 lotes reales, escena limpia:
+        #
+        #     NDVI mediana 0,92-0,93 y rango p95-p5 de solo 0,062 a 0,097  (saturado)
+        #     R2 de la regresion indice~NDVI:            0,822 a 0,914     (funciona)
+        #
+        # O sea que dentro de ese rango angosto las diferencias chicas de NDVI todavia
+        # siguen la misma variacion de biomasa que sigue el indice. LA HIPOTESIS NO SE
+        # SOSTIENE: esta capa no esta muda por la saturacion del NDVI.
+        #
+        # Lo que el R2 SI dice es cuanta señal queda en el residuo: entre el 9% y el 18%
+        # de la varianza espacial. Coincide con la medicion previa de 7-19%, y explica
+        # por que una zona "a 2 sigmas del residuo" es un apartamiento CHICO en terminos
+        # absolutos aunque sea estadisticamente real.
+        #
         # ⚠️ ESTE `divide` ES LO QUE HACE QUE ESTA CAPA SEA UNA CUOTA, y hay que
         # decirlo: al dividir por el desvio de LA MISMA escena, el z queda con SD=1
         # POR CONSTRUCCION. Entonces el corte en z>=2 marca una fraccion que depende

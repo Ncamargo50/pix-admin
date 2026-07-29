@@ -76,6 +76,7 @@ def rho_residuos(sitio, feat, hasta, ejes, escala=None):
     import ee
     import pandas as pd
 
+    from pix_alerta import config as cfg
     from pix_alerta import criterio as cri
     from pix_alerta import focos as fo
     escala = escala or cri.ESCALA
@@ -83,8 +84,18 @@ def rho_residuos(sitio, feat, hasta, ejes, escala=None):
     ventana = cri.ventana_de(sitio)
     desde = str(pd.Timestamp(hasta) - pd.Timedelta(days=ventana))[:10]
     fin = str(pd.Timestamp(hasta) - pd.Timedelta(days=1))[:10]
-    base = cri._coleccion_limpia(geom, desde, fin)
-    n = int(base.size().getInfo() or 0)
+    # `_coleccion_limpia` selecciona SOLO las bandas de `cfg.EJES` + NDVI, asi que para
+    # medir un par que no esta en produccion hay que declararlo. Se hace pisando
+    # `cfg.EJES` alrededor de la llamada —y restaurandolo en `finally`— para correr por
+    # EL MISMO camino de produccion (misma mascara, misma cobertura, mismo dedup por
+    # fecha) y no por una copia que podria divergir.
+    _antes = cfg.EJES
+    try:
+        cfg.EJES = tuple(ejes)
+        base = cri._coleccion_limpia(geom, desde, fin)
+        n = int(base.size().getInfo() or 0)
+    finally:
+        cfg.EJES = _antes
     if n < cri.MIN_BASE:
         return None
     dia0 = ee.Date(desde).millis()

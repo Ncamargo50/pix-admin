@@ -99,6 +99,9 @@ def main(argv=None):
     ap.add_argument('--modelos', default=None,
                     help='coma-separados. Por defecto, todos los de criterio.MODELOS')
     ap.add_argument('--escala', type=int, default=None)
+    ap.add_argument('--ejes', default=None,
+                    help='par de ejes a medir, coma-separado (ej. NDMI,CIRE). '
+                         'Por defecto, los de config.EJES.')
     a = ap.parse_args(argv)
 
     from pix_alerta.ee_init import inicializar
@@ -114,6 +117,21 @@ def main(argv=None):
         return 1
     modelos = ([m.strip() for m in a.modelos.split(',') if m.strip()]
                if a.modelos else list(cri.MODELOS))
+    # EJES A MEDIR. Cambiar el par es una decision de produccion, asi que tiene que
+    # poder MEDIRSE antes de tomarla: `config.EJES` se pisa para toda la corrida del
+    # arnes y se declara en el encabezado, para que ningun resultado quede sin decir
+    # sobre que par se midio.
+    from pix_alerta import config as cfg
+    if a.ejes:
+        nuevos = tuple(x.strip().upper() for x in a.ejes.split(',') if x.strip())
+        from pix_alerta.ranking import SIGNO
+        faltan = [e for e in nuevos if e not in SIGNO]
+        if faltan:
+            print('ranking.SIGNO no declara el sentido de alarma de %s. Sin eso el '
+                  'criterio podria marcar los pixeles SANOS.' % faltan)
+            return 1
+        cfg.EJES = nuevos
+    print('EJES medidos: %s' % ' + '.join(cfg.EJES))
     escala = a.escala or cri.ESCALA
     print('alfa declarada por el criterio: %.1f%%   modelos: %s   escala: %d m'
           % (100 * cri.ALFA, ', '.join(modelos), escala))

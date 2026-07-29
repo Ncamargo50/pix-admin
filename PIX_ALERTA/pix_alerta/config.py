@@ -148,6 +148,67 @@ def unidades_validas(sitio):
 # `ranking.SIGNO` tiene que declarar el sentido de alarma del eje nuevo.
 EJES = ('NDMI', 'NDRE')          # humedad de dosel, clorofila de borde rojo
 
+# --- 2026-07-29: LA BANDA COMPARTIDA, MEDIDA -----------------------------------
+# La revision de literatura israeli (INVESTIGACION_ISRAEL_2026-07-29.md) senalo algo que
+# nadie habia mirado: NDMI = (B8A-B11)/(B8A+B11) y NDRE = (B8A-B5)/(B8A+B5) **COMPARTEN
+# B8A**, y una banda en comun induce correlacion que no es del cultivo sino de la
+# construccion del indice. Eso explicaria el 0,72 contra 0,82 de arriba —CIre no toca
+# B8A— que hasta ahora estaba sin explicacion mecanica.
+#
+# MEDIDO sobre los 4 lotes reales de trigo, correlacion de los RESIDUOS TEMPORALES
+# (`medicion/banda_compartida.py`), que es la que entra en la Mahalanobis:
+#
+#     par            comparte     |rho| medio    rango
+#     NDMI + CIRE    ninguna         0,830     0,780 - 0,851
+#     NDMI + PSRI    ninguna         0,927     0,823 - 0,970
+#     NDMI + NDRE    B8A             0,969     0,944 - 0,978
+#
+# LA HIPOTESIS SE SOSTIENE A MEDIAS, Y CONVIENE DECIRLO ASI:
+# · NDRE es el mas correlacionado, y su rango NO SE SOLAPA con el de CIre (0,944-0,978
+#   contra 0,780-0,851). La diferencia sistematica de ~0,14 es real.
+# · pero PSRI **no comparte banda** y da 0,927, casi tan alto como NDRE. O sea que **la
+#   mayor parte de la correlacion es FISICA** —todos los indices siguen la biomasa— y la
+#   banda compartida explica una parte, no el fenomeno.
+#
+# LO QUE ESTARIA EN JUEGO: la evidencia independiente que aporta el segundo eje escala
+# con 1-rho^2. De 0,969 a 0,830 pasa de 0,061 a 0,311, o sea **5 veces mas varianza
+# independiente**. No es un detalle.
+#
+# SE MIDIO LA TERCERA PATA Y TAMPOCO DECIDE. Tasa sobre fechas sin evento, 34
+# combinaciones lote-fecha, alfa declarada 1%
+# (`medicion/calibrar_criterio.py --ejes NDMI,CIRE`):
+#
+#     par                      MEDIANA (peor lote)   MAXIMO (peor lote)
+#     NDMI + NDRE (produccion)       0,58%                2,53%
+#     NDMI + CIRE                    0,22%                2,67%
+#
+# Mediana algo mejor, maximo algo peor: **la tasa empirica no distingue los dos pares.**
+#
+# CONCLUSION: NO SE CAMBIA EL PAR. Las tres evidencias quedan asi —
+#   · correlacion de residuos: favorece CIRE (5 veces mas varianza independiente)
+#   · lift contra la nula sintetica sobre 3 campanas de cana: favorece NDRE (18,1x/15,3x)
+#   · tasa empirica sobre fechas sin evento: EMPATA
+# Cambiar un parametro de produccion necesita una razon POSITIVA, y con dos evidencias
+# apuntando a lados opuestos y la tercera empatada, no la hay. Queda documentado para
+# que el proximo que lo mire no tenga que volver a medirlo desde cero.
+
+# --- ESTABILIDAD DEL SIGNO ENTRE EJES, medida 2026-07-29 -----------------------
+# Karnieli et al. 2010 (J. Climate 23(3):618-633) miden que el signo de una relacion
+# entre variables de teledeteccion **se invierte segun la epoca**: la correlacion
+# LST-NDVI les dio positiva en el 60% del dominio a inicio de temporada y negativa en
+# media temporada. De ahi la pregunta: si en algun estadio los residuos de los dos ejes
+# se ANTICORRELACIONARAN, la puerta de direccion —que exige los dos en el sentido del
+# deterioro— no se cumpliria nunca y el criterio quedaria mudo sin avisar.
+#
+# MEDIDO: rho de los residuos NDMI~NDRE sobre 4 lotes x 4 fechas (05-06 a 07-16):
+#
+#     rango 0,884 a 0,980   |   16 mediciones   |   CERO negativos
+#
+# El signo se mantiene positivo y alto en todos los estadios medidos, asi que la puerta
+# de direccion es coherente. LIMITE: son 4 fechas de UNA campana de trigo. En un cultivo
+# con senescencia marcada o en un evento de anegamiento —donde el NDMI SUBE y el NDRE
+# baja— el signo podria separarse, y ahi hay que volver a medir antes de confiar.
+
 # NO hay override de ejes por sitio, a proposito. Serian dos: el par de arriba se
 # eligio contra una nula sintetica sobre TRES campañas de CAÑA, o sea que ya es
 # evidencia de otro cultivo y no un ajuste al trigo; y todos los modulos leen `EJES`

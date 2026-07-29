@@ -135,10 +135,33 @@ matemáticamente el NDVI no puede predecir LAI altos.
 
 **Qué cambia:** el motor usa NDVI en dos lugares y las consecuencias son distintas.
 Como **compuerta FVC binaria** («¿este píxel alguna vez fue cultivo?») sigue siendo
-válido. Pero `criterio.zonas` **regresa cada índice contra NDVI espacialmente** para
-sacar el «porte esperado»: en dosel cerrado, con el NDVI saturado, esa regresión corre
-contra una variable sin gradiente. **Es una posible explicación —medible— de por qué la
-capa de zonas está muda.** Queda como pendiente medible, no como conclusión.
+válido. Y `criterio.zonas` **regresa cada índice contra NDVI espacialmente** para sacar
+el «porte esperado», así que la saturación parecía la explicación de por qué esa capa
+está muda.
+
+**SE MIDIÓ Y LA HIPÓTESIS NO SE SOSTIENE.** Sobre los 4 lotes reales, escena limpia del
+2026-07-15:
+
+| lote | NDVI p5 | p50 | p95 | rango p95−p5 | R² de índice~NDVI |
+|---|---|---|---|---|---|
+| SANTO_ANTONIO-01 | 0,850 | 0,928 | 0,939 | 0,089 | **0,858** |
+| SANTO_ANTONIO-02 | 0,843 | 0,927 | 0,940 | 0,097 | **0,914** |
+| SAO_FRANCISCO-01 | 0,873 | 0,924 | 0,935 | 0,062 | **0,840** |
+| SAO_FRANCISCO-02 | 0,857 | 0,927 | 0,936 | 0,080 | **0,822** |
+
+El NDVI **sí está saturado**: mediana 0,93 y un rango interno de apenas 0,06 a 0,10, muy
+por encima del LAI 2 donde pierde sensibilidad. Eso queda confirmado. **Pero la regresión
+funciona igual**, con R² de 0,82 a 0,91: dentro de ese rango angosto, las diferencias
+chicas de NDVI todavía siguen la misma variación de biomasa que sigue el NDMI.
+
+Así que la capa de zonas **no está muda por la saturación del NDVI**. La explicación ya
+medida es otra: los píxeles que el residuo marca están **dispersos**, y el filtro de
+coherencia espacial los borra porque no forman mancha.
+
+Lo que el R² de 0,82–0,91 sí confirma es cuánta señal queda en el residuo: entre el 9% y
+el 18% de la varianza espacial. Coincide con la medición previa de 7–19% y explica por
+qué una «zona a 2σ del residuo» es un apartamiento chico en términos absolutos, aunque
+sea estadísticamente real.
 
 ### 1.8 Recalibrar por campaña no es opcional
 
