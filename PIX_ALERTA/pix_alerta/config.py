@@ -126,7 +126,33 @@ UMBRAL_PARCIAL = 0.40
 #       ejes en el sentido de alarma: es un ATENCION fabricado por la iluminacion.
 # Tambien 1 (saturado/defectuoso), 8/9/10 (nubes y cirros) y 11 (nieve).
 SCL_MALAS = [1, 2, 3, 8, 9, 10, 11]
-DILATAR_NUBE_PX = 2              # a 20 m = 40 m de dilatacion
+# DILATACION DE LA MASCARA DE NUBE, en pixeles de 20 m.
+#
+# ⚠️ SUBIDO DE 2 A 4 (40 m -> 80 m) EL 2026-07-29, Y EL MOTIVO IMPORTA.
+#
+# Con 40 m, SANTO_ANTONIO-02 producia 3 focos (1,28 ha) que se le reportaron al
+# cliente. MEDIDO ese dia:
+#   · los 3 focos estaban a 19-70 m del borde de la mascara de nube (1 a 3,5 px);
+#   · con dilatacion de 80 m DESAPARECEN LOS TRES, y tambien los 4 que producia la
+#     variante de compuerta nueva;
+#   · y ademas la escena del 20-07 —medio lote tapado— deja de pasar COB_MINIMA, asi
+#     que el par cae al 15-07 / 10-07, que esta limpio y no tiene ningun foco.
+#
+# O sea: los focos no eran daño, eran **borde de nube fina que SCL no clasifica**.
+# SCL marca el nucleo opaco; el cirro delgado y la bruma peri-nube quedan como
+# "vegetacion" con reflectancia deprimida, que es exactamente la firma que busca el
+# criterio (NDMI y NDRE bajando juntos).
+#
+# 80 m no es un numero elegido para que los focos desaparezcan: es el orden de
+# magnitud que la literatura de mascaras de S2 usa como buffer minimo, y la
+# alternativa correcta —CloudScore+ (GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED), que
+# SI modela nube fina, bruma y cirro— esta pendiente de implementar. Mientras tanto,
+# dilatar es la defensa barata y conservadora.
+#
+# COSTO DECLARADO: se pierde area util cerca de las nubes. Es el lado correcto del
+# error: un foco de menos se descubre en la proxima escena limpia; un foco inventado
+# manda al tecnico a caminar una nube.
+DILATAR_NUBE_PX = 4              # a 20 m = 80 m de dilatacion
 
 # Compuerta de vegetacion por FVC, no por NDVI absoluto. Los extremos salen de la
 # propia escena (p2/p98), no de una tabla: un umbral absoluto no transfiere.

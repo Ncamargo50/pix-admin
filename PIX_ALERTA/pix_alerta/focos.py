@@ -216,10 +216,59 @@ def _par_de_fechas(escenas, hasta):
                  % (MIN_GAP_DIAS, MAX_REF_DIAS, act[0]))
 
 
+def _escena(idx_escena):
+    return ee.Image(ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+                    .filter(ee.Filter.eq('system:index', idx_escena)).first())
+
+
+def _par_enmascarado(idx_act, idx_ref, geom):
+    """(actual, referencia) con los ejes, listos para restar.
+
+    LA COMPUERTA DE DOSEL SE EXIGE SOLO EN LA REFERENCIA. La de nube, en las dos.
+
+    Antes se exigia dosel util en AMBAS fechas, y eso tenia dos problemas, uno
+    conceptual y uno medido:
+
+    · CONCEPTUAL. Un pixel que era dosel y HOY YA NO LO ES es exactamente el daño
+      que se busca. Exigir dosel tambien en la fecha actual descarta el caso mas
+      severo — el unico que nadie discutiria. El motivo original de la compuerta
+      («si en la referencia era suelo, la diferencia mide emergencia, no daño»)
+      solo justifica exigirla en la REFERENCIA, que es lo que se hace ahora.
+
+    · MEDIDO 2026-07-29, SANTO_ANTONIO-02 (par 07-20 / 07-15):
+          sin nube en las dos fechas ............ 87,4% del lote
+          la compuerta pasaba en las dos ........ 51,0%   <- lo que se testeaba
+          DISCREPABA entre fechas ............... 36,1%   (41% de lo limpio)
+          no pasaba en ninguna ..................  0,4%
+      O sea: casi nada fallaba de verdad la compuerta. Se perdia el 41% de los
+      pixeles limpios porque `series._fvc` ancla en p2/p98 de CADA escena, asi que
+      el mismo punto del suelo caia de un lado del corte una fecha y del otro la
+      siguiente sin que hubiera cambiado nada en el terreno.
+
+    Se probo tambien un ancla COMUN al par (percentiles sobre la referencia
+    restringida a lo limpio en ambas): empeoro —bajo el area util de 49% a 23% y
+    perdio los tres focos—, porque calcular los percentiles sobre un subconjunto
+    recortado por la nube corre el rango. Queda descartado y escrito.
+    """
+    ia_img, ir_img = _escena(idx_act), _escena(idx_ref)
+    va, vb = sr._mascara(ia_img), sr._mascara(ir_img)
+    ea, eb = sr._indices(ia_img), sr._indices(ir_img)
+    # Dosel en la REFERENCIA, con el ancla de su propia escena (que es lo correcto:
+    # un umbral absoluto de NDVI no transfiere entre sitios ni cultivares).
+    fvc_ref = sr._fvc(eb.select('NDVI').updateMask(vb), geom, ESCALA)
+    dosel_ref = fvc_ref.gte(cfg.FVC_MINIMA)
+    util = va.And(vb).And(dosel_ref)
+    return (ea.select(list(cfg.EJES)).updateMask(util),
+            eb.select(list(cfg.EJES)).updateMask(util))
+
+
 def _imagen_util(idx_escena, geom):
-    """Los dos ejes de la escena, enmascarados a dosel util y agregados a 20 m."""
-    img = ee.Image(ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-                   .filter(ee.Filter.eq('system:index', idx_escena)).first())
+    """Los dos ejes de la escena, enmascarados a dosel util y agregados a 20 m.
+
+    Se conserva para la puerta `control_nulo` y para uso suelto; el camino de
+    produccion usa `_par_enmascarado`, que decide la compuerta mirando el PAR.
+    """
+    img = _escena(idx_escena)
     valido = sr._mascara(img)
     ejes = sr._indices(img)
     fvc = sr._fvc(ejes.select('NDVI').updateMask(valido), geom, ESCALA)
@@ -321,7 +370,8 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
         base['nota'] = 'Sin acercamiento: %s.' % e
         return base
 
-    ia, ir = _imagen_util(act[1], geom), _imagen_util(ref[1], geom)
+    # La compuerta de dosel se exige SOLO en la referencia. Ver `_par_enmascarado`.
+    ia, ir = _par_enmascarado(act[1], ref[1], geom)
     # Delta contra la escena anterior. El pixel tiene que ser dosel util en LAS DOS
     # fechas: si en la referencia era suelo, la diferencia mide emergencia, no daño.
     delta = ia.subtract(ir)
@@ -532,7 +582,7 @@ def control_nulo(sitio, lote_ids, hasta, z=Z_FOCO, mmu_ha=MMU_HA, verbose=True):
             act, ref = _par_de_fechas(escenas, hasta)
         except SinPar:
             continue
-        ia, ir = _imagen_util(act[1], geom), _imagen_util(ref[1], geom)
+        ia, ir = _par_enmascarado(act[1], ref[1], geom)
         delta = ia.subtract(ir)
         zs = {e: _z_robusto(delta, geom, e) for e in cfg.EJES}
         # Sentido INVERTIDO en TODOS los ejes: las colas de mejora.
