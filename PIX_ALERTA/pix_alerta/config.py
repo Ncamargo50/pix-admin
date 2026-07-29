@@ -163,7 +163,23 @@ UMBRAL_PARCIAL = 0.40
 #       Un dosel en sombra sin enmascarar da NDMI abajo Y NDRE abajo, o sea los DOS
 #       ejes en el sentido de alarma: es un ATENCION fabricado por la iluminacion.
 # Tambien 1 (saturado/defectuoso), 8/9/10 (nubes y cirros) y 11 (nieve).
-SCL_MALAS = [1, 2, 3, 8, 9, 10, 11]
+# 0 = NO_DATA. AUDITADO 2026-07-29: no estaba en la lista, asi que un pixel sin dato
+#     de SCL pasaba como VALIDO — `remap` le da el valor por defecto 0 = "no mala".
+#     MEDIDO sobre las 14 escenas de mayo-julio de SANTO_ANTONIO-02: SCL=0 en el
+#     0,000% del lote, o sea que el hueco estaba LATENTE y no activo. Se cierra igual:
+#     un lote que cruce el borde de un granulo si puede tener NO_DATA adentro, y ahi
+#     el indice se calcularia sobre reflectancia nula.
+#
+# QUE NO SE EXCLUYE, Y ES UNA DECISION:
+#   6 = WATER. Un encharcado en trigo ES una anomalia que vale reportar. Y ademas SCL
+#       confunde seguido suelo humedo oscuro y sombra de nube con agua. Se deja pasar
+#       porque el criterio busca NDMI Y NDRE BAJANDO JUNTOS: el agua sube el NDMI, asi
+#       que no dispara la direccion de deterioro. Si algun dia el criterio cambia de
+#       direccion, esta decision hay que rehacerla.
+#   7 = UNCLASSIFIED. Sen2Cor la usa cuando no pudo decidir. Excluirla descartaria
+#       pixeles buenos en bordes de lote; dejarla pasar admite algun pixel dudoso.
+#       Se deja, y queda anotado que no esta medido cual de los dos errores es peor.
+SCL_MALAS = [0, 1, 2, 3, 8, 9, 10, 11]
 # DILATACION DE LA MASCARA DE NUBE, en pixeles de 20 m.
 #
 # ⚠️ SUBIDO DE 2 A 4 (40 m -> 80 m) EL 2026-07-29, Y EL MOTIVO IMPORTA.

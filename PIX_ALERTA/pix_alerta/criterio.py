@@ -4,19 +4,32 @@
 Criterio por defecto desde 2026-07-29 (`config.CRITERIO = 'v2'`). v1 sigue
 disponible en `focos.py` para poder comparar, no como camino de produccion.
 
-LA EVIDENCIA QUE LO APROBO
---------------------------
-Tasa de marcado sobre fechas SIN evento (pares consecutivos de la linea base de los
-4 lotes de trigo), alfa nominal 1%. Arnes: `medicion/calibrar_criterio.py`.
+LA EVIDENCIA, Y UNA CORRECCION DE AUDITORIA DEL 2026-07-29
+----------------------------------------------------------
+⚠️ Este docstring citaba `medicion/calibrar_criterio.py` como el arnes que aprobo v2,
+con una tabla de tasas por lote. **Ese archivo NO EXISTIA en el repositorio** — no
+estaba en el historial de git ni en `.gitignore`. O sea que los numeros que
+justificaron poner v2 en produccion no se podian reproducir. El arnes se escribio el
+2026-07-29 y esto es lo que mide, sobre 34 combinaciones lote-fecha reales:
 
-    lote                v1 mediana   v1 MAXIMO    v2 mediana   v2 MAXIMO
-    SANTO_ANTONIO-01       2,11%       9,84%        0,00%       2,17%
-    SANTO_ANTONIO-02       0,38%      11,25%        0,00%       1,66%
-    SAO_FRANCISCO-01       1,81%      11,81%        0,00%       1,05%
-    SAO_FRANCISCO-02       1,25%       7,88%        0,00%       0,19%
+    modelo                  MEDIANA (peor lote)   MAXIMO (peor lote)
+    recta (este criterio)         0,58%                2,53%
+    relativa_agrupada             3,23%                4,38%
 
-**v1 marcaba hasta el 11,8% del lote en fechas donde no pasaba nada.** Ese es el
-comportamiento de cuota que se venia sospechando, medido. v2 baja el maximo a 2,2%.
+    por lote, con el criterio en produccion:
+    lote                 n fechas   MEDIANA   MAXIMO
+    SANTO_ANTONIO-01         8       0,08%     1,77%
+    SANTO_ANTONIO-02         9       0,31%     2,21%
+    SAO_FRANCISCO-01         9       0,01%     2,53%
+    SAO_FRANCISCO-02         8       0,58%     2,35%
+
+Con alfa declarada del 1%, eso es aceptable: la mediana queda por debajo y el maximo
+en 2,5 veces. Y el MAXIMO puede incluir eventos reales, porque no hay verdad de campo
+para descartarlos — es una cota superior de la falsa alarma, no la falsa alarma.
+
+Los numeros viejos (mediana 0,00%, maximo 2,17%) quedan en el mismo orden que los
+nuevos, asi que la conclusion original probablemente era correcta. Pero no era
+verificable, y eso es un defecto por si solo.
 
 Y ademas recupera area evaluable, que era el otro cuello de botella:
 
@@ -43,8 +56,13 @@ Los cuatro defectos medidos el 2026-07-29, y como los ataca este diseño:
    daba SD=0,38, o sea que el corte en -2 equivalia a -5 sigmas reales y como
    segundo eje habria matado toda deteccion.
    -> **La escala pasa a ser TEMPORAL Y POR PIXEL**: la MAD de los residuos del
-      propio pixel contra su propia trayectoria. Cada pixel se estandariza por SU
-      ruido, que es lo que hace que el z tenga SD 1 por construccion.
+      propio pixel contra su propia trayectoria.
+      ⚠️ MEDIDO 2026-07-29: ESTO NO LOGRO SD(z)=1. Da 0,19 a 1,30 sobre los 4 lotes
+      reales, o sea el mismo orden de dispersion que tenia v1. La razon es que la MAD
+      de los residuos contra una RECTA no mide ruido: mide sobre todo el error del
+      modelo (ver el bloque de arriba). La frase original —"lo que hace que el z tenga
+      SD 1 por construccion"— era un razonamiento, no una medicion, y la medicion la
+      contradice.
 
 2. **La conjuncion de dos z no controla alfa**: la tasa depende de la correlacion r
    entre ejes, que va de 0,17 a 0,82 entre lotes -> el error tipo I varia varias
@@ -63,10 +81,51 @@ Los cuatro defectos medidos el 2026-07-29, y como los ataca este diseño:
    aportan ruido). Con N observaciones en la base pasa a `sigma^2*(1+1/N)`: con N=5
    se detecta un cambio 23% mas chico A LA MISMA tasa de falsa alarma.
 
-LO QUE NO CAMBIA, A PROPOSITO
------------------------------
-La nula sigue siendo TEMPORAL: cada pixel contra su propia historia. No se compara
-con vecinos ni con otros lotes, porque la nula espacial es falsa por construccion.
+LO QUE ESTE MODULO DECIA Y NO ERA CIERTO
+----------------------------------------
+Aca decia: «la nula sigue siendo TEMPORAL: cada pixel contra su propia historia. No se
+compara con vecinos ni con otros lotes». **La segunda frase es falsa**, y se ve
+leyendo el codigo: la matriz de la Mahalanobis se calcula con
+
+    reduceRegion(ee.Reducer.centeredCovariance(), geometry=geom)
+
+sobre los z de LA ESCENA EVALUADA, o sea que es una covarianza ESPACIAL entre los
+pixeles del lote. El residuo es temporal; la NORMALIZACION es espacial. La decision
+final si se compara con los vecinos.
+
+Eso tiene una consecuencia que hay que declarar: la referencia se estima sobre datos
+que contienen el evento que se busca. Cuanto mas grande sea el evento, mas infla la
+covarianza y menos se destaca. No esta medido a campo cuanto pesa —haria falta verdad
+de campo para inyectar un evento real— pero el mecanismo esta ahi y no es opinable.
+
+LO QUE SE MIDIO DE LAS TRIPAS, Y NO CIERRA
+------------------------------------------
+Sobre los 4 lotes reales al 2026-07-16 (`medicion/verificar_escala_real.py` y
+`medicion/comparar_trayectoria.py`):
+
+    · SD(z) va de 0,19 a 1,30 entre lotes y ejes. Deberia ser 1 en todos. Con esa
+      dispersion, el umbral chi2 NO significa el mismo alfa en cada lote — que es
+      exactamente el defecto que este docstring dice mas abajo venir a corregir de v1
+      (donde iba de 0,38 a 1,56). **No lo corrigio.**
+    · sigma vale 0,12 a 0,18 en unidades del indice, contra un ruido de corto plazo
+      de 0,024 a 0,060 medido con diferencias entre escenas consecutivas. O sea que
+      la escala es 2,7 a 6,5 veces el ruido: entre el 63% y el 85% de lo que se llama
+      "ruido" es ERROR DEL MODELO, porque una recta no describe al trigo entre
+      emergencia y llenado de grano. Eso comprime el z y vuelve sordo al criterio.
+    · la mediana de z da -0,85 y -0,60: no es dispersion, es SESGO. La recta
+      extrapola hacia arriba mientras el cultivo se aplana.
+
+POR QUE ENTONCES SIGUE ESTE CRITERIO Y NO EL CANDIDATO
+------------------------------------------------------
+Se probo un modelo que arregla las tres cosas (`MODELO = 'relativa_agrupada'`:
+centrado por fecha + escala agrupada). MEDIDO: lleva la razon sigma/ruido de 3,3 a
+1,1, el sesgo de -0,85 a -0,01 y el rango de SD(z) de 0,19-1,30 a 0,86-1,54.
+
+Y sin embargo **marca 3 a 4 veces MAS sobre fechas sin evento** (mediana 3,23% contra
+0,58%), porque con SD(z)=1,2 el umbral chi2 infla la cola. Arreglar las tripas no
+alcanza: lo que decide en un producto de alerta es la tasa empirica. El candidato
+queda disponible y APAGADO hasta que su umbral se recalibre y se valide — no se
+enciende algo que empeora el unico numero que se le entrega al cliente.
 
 LIMITES QUE HAY QUE DECLARAR
 ----------------------------
@@ -125,6 +184,52 @@ def ventana_de(sitio, default=VENTANA_BASE_DIAS):
 # evento, que es lo que dice si el piso esta bien puesto. Un piso demasiado bajo
 # hace que el criterio corra sobre ruido; demasiado alto lo vuelve sordo.
 SIGMA_MINIMA = 0.010
+
+# MODELO DE TRAYECTORIA Y DE ESCALA. Default 'recta' = lo que corre hoy.
+#
+# MEDIDO el 2026-07-29 sobre los 4 lotes reales de trigo (`medicion/
+# comparar_trayectoria.py`), al 2026-07-16:
+#
+#   modelo                razon sigma/ruido   mediana(z)      SD(z) y su rango
+#   recta (hoy)              3,3 y 5,0       -0,85 / -0,60   0,50  (0,19 a 1,30)
+#   cuadratica               0,7 y 1,2       +1,03 / +1,90   1,52  (0,88 a 2,14)
+#   recta relativa           1,1 y 1,3       -0,02 / +0,02   1,72  (0,85 a 2,74)
+#   relativa_agrupada        1,1 y 1,4       -0,01 / +0,02   1,23  (0,86 a 1,54)
+#
+# COMO SE LEE:
+# · `razon` es la escala del ajuste dividida por el ruido de corto plazo (estimado
+#   con diferencias entre escenas consecutivas, que son casi inmunes a una tendencia
+#   suave). Con la RECTA da 3,3 a 5,0: entre el 63% y el 85% de lo que el criterio
+#   llama "ruido" es ERROR DEL MODELO — una recta no describe al trigo entre
+#   emergencia y llenado de grano. Eso comprime el z y el criterio se vuelve sordo.
+# · `mediana(z)` con la recta da -0,85: no es dispersion, es SESGO. La recta
+#   extrapola hacia arriba mientras el cultivo se aplana, asi que TODO el lote cae
+#   por debajo de su propia referencia.
+# · El RANGO de SD(z) es lo que decide si el umbral significa lo mismo en cada lote.
+#   Con la recta va de 0,19 a 1,30 (factor 6,8) — el mismo defecto que v2 declaraba
+#   venir a corregir de v1, donde iba de 0,38 a 1,56.
+#
+# 'relativa_agrupada' hace DOS cosas, y cada una arregla una de las dos:
+#   1. CENTRADO POR FECHA: al residuo de cada escena se le resta la mediana espacial
+#      del residuo de esa escena. Absorbe todo error de modelo COMPARTIDO —fenologia,
+#      clima del dia, calibracion del sensor— porque todos los pixeles lo tienen
+#      igual. Es lo que lleva la razon de 3,3 a 1,1 y el sesgo de -0,85 a -0,01.
+#   2. ESCALA AGRUPADA: el ruido se estima juntando los residuos de todos los pixeles
+#      del lote (miles x n fechas) en vez de 8-9 por pixel. Es lo que baja el rango
+#      de SD(z) de 0,85-2,74 a 0,86-1,54.
+#
+# ⚠️ PRECIO QUE HAY QUE DECLARAR AL CLIENTE: el centrado por fecha deja al criterio
+# CIEGO a un evento uniforme sobre todo el lote (una helada, un deficit hidrico
+# general). Si todos los pixeles caen lo mismo, la mediana cae con ellos y el residuo
+# centrado no se mueve. Eso NO es un descuido: un evento que afecta al lote entero es
+# indistinguible de fenologia mirando solo ese lote, y se detecta comparando el lote
+# con OTROS lotes — que es el ranking entre lotes, y necesita >= 8 lotes.
+MODELO = 'recta'
+MODELOS = ('recta', 'relativa_agrupada')
+# Recorte robusto antes de agrupar cuadrados, en sigmas, y su factor de consistencia:
+# recortar subestima sigma y el sesgo tiene forma cerrada (c=3 -> 0,99750).
+RECORTE_SIGMAS = 3.0
+RECORTE_FACTOR = 0.99750
 # alfa NOMINAL del criterio. chi2 con 2 grados de libertad: d2 >= 9,21 <=> alfa=0,01.
 # Es el numero que la conjuncion NO podia fijar.
 # Cuanto se puede retroceder buscando una escena CON DATOS para evaluar, y cuanta
@@ -206,7 +311,7 @@ def _coleccion_limpia(geom, desde, hasta, cob_minima=COB_MINIMA_BASE):
 
 
 def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
-            ventana=None, escala=ESCALA, sitio=None, piso=None):
+            ventana=None, escala=ESCALA, sitio=None, piso=None, modelo=None):
     """Mahalanobis del residuo de la fecha `hasta` contra la trayectoria del pixel.
 
     Devuelve dict con:
@@ -219,6 +324,9 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
     """
     import pandas as pd
     ventana = ventana or ventana_de(sitio)
+    modelo = modelo or cfg.valor_de(sitio, 'modelo_criterio', MODELO)
+    if modelo not in MODELOS:
+        raise ValueError('modelo desconocido: %r. Hay: %s' % (modelo, MODELOS))
     if piso is None:
         piso = cfg.valor_de(sitio, 'sigma_minima', SIGMA_MINIMA)
     desde = str(pd.Timestamp(hasta) - pd.Timedelta(days=ventana))[:10]
@@ -291,18 +399,60 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
     def _esperado(e, t):
         return orden[e].add(pend[e].multiply(ee.Image(ee.Number(t))))
 
-    # Residuos de la BASE contra su propia recta -> la MAD estima ruido puro.
+    # Residuos CON SIGNO de la base contra su propia recta. Con signo y no en valor
+    # absoluto porque el centrado por fecha necesita el signo; la MAD sale igual.
     def resid(img):
         img = ee.Image(img)
-        t = ee.Number(ee.Date(img.get('system:time_start')).millis())             .subtract(dia0).divide(86400000)
-        cap = [img.select(e).subtract(_esperado(e, t)).abs().rename(e) for e in ejes]
-        return ee.Image.cat(cap)
+        t = (ee.Number(ee.Date(img.get('system:time_start')).millis())
+             .subtract(dia0).divide(86400000))
+        cap = [img.select(e).subtract(_esperado(e, t)).rename(e) for e in ejes]
+        return (ee.Image.cat(cap).updateMask(img.select(ejes[0]).mask())
+                .copyProperties(img, ['system:time_start']))
 
-    mad = base.map(resid).median().multiply(1.4826)
-    sigma = mad.max(piso if piso is not None else SIGMA_MINIMA)
+    res = base.map(resid)
+
+    def _mediana_lote(img):
+        """Mediana espacial del residuo de ESA fecha, como imagen constante."""
+        img = ee.Image(img)
+        m = img.reduceRegion(reducer=ee.Reducer.median(), geometry=geom,
+                             scale=escala, maxPixels=1e9, bestEffort=True)
+        corr = ee.Image.cat([
+            ee.Image.constant(ee.Number(
+                ee.Algorithms.If(m.get(e), m.get(e), 0))).rename(e) for e in ejes])
+        return corr
+
+    if modelo == 'relativa_agrupada':
+        # CENTRADO POR FECHA: saca lo que el lote entero hizo ese dia.
+        res = res.map(lambda i: ee.Image(i).subtract(_mediana_lote(i))
+                      .copyProperties(i, ['system:time_start']))
+
+    mad = res.map(lambda i: ee.Image(i).abs()).median().multiply(1.4826)
+
+    if modelo == 'relativa_agrupada':
+        # ESCALA AGRUPADA sobre el lote, con los grados de libertad correctos y
+        # recorte robusto para que una nube residual no infle la escala de todos.
+        _corte = mad.max(ee.Image.constant(piso)).multiply(RECORTE_SIGMAS)
+        _rec = res.map(lambda i: ee.Image(i).max(_corte.multiply(-1)).min(_corte))
+        _ss = _rec.map(lambda i: ee.Image(i).pow(2)).sum()
+        _gl = (n_base.subtract(2).max(1).rename('gl')
+               .updateMask(_ss.select(0).mask()))
+        _tot = _ss.addBands(_gl).reduceRegion(
+            reducer=ee.Reducer.sum(), geometry=geom, scale=escala,
+            maxPixels=1e9, bestEffort=True)
+        _gt = ee.Number(_tot.get('gl')).max(1)
+        sigma = ee.Image.cat([
+            ee.Image.constant(ee.Number(_tot.get(e)).divide(_gt).sqrt()
+                              .divide(RECORTE_FACTOR)).rename(e) for e in ejes])
+        sigma = sigma.max(piso)
+    else:
+        sigma = mad.max(piso if piso is not None else SIGMA_MINIMA)
 
     r_actual = ee.Image.cat(
         [actual.select(e).subtract(_esperado(e, t_act)).rename(e) for e in ejes])
+    if modelo == 'relativa_agrupada':
+        # La fecha evaluada se centra con SU propia mediana espacial, igual que la
+        # base. Sin esto el residuo de hoy y los de la base no serian comparables.
+        r_actual = r_actual.subtract(_mediana_lote(r_actual))
     med = ee.Image.cat([_esperado(e, t_act).rename(e) for e in ejes])
     z = {e: r_actual.select(e).divide(sigma.select(e)).rename('z_' + e)
          for e in ejes}
@@ -419,22 +569,31 @@ def compuerta_dosel(geom, hasta, ventana=None, escala=ESCALA, sitio=None):
 # compactacion vieja. Por eso esta capa se entrega como ZONA A INVESTIGAR y no como
 # alerta: la urgencia la marca la capa temporal.
 
+# Pixeles validos MINIMOS para intentar la regresion espacial de la capa de zonas.
+# Por debajo de esto el ajuste no tiene sentido y ademas devuelve null.
+MIN_PIXELES_ZONA = 100
 Z_ZONA = 2.0          # sigmas del residuo, en ambos ejes
 MMU_ZONA_HA = 0.30    # una zona de manejo mas chica que esto no se maneja distinto
 
 
 class SinEscena(Exception):
-    """No hay imagen en esa fecha sobre ese lote. NO es una averia.
+    """No hay escena UTIL en esa fecha sobre ese lote. NO es una averia.
 
-    Existe como excepcion propia porque el modo de falla importa: sin esto, una
-    fecha sin pasada del satelite se registraba como
-    `EEException: Image.constant: Parameter value is required`, o sea como si el
-    servicio se hubiera roto. Un log lleno de averias inventadas hace que las
-    averias de verdad no se vean.
+    ⚠️ CORREGIDO 2026-07-29, Y EL DIAGNOSTICO ANTERIOR ESTABA MAL. Se habia creado
+    esta excepcion suponiendo que el error
+    `EEException: Image.constant: Parameter value is required` venia de que NO HUBIERA
+    pasada del satelite ese dia, y solo se chequeaba que la coleccion estuviera vacia.
+    Medido despues: la escena SI existe —por ejemplo la del 2026-06-20 sobre
+    SANTO_ANTONIO-02— pero queda 100% enmascarada por nube, asi que no hay pixeles
+    para el ajuste, `linearFit` devuelve null y `Image.constant(null)` revienta.
+
+    O sea que la condicion correcta no es "no hay escena" sino "no hay escena con
+    pixeles suficientes". Son dos causas distintas con el mismo sintoma, y la
+    verificacion vieja solo tapaba una.
     """
 
 
-def zonas(geom, fecha, z=Z_ZONA):
+def zonas(geom, fecha, z=Z_ZONA, escala=ESCALA):
     """Zonas por debajo de su propio porte en la escena `fecha`.
 
     Devuelve (mascara, {eje: z del residuo}). Ver el bloque de arriba para el
@@ -449,20 +608,42 @@ def zonas(geom, fecha, z=Z_ZONA):
         raise SinEscena('no hay escena Sentinel-2 del %s sobre este lote' % fecha)
     img = ee.Image(col.first())
     idx = sr._indices(img).updateMask(sr._mascara(img))
+    # Y ADEMAS: que quede algo despues de la mascara. Una escena existente pero
+    # totalmente nublada deja cero pixeles, el `linearFit` da null y el error sale
+    # como averia del servicio. Cuesta un getInfo por lote y fecha; es una capa de
+    # contexto, no la corrida principal.
+    _n = int(idx.select('NDVI').reduceRegion(
+        reducer=ee.Reducer.count(), geometry=geom, scale=escala,
+        maxPixels=1e9, bestEffort=True).get('NDVI').getInfo() or 0)
+    if _n < MIN_PIXELES_ZONA:
+        raise SinEscena('la escena del %s existe pero deja solo %d pixel(es) validos '
+                        'sobre este lote (minimo %d)'
+                        % (fecha, _n, MIN_PIXELES_ZONA))
     zs = {}
     for e in cfg.EJES:
         # Recta espacial del indice contra NDVI: es el "porte esperado" de cada
         # punto. El residuo es lo que le sobra o le falta respecto de su biomasa.
         fit = idx.select(['NDVI', e]).reduceRegion(
-            reducer=ee.Reducer.linearFit(), geometry=geom, scale=ESCALA,
+            reducer=ee.Reducer.linearFit(), geometry=geom, scale=escala,
             maxPixels=1e9, bestEffort=True)
-        esperado = (idx.select('NDVI').multiply(ee.Number(fit.get('scale')))
-                    .add(ee.Number(fit.get('offset'))))
+        # Los null del ajuste se resuelven DEL LADO DEL SERVIDOR. Sin esto, una
+        # escena escasa hace que `Image.constant` reciba null y la averia aparezca
+        # lejos de su causa.
+        _esc = ee.Number(ee.Algorithms.If(fit.get('scale'), fit.get('scale'), 0))
+        _off = ee.Number(ee.Algorithms.If(fit.get('offset'), fit.get('offset'), 0))
+        esperado = idx.select('NDVI').multiply(_esc).add(_off)
         r = idx.select(e).subtract(esperado)
-        s = ee.Number(r.reduceRegion(
-            reducer=ee.Reducer.stdDev(), geometry=geom, scale=ESCALA,
-            maxPixels=1e9, bestEffort=True).values().get(0))
-        zs[e] = r.divide(s.max(1e-6)).rename('zr_' + e)
+        _sd = r.reduceRegion(
+            reducer=ee.Reducer.stdDev(), geometry=geom, scale=escala,
+            maxPixels=1e9, bestEffort=True).values().get(0)
+        sg = ee.Number(ee.Algorithms.If(_sd, _sd, 0))
+        # ⚠️ ESTE `divide` ES LO QUE HACE QUE ESTA CAPA SEA UNA CUOTA, y hay que
+        # decirlo: al dividir por el desvio de LA MISMA escena, el z queda con SD=1
+        # POR CONSTRUCCION. Entonces el corte en z>=2 marca una fraccion que depende
+        # solo de la FORMA de la distribucion, no de si el lote esta bien o mal. La
+        # selectividad real de la capa no viene de aca: viene del filtro de mayoria y
+        # de la unidad minima, que borran lo que esta disperso. Ver `capas.py`.
+        zs[e] = r.divide(sg.max(1e-6)).rename('zr_' + e)
     from .ranking import SIGNO
     m = None
     for e in cfg.EJES:
@@ -474,7 +655,7 @@ def zonas(geom, fecha, z=Z_ZONA):
 
 # --- puente hacia focos.py ----------------------------------------------------
 
-def para_focos(geom, hasta, alfa=ALFA, sitio=None):
+def para_focos(geom, hasta, alfa=ALFA, sitio=None, modelo=None):
     """Lo que `focos.detectar_lote` necesita, calculado con el criterio v2.
 
     Devuelve exactamente la misma interfaz que ya consumia el vectorizador, para
@@ -494,7 +675,7 @@ def para_focos(geom, hasta, alfa=ALFA, sitio=None):
     inventar una fecha de referencia que ya no existe.
     """
     import pandas as pd
-    r = evaluar(geom, hasta, alfa=alfa, sitio=sitio)
+    r = evaluar(geom, hasta, alfa=alfa, sitio=sitio, modelo=modelo)
     dosel = compuerta_dosel(geom, hasta, sitio=sitio)
     ejes = list(cfg.EJES)
     zs = {e: r['z'][e].updateMask(dosel).rename('z_' + e) for e in ejes}

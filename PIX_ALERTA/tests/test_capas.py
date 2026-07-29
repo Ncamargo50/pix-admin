@@ -220,12 +220,18 @@ def test_la_unidad_minima_de_zona_no_se_bajo_para_fabricar_salida():
 def test_la_capa_declara_que_hoy_esta_muda_y_por_que():
     """Una capa conectada que nunca entrega y no lo dice es peor que no tenerla: el
     proximo que la lea va a suponer que funciona y que el campo esta perfecto."""
-    d = ' '.join((cp.__doc__ or '').split())
     import inspect
     fuente = inspect.getsource(cp)
-    assert '4 de 20' in fuente, 'no esta la medicion que respalda la afirmacion'
-    assert '0,16 ha' in fuente
+    # Los numeros del barrido CORREGIDO: 29 evaluables, 3 con zona, mayor 0,08 ha.
+    # El primer barrido decia "4 de 20 / 0,16 ha" y estaba mal porque contaba 5
+    # averias como si fueran "sin zonas".
+    assert '29' in fuente, 'no esta el denominador del barrido corregido'
+    assert '0,08 ha' in fuente, 'no esta la zona mas grande medida'
     assert 'barrer_zonas' in fuente, 'no dice como rehacer la medicion'
+    # Y tiene que quedar dicho que la sospecha de cuota se midio y NO se confirmo:
+    # afirmar "es una cuota" sin medirlo seria el mismo pecado al reves.
+    assert 'desmiente' in fuente or 'no es cuota' in fuente, (
+        'no declara que la sospecha de cuota se midio y no se confirmo')
 
 
 def test_sin_escena_no_es_ni_averia_ni_ausencia_de_zonas():

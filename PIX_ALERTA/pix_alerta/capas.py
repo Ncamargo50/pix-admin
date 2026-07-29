@@ -110,30 +110,59 @@ def _vectorizar(mascara, geom, escala, mmu_ha, extra=None, etiqueta='zona'):
 
 # --- capa 2: zonas por debajo de su propio porte ------------------------------
 #
-# ⚠️ MEDIDO 2026-07-29, Y HAY QUE DECIRLO: EN ESTE CAMPO LA CAPA NO ENTREGA.
+# ⚠️ MEDIDO 2026-07-29: EN ESTE CAMPO LA CAPA NO ENTREGA. Y LOS PRIMEROS NUMEROS
+# QUE SE ESCRIBIERON ACA ESTABAN MAL — quedan corregidos abajo, con el motivo.
 #
-# Barrido de los 4 lotes de trigo x 5 fechas limpias, **con la unidad minima puesta
-# en cero** para no confundir "no hay zonas" con "el umbral las corta":
+# PRIMER BARRIDO (mal): decia "4 de 20 combinaciones, la mayor 0,16 ha". Estaba mal por
+# dos razones que valen mas que el numero:
+#   · el denominador 20 incluia 5 combinaciones que habian REVENTADO (`Image.constant:
+#     Parameter value is required`), o sea que se contaban como "sin zonas" cuando en
+#     realidad no se habian podido evaluar. Un modo de falla contado como resultado.
+#   · la causa de esas averias estaba mal diagnosticada: se creyo que era "no hay
+#     escena ese dia" y resulto ser "la escena existe pero queda 100% enmascarada",
+#     asi que el ajuste espacial devolvia null. Ver `criterio.SinEscena`.
 #
-#     combinaciones lote-fecha con al menos una zona:   4 de 20
-#     zona MAS GRANDE encontrada en todo el barrido:    0,16 ha
-#     resto:                                            0,08 a 0,12 ha
+# BARRIDO CORREGIDO, 4 lotes x 8 fechas, CON LA UNIDAD MINIMA EN CERO para no
+# confundir "no hay zonas" con "el umbral las corta" (`medicion/barrer_zonas.py`):
 #
-# 0,16 ha a 20 m son cuatro pixeles. **No es una zona de manejo: es un grumo.** No se
-# puede mandar a nadie a caminarlo, no se puede manejar distinto, y llamarlo "zona"
-# en un informe seria inventar una entidad que no existe en el campo.
+#     combinaciones EVALUABLES:                29
+#     con al menos una zona:                    3
+#     zona MAS GRANDE de todo el barrido:    0,08 ha
+#
+# 0,08 ha a 20 m son DOS pixeles. No es una zona de manejo: es un grumo. No se puede
+# mandar a nadie a caminarlo y llamarlo "zona" en un informe seria inventar una
+# entidad que no existe en el campo.
 #
 # LA TENTACION ERA BAJAR `MMU_ZONA_HA` HASTA QUE SALIERA ALGO, y es exactamente el
-# error que este motor viene corrigiendo desde el principio: elegir el umbral por la
-# salida que produce y no por lo que significa. El umbral se queda donde estaba —una
-# zona mas chica que eso no se maneja distinto— y la capa queda **muda en este
-# cliente**, que es el resultado honesto.
+# error que este motor viene corrigiendo: elegir el umbral por la salida que produce y
+# no por lo que significa. El umbral se queda y la capa queda **muda en este cliente**.
 #
-# QUE SIGNIFICA, ENTONCES: en estos lotes, una vez descontado el porte, no hay
-# ninguna parte que venga sistematicamente peor que sus pares. Es informacion buena
-# para el productor, no un fracaso del metodo. Y la capa sigue conectada porque en un
-# lote con un bajo, un cambio de suelo o una compactacion real SI tiene que salir —
-# eso se vera en el proximo cliente, no se puede afirmar con estos cuatro lotes.
+# COMO FUNCIONA DE VERDAD, MEDIDO (y no es lo que decia el diseño)
+# ----------------------------------------------------------------
+# `criterio.zonas` divide el residuo por el desvio de LA MISMA escena. Medido sobre 29
+# combinaciones: **SD(zr) = 1,000 exacto en las 29**. O sea que el z tiene SD=1 POR
+# CONSTRUCCION, y de ahi se sigue que esta capa es RELATIVA al lote y a la fecha —
+# nunca dice "este lote esta mal", solo "estos pixeles son los mas extremos de este
+# lote hoy". Es coherente con lo que la capa promete ("por debajo de SU porte"), pero
+# hay que tenerlo escrito.
+#
+# SE SOSPECHO QUE FUERA UNA CUOTA Y LA MEDICION LO DESMIENTE. Si el z tiene SD=1
+# siempre, el corte en z>=2 podria marcar una fraccion fija. Medido en crudo —antes del
+# filtro de mayoria y de la unidad minima— la fraccion va de **0,000% a 2,933%**
+# (mediana 0,215%). Varia, asi que no es cuota: depende de la FORMA de la distribucion
+# y de la correlacion entre ejes, que cambian entre lotes y fechas.
+#
+# Y DE AHI SALE POR QUE LA CAPA ES MUDA: 0,2% de 3.094 pixeles son unos 7 pixeles
+# DISPERSOS. El filtro de mayoria los borra porque no forman mancha. La selectividad
+# real de esta capa no viene del umbral z: viene de exigir COHERENCIA ESPACIAL. Y eso
+# esta bien —una zona de manejo real es contigua— pero conviene decirlo asi y no
+# atribuirle al umbral un merito que no tiene.
+#
+# QUE SIGNIFICA PARA EL CLIENTE: en estos lotes, descontado el porte, no hay ninguna
+# parte contigua que venga sistematicamente peor que sus pares. Es informacion buena
+# para el productor, no un fracaso del metodo. La capa sigue conectada porque en un
+# lote con un bajo, un cambio de suelo o una compactacion real SI tendria que salir —
+# eso no se puede afirmar con estos cuatro lotes.
 #
 # El barrido se rehace con `medicion/barrer_zonas.py`.
 
