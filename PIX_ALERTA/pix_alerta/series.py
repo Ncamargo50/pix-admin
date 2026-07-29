@@ -13,13 +13,56 @@ import pandas as pd
 from . import config as cfg
 
 
+CS_PLUS = 'GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED'
+
+
+def _cloudscore(img):
+    """Banda `cs_cdf` de CloudScore+ para ESTA escena, o None si no esta.
+
+    POR QUE SE AGREGA (2026-07-29)
+    ------------------------------
+    SCL marca el NUCLEO opaco de la nube. El cirro delgado y la bruma peri-nube
+    quedan rotulados como vegetacion con reflectancia deprimida — que es
+    exactamente la firma que busca el criterio (NDMI y NDRE bajando juntos).
+    MEDIDO ese dia: los 3 focos que se le reportaron al cliente estaban a 19-70 m
+    del borde de la mascara y desaparecian al dilatar. Eran nube, no daño.
+
+    CloudScore+ SI modela nube fina, bruma y cirro, y su score sale de un modelo
+    entrenado con datos de alta resolucion. Evaluacion independiente: 89,4% de
+    pixeles limpios contra 80,8% de s2cloudless.
+
+    HIBRIDO A PROPOSITO: CloudScore+ como score principal Y SCL dilatada como veto
+    duro. CloudScore+ da *usabilidad*, no clasifica sombra semanticamente; SCL clase
+    3 (CLOUD_SHADOW) si, y la sombra es el artefacto que mas se parece a un foco.
+    Ninguno de los dos solo alcanza.
+    """
+    return (ee.ImageCollection(CS_PLUS)
+            .filter(ee.Filter.eq('system:index', img.get('system:index')))
+            .first())
+
+
 def _mascara(img):
-    """Nube Y SOMBRA por SCL, dilatada. Devuelve banda booleana de pixel valido."""
+    """Nube Y SOMBRA. Devuelve banda booleana de pixel valido.
+
+    Dos filtros que se suman, no se reemplazan (ver `_cloudscore`):
+      · SCL dilatada  -> veto duro, y es lo unico que ve la SOMBRA
+      · CloudScore+   -> nube fina, bruma y cirro, que es el agujero de SCL
+    """
     scl = img.select('SCL')
     mala = scl.remap(cfg.SCL_MALAS, [1] * len(cfg.SCL_MALAS), 0)
     # Dilatar: el borde de una nube contamina mucho mas alla de su clase.
     mala = mala.focalMax(cfg.DILATAR_NUBE_PX, 'square', 'pixels')
-    return mala.Not().rename('valido')
+    valido = mala.Not()
+    if getattr(cfg, 'USAR_CLOUDSCORE', True):
+        cs = _cloudscore(img)
+        # Si la escena no tiene CloudScore+ (hay huecos en el archivo) se sigue con
+        # SCL sola en vez de enmascarar todo: degradar, no romper. El `If` resuelve
+        # del lado del servidor, asi que no cuesta un getInfo por escena.
+        limpio_cs = ee.Image(ee.Algorithms.If(
+            cs, ee.Image(cs).select(cfg.CS_BANDA).gte(cfg.CS_UMBRAL),
+            ee.Image(1)))
+        valido = valido.And(limpio_cs)
+    return valido.rename('valido')
 
 
 def _indices(img):

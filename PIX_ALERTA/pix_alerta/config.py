@@ -154,6 +154,15 @@ SCL_MALAS = [1, 2, 3, 8, 9, 10, 11]
 # manda al tecnico a caminar una nube.
 DILATAR_NUBE_PX = 4              # a 20 m = 80 m de dilatacion
 
+# CLOUDSCORE+ (Google). Cubre lo que SCL no ve: nube fina, bruma y cirro. Es el
+# agujero por el que se colaron los 3 focos falsos del 2026-07-29.
+# `cs_cdf` es la version acumulada, mas estable que `cs` cruda. Umbral recomendado
+# por Google: 0,50-0,65. Se toma 0,60, el medio del rango: mas alto descarta escenas
+# utilizables, mas bajo deja pasar bruma.
+USAR_CLOUDSCORE = True
+CS_BANDA = 'cs_cdf'
+CS_UMBRAL = 0.60
+
 # Compuerta de vegetacion por FVC, no por NDVI absoluto. Los extremos salen de la
 # propia escena (p2/p98), no de una tabla: un umbral absoluto no transfiere.
 FVC_MINIMA = 0.35
