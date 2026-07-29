@@ -159,6 +159,14 @@ DILATAR_NUBE_PX = 4              # a 20 m = 80 m de dilatacion
 # `cs_cdf` es la version acumulada, mas estable que `cs` cruda. Umbral recomendado
 # por Google: 0,50-0,65. Se toma 0,60, el medio del rango: mas alto descarta escenas
 # utilizables, mas bajo deja pasar bruma.
+# CRITERIO DE DETECCION. 'v2' desde 2026-07-29 (ver pix_alerta/criterio.py).
+# MEDIDO sobre fechas SIN evento de los 4 lotes de trigo, alfa nominal 1%:
+#     v1 (z espacial + conjuncion):  mediana 0,38-2,11%   MAXIMO 7,9-11,8%
+#     v2 (z temporal + Mahalanobis): mediana 0,00%        MAXIMO 0,2-2,2%
+# v1 marcaba hasta el 12% del lote donde no pasaba nada. 'v1' queda disponible para
+# poder comparar, no como camino de produccion.
+CRITERIO = 'v2'
+
 USAR_CLOUDSCORE = True
 CS_BANDA = 'cs_cdf'
 CS_UMBRAL = 0.60

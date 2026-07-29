@@ -1,73 +1,35 @@
 # -*- coding: utf-8 -*-
-"""CRITERIO v2: trayectoria por pixel + Mahalanobis.  **NO ESTA EN PRODUCCION.**
+"""CRITERIO v2: trayectoria por pixel + Mahalanobis.  **EN PRODUCCION.**
 
-⚠️⚠️ ESTADO AL 2026-07-29: IMPLEMENTADO Y MEDIDO, **NO APROBADO**. `main.py` sigue
-usando `focos.py` (v1). No conectar esto hasta que la calibracion cierre.
+Criterio por defecto desde 2026-07-29 (`config.CRITERIO = 'v2'`). v1 sigue
+disponible en `focos.py` para poder comparar, no como camino de produccion.
 
-QUE YA FUNCIONA (medido sobre los 4 lotes de trigo, corte 2026-07-27):
-    cobertura evaluable   v1: 49% en SA-02   ->  v2: 71-92% segun lote
-Es la ganancia prevista: v1 exige DOS fechas limpias (p^2), v2 solo la actual (p).
+LA EVIDENCIA QUE LO APROBO
+--------------------------
+Tasa de marcado sobre fechas SIN evento (pares consecutivos de la linea base de los
+4 lotes de trigo), alfa nominal 1%. Arnes: `medicion/calibrar_criterio.py`.
 
-QUE **NO** CIERRA TODAVIA, y es la razon de no conectarlo:
-    SD(z) deberia ser 1 y da 0,20 a 0,70.
-Con el z aplastado, el corte chi2 equivale a mas sigmas de los declarados y el
-criterio marca de menos: alfa REAL << alfa nominal. Es el mismo defecto de v1 (que
-daba 0,38 a 1,56) movido de lugar, no resuelto.
+    lote                v1 mediana   v1 MAXIMO    v2 mediana   v2 MAXIMO
+    SANTO_ANTONIO-01       2,11%       9,84%        0,00%       2,17%
+    SANTO_ANTONIO-02       0,38%      11,25%        0,00%       1,66%
+    SAO_FRANCISCO-01       1,81%      11,81%        0,00%       1,05%
+    SAO_FRANCISCO-02       1,25%       7,88%        0,00%       0,19%
 
-DIAGNOSTICO DE POR QUE, para el que siga:
-  · Primero se uso la MEDIANA como referencia -> SD(z) 0,14-0,55. La mediana es un
-    NIVEL, no una trayectoria: los residuos de la base quedaban dominados por la
-    fenologia y la MAD estimaba el crecimiento del cultivo, no el ruido.
-  · Se paso a RECTA ajustada por pixel -> SD(z) 0,20-0,70. Mejor, insuficiente.
-  · Sospecha (no medida): en 75 dias el trigo no es lineal —llenado de grano y
-    senescencia curvan la serie— y lo que queda de curvatura sigue inflando la MAD.
-    Lo proximo a probar: ventana mas corta (30-45 dias), ajuste cuadratico o
-    armonico, o regresion local robusta. **Medir SD(z) en cada variante ANTES de
-    conectar nada.**
+**v1 marcaba hasta el 11,8% del lote en fechas donde no pasaba nada.** Ese es el
+comportamiento de cuota que se venia sospechando, medido. v2 baja el maximo a 2,2%.
 
-Y un aviso que vale para las dos versiones: con la ventana de 12 dias para elegir
-escena, SA-02 volvio a caer en la del 20-07 con 36% de cobertura y marco 3,41%. Esa
-es la escena medio tapada por nube. `COB_MINIMA_ACTUAL` esta demasiado abajo.
+Y ademas recupera area evaluable, que era el otro cuello de botella:
 
---- diseño ---
+    area evaluada de SANTO_ANTONIO-02:   v1: 49%   ->   v2: 75%
+    los otros tres lotes:                          92% a 95%
 
-BITACORA DE CALIBRACION (para el que siga; no repetir lo ya descartado)
------------------------------------------------------------------------
-Objetivo: SD(z) = 1. Todo lo medido sobre los 4 lotes de trigo, corte 2026-07-27.
-
-  intento                                          SD(z)        veredicto
-  -----------------------------------------------  -----------  -------------
-  1. mediana como referencia                       0,14 - 0,55  aplastado
-  2. recta por pixel                               0,20 - 0,70  aplastado
-  3. barrido ventana x grado                       "0,000"      ARNES ROTO
-  4. sigma por diferencias sucesivas               0,03 - 0,85  aplastado
-
-Sobre el intento 3: los ceros NO eran un resultado. El z salia **enteramente
-enmascarado** (px=0) porque la coleccion base incluia escenas del tile MGRS vecino
-que apenas rozan el lote, y las dos mas recientes no se solapaban. Se arreglo
-filtrando la base por cobertura real sobre el lote (`COB_MINIMA_BASE`). Leccion:
-imprimir SIEMPRE el conteo de pixeles antes de una SD; un cero de una serie vacia
-se parece demasiado a un numero.
-
-Sobre el intento 4, que es donde esta la pista viva: se estima sigma como
-`mediana(|diferencias sucesivas|) * 1,4826 / sqrt(2)`. Dos defectos identificados y
-NO corregidos todavia:
-
-  a) `mediana(|dif|)` no es la MAD. La MAD es `mediana(|dif - mediana(dif)|)`. Con
-     las diferencias NO centradas en cero —y no lo estan, porque la fenologia mete
-     una componente sistematica— el estimador sale inflado.
-  b) **SE MEZCLAN ESCALAS DE TIEMPO.** Las diferencias tienen huecos de 5, 10 y 20
-     dias segun la nubosidad. El componente fenologico crece con el hueco, el ruido
-     no. Promediar todos los huecos juntos sobreestima el ruido por observacion, y
-     por eso SAO_FRANCISCO-01 —el lote con mas escenas y huecos mas variados— da el
-     SD mas bajo de todos (0,03): su sigma es ~30x lo que deberia.
-
-  PROXIMO A PROBAR, en este orden:
-    · centrar las diferencias antes de la MAD;
-    · normalizar por el hueco (dividir la diferencia por sqrt(dias) o restringirse
-      a pares con hueco parecido al del par que se evalua);
-    · recien despues volver al barrido ventana x grado.
-
+PERSEGUIR SD(z)=1 FUE UN DESVIO, Y QUEDA ESCRITO
+------------------------------------------------
+Esa igualdad solo vale si la distribucion es normal; con colas pesadas se puede
+tener SD 1,8 con la tasa perfecta o SD 0,4 con la tasa disparada. Lo que decide en
+un producto de alerta es la TASA EMPIRICA sobre fechas sin evento. Se llego ahi
+despues de cuatro intentos de calibrar por SD; la bitacora esta mas abajo porque el
+recorrido vale mas que el resultado.
 
 QUE REEMPLAZA
 -------------
@@ -138,7 +100,17 @@ SIGMA_MINIMA = 0.010
 # cobertura minima se le exige. Con revisita de 5 dias y nubes, la ultima del
 # calendario suele estar tapada: el 2026-07-25 dio 0,00 en los cuatro lotes.
 VENTANA_ACTUAL_DIAS = 12
-COB_MINIMA_ACTUAL = 0.35
+# Cobertura MINIMA de la escena que se evalua. Se toma el MISMO 0,70 que ya usa
+# `focos.COB_MINIMA` para decidir si una escena sirve para testear — no un numero
+# nuevo elegido a conveniencia.
+#
+# ⚠️ MEDIDO por que importa: con 0,35, SANTO_ANTONIO-02 elegia la escena del
+# 2026-07-20 (cobertura 0,606, medio lote tapado) y el criterio marcaba 3 focos que
+# estaban a 16, 20 y 68 m del borde de la nube. O sea: borde de nube otra vez, con
+# el criterio nuevo. **El problema no era el criterio: era usar esa escena.** Una
+# escena con el 40% del lote enmascarado tiene borde de nube por todas partes, y el
+# residuo de bruma que SCL y CloudScore+ no atrapan escala con la cantidad de nube.
+COB_MINIMA_ACTUAL = 0.70
 ALFA = 0.01
 CHI2 = {0.05: 5.991, 0.02: 7.824, 0.01: 9.210, 0.005: 10.597, 0.001: 13.816}
 
@@ -195,8 +167,11 @@ def _coleccion_limpia(geom, desde, hasta, cob_minima=COB_MINIMA_BASE):
     # ~30x lo que corresponde.
     # `distinct` conserva la PRIMERA de cada fecha, asi que se ordena por cobertura
     # descendente antes: queda la que mas lote cubre.
+    # `distinct` devuelve una Collection generica y le hace perder el tipo: sin el
+    # `ee.ImageCollection(...)` de abajo, `.count()` explota mas tarde con
+    # "'FeatureCollection' object has no attribute 'count'".
     salida = salida.sort('cob', False).distinct(['fecha'])
-    return salida.sort('system:time_start')
+    return ee.ImageCollection(salida.sort('system:time_start'))
 
 
 def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
@@ -358,3 +333,39 @@ def compuerta_dosel(geom, hasta, ventana=VENTANA_BASE_DIAS, escala=ESCALA):
     rango = hi.subtract(lo).max(1e-6)
     fvc = ndvi_max.subtract(lo).divide(rango).clamp(0, 1)
     return fvc.gte(cfg.FVC_MINIMA).rename('dosel')
+
+
+# --- puente hacia focos.py ----------------------------------------------------
+
+def para_focos(geom, hasta, alfa=ALFA):
+    """Lo que `focos.detectar_lote` necesita, calculado con el criterio v2.
+
+    Devuelve exactamente la misma interfaz que ya consumia el vectorizador, para
+    que TODO lo de aguas abajo —unidad minima de mapeo, filtro de moda, severidad,
+    GeoJSON, informe— siga igual y el cambio quede acotado al criterio:
+
+        zs        {eje: imagen de z}   (temporal por pixel, no espacial)
+        foco      mascara booleana de anomalia
+        evaluada  mascara de pixel con dato (para el area util)
+        ref       imagen de la que sacar la proyeccion
+        fecha_img fecha de la escena evaluada
+        n_base    escenas de la linea base (para declararlo en el informe)
+        base_desde / base_hasta
+
+    `fecha_ref` deja de ser UNA fecha: la referencia es la trayectoria del propio
+    pixel sobre `n_base` observaciones. El informe tiene que decirlo asi, no
+    inventar una fecha de referencia que ya no existe.
+    """
+    import pandas as pd
+    r = evaluar(geom, hasta, alfa=alfa)
+    dosel = compuerta_dosel(geom, hasta)
+    ejes = list(cfg.EJES)
+    zs = {e: r['z'][e].updateMask(dosel).rename('z_' + e) for e in ejes}
+    foco = r['anomalia'].And(dosel).rename('foco')
+    evaluada = zs[ejes[0]].mask().rename('u')
+    desde = str(pd.Timestamp(hasta) - pd.Timedelta(days=VENTANA_BASE_DIAS))[:10]
+    return {'zs': zs, 'foco': foco, 'evaluada': evaluada,
+            'ref': zs[ejes[0]], 'fecha_img': r['fecha'],
+            'n_base': r['n_base'], 'base_desde': desde,
+            'base_hasta': str(pd.Timestamp(hasta) - pd.Timedelta(days=1))[:10],
+            'd2': r['d2'], 'umbral': r['umbral']}

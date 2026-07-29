@@ -244,11 +244,20 @@ def generar(cliente, sitio, por_lote, geometrias, ruta, fecha, feats=None):
             st.append(mp.dibujar(marco, png, geom_lote, pares, w, h,
                                  radio_min=6.5))
             st.append(Spacer(1, 0.12 * cm))
+            # La referencia ya NO es una fecha: es la trayectoria del propio píxel
+            # sobre todas las imágenes limpias previas. El texto tiene que decir eso
+            # y no pegar la cadena "trayectoria ..." donde antes iba una fecha.
+            ref = str(r.get('fecha_ref') or '')
+            if ref.startswith('trayectoria'):
+                comparacion = ('comparada contra el comportamiento propio de cada '
+                               'punto del lote entre el %s'
+                               % ref.replace('trayectoria ', '').replace(' a ', ' y el '))
+            else:
+                comparacion = 'comparada contra la del %s' % (ref or '—')
             st.append(B.P(
-                'Imagen Sentinel-2 en color natural del <b>%s</b>, comparada contra '
-                'la del %s. El contorno blanco es el lote; los círculos amarillos '
-                'marcan dónde está cada mancha.'
-                % (r['fecha_img'], r.get('fecha_ref') or '—'), 'Note'))
+                'Imagen Sentinel-2 en color natural del <b>%s</b>, %s. El contorno '
+                'blanco es el lote; los círculos amarillos marcan dónde está cada '
+                'mancha.' % (r['fecha_img'], comparacion), 'Note'))
             st.append(Spacer(1, 0.3 * cm))
 
         if pares:
@@ -308,11 +317,16 @@ def generar(cliente, sitio, por_lote, geometrias, ruta, fecha, feats=None):
     from . import config as cfg
     st.append(B.sec(n + 1, 'Cómo se obtuvo'))
     st.append(B.P(
-        'Se compara cada punto del lote contra <b>ese mismo punto</b> en la imagen '
-        'limpia anterior, y se marca donde %s se mueven a la vez en el sentido del '
-        'deterioro. La comparación es del lote contra sí mismo en el tiempo: no se '
-        'lo compara con otros lotes ni con una tabla de valores esperados.'
-        % ' y '.join(cfg.EJES)))
+        'Se sigue <b>cada punto del lote a lo largo de la campaña</b> y se calcula '
+        'cómo viene comportándose. En cada imagen nueva se mide cuánto se aparta ese '
+        'punto de su propio comportamiento, y se marca donde %s se mueven a la vez '
+        'en el sentido del deterioro. La comparación es del lote contra sí mismo en '
+        'el tiempo: no se lo compara con otros lotes ni con una tabla de valores '
+        'esperados.' % ' y '.join(cfg.EJES)))
+    st.append(B.P(
+        'Comparar contra el historial de cada punto —y no contra una sola imagen '
+        'anterior— hace que baste con que la imagen del día esté limpia, y no dos. '
+        'Por eso se puede evaluar bastante más superficie del lote.', 'Note'))
     st.append(B.P(
         '· <b>%s</b> mide el agua del dosel: baja cuando la planta se seca.<br/>'
         '· <b>%s</b> mide la clorofila: baja cuando el dosel pierde pigmento.'

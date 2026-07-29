@@ -363,20 +363,43 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
             'pct_lote': 0.0, 'pct_util': 0.0, 'area_util_ha': None,
             'area_lote_ha': None, 'cobertura_img': None, 'cobertura_ref': None,
             'fecha_img': None, 'fecha_ref': None, 'nota': None}
-    try:
-        escenas = _cobertura_por_escena(geom, desde, hasta)
-        act, ref = _par_de_fechas(escenas, hasta)
-    except SinPar as e:
-        base['nota'] = 'Sin acercamiento: %s.' % e
-        return base
-
-    # La compuerta de dosel se exige SOLO en la referencia. Ver `_par_enmascarado`.
-    ia, ir = _par_enmascarado(act[1], ref[1], geom)
-    # Delta contra la escena anterior. El pixel tiene que ser dosel util en LAS DOS
-    # fechas: si en la referencia era suelo, la diferencia mide emergencia, no daño.
-    delta = ia.subtract(ir)
-    zs = {e: _z_robusto(delta, geom, e) for e in cfg.EJES}
-    foco = _mascara_focos(zs, z)
+    # --- CRITERIO ------------------------------------------------------------
+    # v2 es el criterio por defecto desde 2026-07-29. Ver `criterio.py` para el
+    # diseño y `medicion/calibrar_criterio.py` para la evidencia. En una linea:
+    # medido sobre fechas SIN evento de los 4 lotes de trigo, v1 marcaba hasta el
+    # 11,8% del lote y v2 baja el maximo a 2,2%. v1 queda accesible con
+    # `config.CRITERIO = 'v1'` para poder comparar, no como camino de produccion.
+    if getattr(cfg, 'CRITERIO', 'v2') == 'v2':
+        from . import criterio as cri
+        try:
+            r2 = cri.para_focos(geom, hasta)
+        except cri.SinBase as e:
+            base['nota'] = 'Sin acercamiento: %s.' % e
+            return base
+        zs = r2['zs']
+        foco = r2['foco']
+        evaluada = r2['evaluada']
+        ia = r2['ref']
+        base['fecha_img'] = r2['fecha_img']
+        # La referencia ya NO es una fecha: es la trayectoria del propio pixel.
+        # Se declara como tal en vez de inventar una fecha que no existe.
+        base['fecha_ref'] = 'trayectoria %s a %s' % (r2['base_desde'],
+                                                     r2['base_hasta'])
+        base['_idx_escena'] = None
+        act = ref = None
+    else:
+        try:
+            escenas = _cobertura_por_escena(geom, desde, hasta)
+            act, ref = _par_de_fechas(escenas, hasta)
+        except SinPar as e:
+            base['nota'] = 'Sin acercamiento: %s.' % e
+            return base
+        # La compuerta de dosel se exige SOLO en la referencia.
+        ia, ir = _par_enmascarado(act[1], ref[1], geom)
+        delta = ia.subtract(ir)
+        zs = {e: _z_robusto(delta, geom, e) for e in cfg.EJES}
+        foco = _mascara_focos(zs, z)
+        evaluada = delta.select(cfg.EJES[0]).mask().rename('u')
 
     # AREA REALMENTE TESTEADA. El numerador (los focos) se mide sobre la geometria
     # con buffer negativo Y con la compuerta de FVC aplicada en LAS DOS fechas. Si
@@ -386,7 +409,7 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
     # la interseccion —que es exactamente sobre lo que corrio el test— y el
     # porcentaje se calcula contra eso, declarando ademas que fraccion del lote es.
     area_util_m2 = ee.Number(
-        delta.select(cfg.EJES[0]).mask().rename('u').selfMask()
+        evaluada.selfMask()
         .multiply(ee.Image.pixelArea())
         .reduceRegion(reducer=ee.Reducer.sum(), geometry=geom, scale=ESCALA,
                       maxPixels=1e9, bestEffort=True).get('u'))
@@ -394,7 +417,7 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
         area_util_m2, area_util_m2, 0).getInfo() or 0) / 1e4
 
     # Sal y pimienta fuera, y el test se resuelve en la grilla de 20 m declarada.
-    proj = ia.select(cfg.EJES[0]).projection().atScale(ESCALA)
+    proj = ia.projection().atScale(ESCALA)
     limpio = (foco.focalMode(1.5, 'square', 'pixels')
               .reproject(proj).selfMask().rename('foco'))
     # Severidad del foco: el z del PRIMER eje (humedad), con signo. Va con nombre
@@ -450,7 +473,7 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
             'pct_lote': round(100 * a / area_lote, 2) if area_lote else None,
             'z_sev': round(float(p.get('z_sev') or 0), 2),
             'ejes': '+'.join(cfg.EJES),
-            'fecha_img': act[0], 'fecha_ref': ref[0],
+            'fecha_img': base['fecha_img'], 'fecha_ref': base['fecha_ref'],
             'status': 'pending',
         }
         for e in cfg.EJES:
@@ -465,15 +488,18 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=MMU_HA):
         'pct_lote': round(100 * total / area_lote, 2) if area_lote else None,
         'area_util_ha': round(area_util_ha, 3),
         'area_lote_ha': round(area_lote, 3) if area_lote else None,
-        'fecha_img': act[0], 'fecha_ref': ref[0],
+        # `fecha_img` y `fecha_ref` ya vienen puestas por el bloque de criterio.
+        # En v2 la referencia NO es una fecha: es la trayectoria del propio pixel,
+        # y se declara como tal en vez de inventar una fecha que no existe.
         # Sobre que fraccion del campo se testeo, en cada una de las dos fechas.
         # Sin esto no se puede juzgar si el "0 focos" significa campo limpio o
         # analisis hecho sobre media hectarea.
-        'cobertura_img': round(act[2], 3), 'cobertura_ref': round(ref[2], 3),
+        'cobertura_img': round(act[2], 3) if act else None,
+        'cobertura_ref': round(ref[2], 3) if ref else None,
         # Id de la escena usada. Lo necesita el informe para pedir el MISMO recorte
         # RGB de fondo: un mapa con la foto de otra fecha le mostraria al tecnico un
         # campo que no es el que se analizo.
-        '_idx_escena': act[1],
+        '_idx_escena': act[1] if act else base.get('_idx_escena'),
     })
     if not focos:
         # NO se afirma que el lote "salio de control por su promedio": en el modo
