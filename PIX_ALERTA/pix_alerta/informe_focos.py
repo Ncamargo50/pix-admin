@@ -32,18 +32,34 @@ from reportlab.platypus import KeepTogether, PageBreak, Spacer, Table, TableStyl
 
 from . import mapa as mp
 
-# El sistema de marca vive en la skill del usuario, que es donde se mantiene. Si no
-# está, el informe cae al formato simple en vez de no entregar nada.
+# EL SISTEMA DE MARCA VIAJA DENTRO DEL REPOSITORIO (`PIX_ALERTA/marca/`).
+#
+# Al principio se leía de `~/.claude/skills/pixadvisor-propuesta-ejecutiva`, que es
+# donde el usuario lo mantiene. Anduvo perfecto en la máquina del usuario y **falló
+# en silencio en la nube**: el runner de GitHub es una máquina Linux vacía, no tiene
+# esa carpeta, así que `HAY_MARCA` daba False y el informe caía al formato simple.
+# Medido: el PDF local pesaba 297 KB con la foto satelital y el que publicaba la
+# nube 9,5 KB sin nada. El cliente habría recibido el informe viejo todos los días.
+#
+# La copia local de la skill se sigue aceptando como respaldo, para no romper si
+# alguien corre desde una copia sin la carpeta `marca/`.
+_AQUI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_MARCA = os.path.join(_AQUI, 'marca')
 _SKILL = os.path.join(os.path.expanduser('~'), '.claude', 'skills',
                       'pixadvisor-propuesta-ejecutiva')
-_ASSETS = os.path.join(_SKILL, 'assets')
-if os.path.join(_SKILL, 'scripts') not in sys.path:
-    sys.path.insert(0, os.path.join(_SKILL, 'scripts'))
+
+_ASSETS = _MARCA if os.path.exists(os.path.join(_MARCA, 'pix_branding.py')) \
+    else os.path.join(_SKILL, 'assets')
+for _p in (_MARCA, os.path.join(_SKILL, 'scripts')):
+    if os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
 
 try:
     import pix_branding as pbr
     HAY_MARCA = True
-except Exception:                                # noqa: BLE001 — se declara abajo
+except Exception as _e:                          # noqa: BLE001
+    print('[informe] SIN sistema de marca (%s): sale el formato simple. '
+          'Revisar PIX_ALERTA/marca/pix_branding.py' % type(_e).__name__)
     HAY_MARCA = False
 
 
