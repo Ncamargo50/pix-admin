@@ -1,0 +1,32 @@
+{
+ "sitio": "SAO_FRANCISCO",
+ "fecha": "2026-07-16",
+ "n_focos": 0,
+ "n_controles": 4,
+ "puntos": {
+  "SAO_FRANCISCO-02-P1": {
+   "lote_id": "SAO_FRANCISCO-02",
+   "clase": "control",
+   "orden": 1,
+   "area_ha": 0.2
+  },
+  "SAO_FRANCISCO-02-P2": {
+   "lote_id": "SAO_FRANCISCO-02",
+   "clase": "control",
+   "orden": 2,
+   "area_ha": 0.2
+  },
+  "SAO_FRANCISCO-01-P3": {
+   "lote_id": "SAO_FRANCISCO-01",
+   "clase": "control",
+   "orden": 3,
+   "area_ha": 0.2
+  },
+  "SAO_FRANCISCO-01-P4": {
+   "lote_id": "SAO_FRANCISCO-01",
+   "clase": "control",
+   "orden": 4,
+   "area_ha": 0.2
+  }
+ }
+}

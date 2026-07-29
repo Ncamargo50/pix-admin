@@ -1,0 +1,38 @@
+{
+ "sitio": "SANTO_ANTONIO",
+ "fecha": "2026-07-16",
+ "n_focos": 1,
+ "n_controles": 4,
+ "puntos": {
+  "SANTO_ANTONIO-01-P1": {
+   "lote_id": "SANTO_ANTONIO-01",
+   "clase": "control",
+   "orden": 1,
+   "area_ha": 0.2
+  },
+  "SANTO_ANTONIO-02-P2": {
+   "lote_id": "SANTO_ANTONIO-02",
+   "clase": "control",
+   "orden": 2,
+   "area_ha": 0.441
+  },
+  "SANTO_ANTONIO-01-P3": {
+   "lote_id": "SANTO_ANTONIO-01",
+   "clase": "control",
+   "orden": 3,
+   "area_ha": 0.2
+  },
+  "SANTO_ANTONIO-02-P4": {
+   "lote_id": "SANTO_ANTONIO-02",
+   "clase": "control",
+   "orden": 4,
+   "area_ha": 0.441
+  },
+  "SANTO_ANTONIO-02-P5": {
+   "lote_id": "SANTO_ANTONIO-02",
+   "clase": "foco",
+   "orden": 5,
+   "area_ha": 0.441
+  }
+ }
+}

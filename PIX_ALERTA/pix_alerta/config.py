@@ -58,6 +58,7 @@ class Sitio:
     # Vacio / None = usar el default medido. Cambiarlos EXIGE volver a correr
     # `medicion/calibrar_criterio.py` sobre fechas sin evento de ese cliente.
     sigma_minima: float = None     # pisa el piso de escala (unidades del indice)
+    cs_medio_minimo: float = None  # pisa la puerta de calidad de escena (CloudScore+)
     mmu_ha: float = None           # pisa la unidad minima de mapeo de los focos
     # CAMPAÑA DE VALIDACION A CAMPO. Con esto en true, cada entrega agrega PUNTOS DE
     # CONTROL —lugares que el criterio NO marco— mezclados a ciegas con los focos, y
@@ -286,6 +287,38 @@ DILATAR_NUBE_PX = 4              # a 20 m = 80 m de dilatacion
 # `cs_cdf` es la version acumulada, mas estable que `cs` cruda. Umbral recomendado
 # por Google: 0,50-0,65. Se toma 0,60, el medio del rango: mas alto descarta escenas
 # utilizables, mas bajo deja pasar bruma.
+# --- CALIDAD DE ESCENA: el promedio de CloudScore+ sobre el lote -----------------
+#
+# POR QUE HACE FALTA, Y ES UN CASO MEDIDO. CloudScore+ se usaba SOLO como decision
+# binaria: cada pixel pasa o no pasa `CS_UMBRAL`. Un pixel con bruma leve saca 0,62 y
+# pasa. Si TODO el lote tiene bruma leve, todos los pixeles pasan y la escena entra como
+# si estuviera limpia.
+#
+# Paso de verdad el 2026-07-05 sobre SANTO_ANTONIO-02: el 96% de los pixeles paso el
+# umbral binario, la escena entro, y el lote parecio derrumbarse — su NDVI hizo
+# 0,928 (06-22) -> 0,776 (07-05) -> 0,928 (07-10). Un trigo no hace eso. La escena tambien
+# habia pasado la puerta de cobertura del 70% Y la conjuncion de dos ejes, porque la bruma
+# baja los DOS indices juntos.
+#
+# MEDIDO (`medicion/calidad_escena.py`), promedio de `cs_cdf` sobre el lote en las 7 fechas
+# que pasan la puerta actual:
+#
+#     05-31  0,911     06-02  0,916     06-05  0,917     06-22  0,918
+#     07-10  0,929     07-15  0,926  |  07-05  0,797  <- LA UNICA por debajo de 0,90
+#
+# El artefacto es el unico caso bajo 0,90 y las seis limpias estan todas sobre 0,911. Con
+# 0,85 se rechaza el artefacto y NO se pierde ninguna escena limpia de esta campana.
+#
+# ⚠️ LIMITES QUE HAY QUE DECLARAR:
+# · Es UN caso de artefacto contra seis limpias. El umbral 0,85 esta elegido en el medio
+#   del hueco (0,797 a 0,911); es defendible pero esta poco restringido por los datos.
+#   Hay que rehacerlo cuando aparezcan mas casos.
+# · En una region mas brumosa puede rechazar muchas escenas utiles. Por eso es declarable
+#   por sitio via `Sitio.cs_medio_minimo`.
+# · No reemplaza la verificacion de plausibilidad temporal (una caida que se recupera no
+#   es del cultivo), que sigue pendiente y es la defensa mas fuerte.
+CS_MEDIO_MINIMO = 0.85
+
 # CRITERIO DE DETECCION. 'v2' desde 2026-07-29 (ver pix_alerta/criterio.py).
 # MEDIDO sobre fechas SIN evento de los 4 lotes de trigo, alfa nominal 1%:
 #     v1 (z espacial + conjuncion):  mediana 0,38-2,11%   MAXIMO 7,9-11,8%

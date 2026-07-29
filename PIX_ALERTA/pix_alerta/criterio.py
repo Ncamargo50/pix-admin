@@ -353,10 +353,50 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
         return img.set('cob', ee.Algorithms.If(cob, cob, 0))
 
     cand = cand.map(_con_cobertura).filter(ee.Filter.gte('cob', COB_MINIMA_ACTUAL))
+
+    # --- CALIDAD DE ESCENA: la bruma que pasa el filtro binario ---------------
+    # ⚠️ AGREGADO 2026-07-29 DESPUES DE UN CASO MEDIDO. CloudScore+ se usaba solo como
+    # decision por pixel: cada uno pasa o no pasa `CS_UMBRAL`. Un pixel con bruma leve
+    # saca 0,62 y pasa. Si TODO el lote tiene bruma leve, pasan todos y la escena entra
+    # como si estuviera limpia.
+    #
+    # Paso el 2026-07-05 sobre SANTO_ANTONIO-02: el 96% de los pixeles paso el umbral
+    # binario, la escena entro, y el lote parecio derrumbarse — NDVI 0,928 (06-22) ->
+    # 0,776 (07-05) -> 0,928 (07-10). Un trigo no hace eso. Y esa escena tambien habia
+    # pasado la puerta de cobertura de arriba Y habria pasado la conjuncion de dos ejes,
+    # porque **la bruma baja los DOS indices juntos**: la conjuncion no protege contra
+    # contaminacion atmosferica, solo contra ruido independiente del sensor.
+    #
+    # MEDIDO con `medicion/calidad_escena.py`, promedio de `cs_cdf` sobre el lote en las
+    # 7 fechas que pasaban la puerta de cobertura:
+    #     05-31 0,911  06-02 0,916  06-05 0,917  06-22 0,918  07-10 0,929  07-15 0,926
+    #     07-05 0,797  <- LA UNICA por debajo de 0,90, y es el artefacto
+    # Con el piso en 0,85 se rechaza el artefacto y no se pierde ninguna limpia.
+    if getattr(cfg, 'USAR_CLOUDSCORE', True):
+        piso_cs = cfg.valor_de(sitio, 'cs_medio_minimo', cfg.CS_MEDIO_MINIMO)
+
+        def _con_calidad(img):
+            img = ee.Image(img)
+            cs = sr._cloudscore(img)
+            # Sin CloudScore+ no se puede juzgar la calidad: se deja pasar y se declara
+            # en `cs_medio`, en vez de descartar la escena por falta del dato auxiliar.
+            q = ee.Algorithms.If(
+                cs,
+                ee.Image(cs).select(cfg.CS_BANDA).rename('q').reduceRegion(
+                    reducer=ee.Reducer.mean(), geometry=geom, scale=escala,
+                    maxPixels=1e9, bestEffort=True).get('q'),
+                1)
+            return img.set('cs_medio', ee.Algorithms.If(q, q, 1))
+
+        cand = cand.map(_con_calidad).filter(
+            ee.Filter.gte('cs_medio', piso_cs))
+
     if not cand.size().getInfo():
-        raise SinBase('sin escena con al menos %.0f%% de pixel valido en los '
-                      'ultimos %d dias' % (100 * COB_MINIMA_ACTUAL,
-                                           VENTANA_ACTUAL_DIAS))
+        raise SinBase('sin escena con al menos %.0f%% de pixel valido Y calidad de '
+                      'nube >= %.2f en los ultimos %d dias'
+                      % (100 * COB_MINIMA_ACTUAL,
+                         cfg.valor_de(sitio, 'cs_medio_minimo', cfg.CS_MEDIO_MINIMO),
+                         VENTANA_ACTUAL_DIAS))
     actual = ee.Image(cand.sort('system:time_start', False).first())
     fecha_actual = actual.get('fecha').getInfo()
 
@@ -493,7 +533,10 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
                 .rename('anomalia'))
     return {'d2': d2, 'anomalia': anomalia, 'z': z, 'n_base': n_base,
             'fecha': fecha_actual, 'umbral': umbral, 'sigma': sigma,
-            'mediana': med, 'residuo': r_actual}
+            'mediana': med, 'residuo': r_actual,
+            # Calidad de nube de la escena elegida. Viaja para que se pueda auditar por
+            # que se acepto una escena, no solo que se acepto.
+            'cs_medio': actual.get('cs_medio')}
 
 
 def compuerta_dosel(geom, hasta, ventana=None, escala=ESCALA, sitio=None):
