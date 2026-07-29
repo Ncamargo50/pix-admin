@@ -13,6 +13,10 @@ on:
       hasta:
         description: 'Fecha de corte YYYY-MM-DD (vacio = hoy)'
         required: false
+      avisar:
+        description: 'Mandar el WhatsApp (las corridas a mano NO avisan por defecto)'
+        type: boolean
+        default: false
 
 concurrency:
   group: pixadvisor-monitor
@@ -118,6 +122,16 @@ jobs:
           git push
 
       - name: Avisar por WhatsApp
+        # DOS FRENOS, porque el aviso se estaba disparando de mas:
+        #
+        # 1. Las corridas A MANO no avisan salvo que se pida. Probar el pipeline no
+        #    puede mandarle un WhatsApp al productor; el 2026-07-27 tres corridas de
+        #    verificacion mandaron tres mensajes identicos.
+        # 2. `avisar.py` NO repite un aviso ya mandado (guarda la huella de la escena
+        #    en entregas/_avisado.json). El cron corre todos los dias pero la revisita
+        #    de S2 es de 5 dias y con nubes bastante mas: sin este freno, la misma
+        #    entrega se anunciaba cada mañana.
+        #
         # Solo cuando hay algo que mirar. Un aviso diario que casi siempre dice "nada"
         # se deja de leer, y el dia que importa tampoco se lee.
         #
@@ -126,7 +140,9 @@ jobs:
         # para averiguarlo, que es justo lo que el aviso venia a evitar.
         # Si el cliente declaro telefono Y existe su secreto CALLMEBOT_<CLAVE>, le
         # llega directo; si no, le llega al admin con la leyenda de a quien reenviar.
-        if: env.RC == '10' || env.RC == '1'
+        if: >-
+          (env.RC == '10' || env.RC == '1') &&
+          (github.event_name == 'schedule' || github.event.inputs.avisar == 'true')
         env:
           WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
           CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}

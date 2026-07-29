@@ -45,6 +45,50 @@ from pix_alerta import clientes as cl   # noqa: E402
 
 API = 'https://api.callmebot.com/whatsapp.php'
 TIMEOUT = 25
+# Estado de lo YA AVISADO, dentro de la carpeta de entregas (se commitea, asi que
+# sobrevive entre corridas: el runner es una maquina nueva cada vez).
+ESTADO = '_avisado.json'
+
+
+def _huella(meta):
+    """Que identifica un aviso. Si no cambia, no hay nada nuevo que contar.
+
+    Es la **FECHA DE LA IMAGEN**, no la de la entrega. La regla del producto es:
+    se avisa cuando entra una ESCENA NUEVA, valida, sin nubes y con datos. Nada
+    mas.
+
+    `fecha_entrega` NO sirve para esto: es el dia en que corrio el motor y cambia
+    todos los dias, porque el cron corre todos los dias. Con revisita de 5 dias
+    —bastante mas con nubes— la mayoria de las mañanas NO hay foto nueva y el
+    entregable se vuelve a publicar identico. Un aviso que se repite se deja de
+    leer, y el dia que aparezca un foco de verdad tampoco se va a leer.
+
+    Si `fecha_imagen` no esta (entrega vieja, publicada antes de que existiera el
+    campo) se devuelve None y el que llama decide: mejor no avisar que avisar a
+    ciegas y volver a caer en el mensaje diario.
+    """
+    m = meta or {}
+    fecha = m.get('fecha_imagen')
+    if not fecha:
+        return None
+    return '%s|%s' % (fecha, m.get('lotes_alertados'))
+
+
+def _leer_estado(base):
+    try:
+        with open(os.path.join(base, ESTADO), encoding='utf-8') as fh:
+            return json.load(fh)
+    except Exception:
+        return {}
+
+
+def _guardar_estado(base, estado):
+    try:
+        os.makedirs(base, exist_ok=True)
+        with open(os.path.join(base, ESTADO), 'w', encoding='utf-8') as fh:
+            json.dump(estado, fh, ensure_ascii=False, indent=2, sort_keys=True)
+    except Exception as e:
+        print('  [AVISO] no se pudo guardar el estado de avisos: %s' % e)
 
 
 def _meta(base, clave):
@@ -61,7 +105,11 @@ def _meta(base, clave):
 
 def _mensaje(c, meta):
     """Texto del aviso. Corto: se lee en la pantalla de bloqueo o no se lee."""
-    fecha = (meta or {}).get('fecha_entrega') or 'sin fecha'
+    # La fecha que le importa al productor es la de la IMAGEN: "escena del 27/07"
+    # cuando la foto era del 20/07 es decirle que el dato es de hoy cuando tiene
+    # una semana. Se cae a la de entrega solo si la de imagen no esta.
+    fecha = ((meta or {}).get('fecha_imagen')
+             or (meta or {}).get('fecha_entrega') or 'sin fecha')
     n = (meta or {}).get('lotes_alertados')
     # CAMPO CHICO: lo que se entrega son manchas DENTRO del lote, no lotes enteros.
     # Decirle al productor "3 lotes para recorrer" cuando son 3 manchas de 0,4 ha en
@@ -106,6 +154,9 @@ def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     base = argv[0] if argv else 'entregas'
     seco = '--seco' in argv or os.environ.get('AVISAR_SECO') == '1'
+    # `--forzar` reenvia aunque ya se haya avisado. Para cuando el mensaje se
+    # perdio, no para uso normal.
+    forzar = '--forzar' in argv or os.environ.get('AVISAR_FORZAR') == '1'
 
     admin_tel = os.environ.get('WHATSAPP_PHONE', '').strip()
     admin_key = os.environ.get('CALLMEBOT_APIKEY', '').strip()
@@ -116,11 +167,24 @@ def main(argv=None):
         print('[ERROR] clientes mal declarados: %s' % e)
         return 1
 
-    enviados, pendientes, sin_entrega = 0, [], 0
+    estado = _leer_estado(base)
+    enviados, pendientes, sin_entrega, repetidos = 0, [], 0, 0
     for c in todos:
         meta = _meta(base, c.clave)
         if meta is None:
             sin_entrega += 1
+            continue
+        huella = _huella(meta)
+        if huella is None and not forzar:
+            print('  %s -> la entrega no declara fecha de imagen: no se avisa '
+                  '(se avisa cuando entra una escena nueva)' % c.clave)
+            repetidos += 1
+            continue
+        if not forzar and estado.get(c.clave) == huella:
+            print('  %s -> sin escena nueva desde el ultimo aviso (sigue la del %s): '
+                  'no se repite el mensaje'
+                  % (c.clave, (meta or {}).get('fecha_imagen')))
+            repetidos += 1
             continue
         texto = _mensaje(c, meta)
         clave_env = 'CALLMEBOT_%s' % c.clave.upper()
@@ -143,9 +207,18 @@ def main(argv=None):
             print('  %s -> NO SE AVISO: no hay numero del cliente ni del admin'
                   % c.clave)
             pendientes.append((c.clave, 'sin destino'))
+            continue
+        # La huella se anota DESPUES de intentar el envio, y solo si habia a donde
+        # mandarlo. Si el envio fallo por red, no se guarda y el proximo intento
+        # reintenta: un error de conexion no puede tragarse un aviso.
+        if not seco:
+            estado[c.clave] = huella
 
-    print('\n%d aviso(s) enviado(s) · %d cliente(s) sin entrega esta corrida'
-          % (enviados, sin_entrega))
+    if not seco:
+        _guardar_estado(base, estado)
+
+    print('\n%d aviso(s) enviado(s) · %d sin novedad (no se repitio) · %d sin '
+          'entrega esta corrida' % (enviados, repetidos, sin_entrega))
     if pendientes:
         print('Para que el aviso llegue directo al cliente, cargar el secreto:')
         for clave, motivo in pendientes:

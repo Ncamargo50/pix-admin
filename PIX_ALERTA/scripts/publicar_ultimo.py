@@ -158,8 +158,44 @@ def publicar(base):
                 except Exception:
                     alertados = None
 
+        # FECHA DE LA IMAGEN, que NO es la fecha de la entrega.
+        #
+        # `fecha_entrega` es el dia en que corrio el motor: cambia TODOS LOS DIAS,
+        # porque el cron corre todos los dias. La fecha de la ESCENA es la de la foto
+        # que se uso, y con revisita de 5 dias —mas nubes— puede quedarse quieta una
+        # semana o mas. Confundirlas tenia dos consecuencias, las dos malas:
+        #   · el WhatsApp decia "Escena del 27/07" cuando la imagen era del 20/07;
+        #   · cualquier freno de repeticion basado en `fecha_entrega` era inutil,
+        #     porque ese campo cambia solo, sin que haya nada nuevo que mirar.
+        fecha_img = None
+        for nom_f in sorted(os.listdir(dest)):
+            if not (nom_f.startswith('focos_') and nom_f.endswith('.geojson')):
+                continue
+            try:
+                with open(os.path.join(dest, nom_f), encoding='utf-8') as fh:
+                    gjf = json.load(fh)
+                for f in gjf.get('features', []):
+                    fi = (f.get('properties') or {}).get('fecha_img')
+                    if fi and (fecha_img is None or str(fi) > fecha_img):
+                        fecha_img = str(fi)
+            except Exception:
+                pass
+        if fecha_img is None:
+            for nom_r in sorted(os.listdir(dest)):
+                if not (nom_r.startswith('ranking_') and nom_r.endswith('.csv')):
+                    continue
+                try:
+                    with open(os.path.join(dest, nom_r), encoding='utf-8') as fh:
+                        for fila in _csv.DictReader(fh):
+                            fd = (fila.get('fecha_dato') or '')[:10]
+                            if fd and (fecha_img is None or fd > fecha_img):
+                                fecha_img = fd
+                except Exception:
+                    pass
+
         with open(os.path.join(dest, 'META.json'), 'w', encoding='utf-8') as fh:
             json.dump({'cliente': cliente, 'fecha_entrega': ultima,
+                       'fecha_imagen': fecha_img,
                        'lotes_alertados': alertados,
                        'publicado_utc': datetime.now(timezone.utc).isoformat(timespec='seconds'),
                        'archivos': sorted(publicados)}, fh, ensure_ascii=False, indent=2)
