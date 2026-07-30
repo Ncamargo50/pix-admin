@@ -115,17 +115,62 @@ Sobre los 4 lotes reales al 2026-07-16 (`medicion/verificar_escala_real.py` y
     · la mediana de z da -0,85 y -0,60: no es dispersion, es SESGO. La recta
       extrapola hacia arriba mientras el cultivo se aplana.
 
-POR QUE ENTONCES SIGUE ESTE CRITERIO Y NO EL CANDIDATO
-------------------------------------------------------
-Se probo un modelo que arregla las tres cosas (`MODELO = 'relativa_agrupada'`:
-centrado por fecha + escala agrupada). MEDIDO: lleva la razon sigma/ruido de 3,3 a
-1,1, el sesgo de -0,85 a -0,01 y el rango de SD(z) de 0,19-1,30 a 0,86-1,54.
+EL CANDIDATO SE RECALIBRO Y QUEDA RECHAZADO. Y DE PASO PRODUCCION QUEDO VALIDADA.
+--------------------------------------------------------------------------------
+Se probo un modelo que arregla las tres cosas de arriba (`MODELO = 'relativa_agrupada'`:
+centrado por la mediana del lote en cada fecha + escala agrupada entre pixeles). MEDIDO:
+lleva la razon sigma/ruido de 3,3 a 1,1, el sesgo de -0,85 a -0,01 y el rango de SD(z) de
+0,19-1,30 a 0,86-1,54. Con el chi2 marcaba 3 a 4 veces mas, asi que se dejo apagado hasta
+recalibrarlo. Se recalibro (`medicion/recalibrar.py`) y el resultado es concluyente.
 
-Y sin embargo **marca 3 a 4 veces MAS sobre fechas sin evento** (mediana 3,23% contra
-0,58%), porque con SD(z)=1,2 el umbral chi2 infla la cola. Arreglar las tripas no
-alcanza: lo que decide en un producto de alerta es la tasa empirica. El candidato
-queda disponible y APAGADO hasta que su umbral se recalibre y se valide — no se
-enciende algo que empeora el unico numero que se le entrega al cliente.
+PASO 1 — igualar la tasa. Barriendo umbrales de d2 sobre las fechas sin evento, para que la
+mediana del peor lote iguale la que da produccion hoy (0,31%):
+
+    modelo                        umbral   MEDIANA peor   MAXIMO peor
+    recta (produccion)              9,21       0,31%         2,21%
+    relativa_agrupada              27,00       0,24%         1,51%
+
+El candidato necesita un umbral de 27 — casi TRES veces el chi2 al 1%. Con SD(z)=1,2 la
+escala sola explicaria 13,3; que haga falta 27 dice que ademas tiene COLAS PESADAS, que es
+lo esperable de un estimador de escala con pocas observaciones.
+
+PASO 2 — a tasa igualada, cual marca cosas que PERSISTEN. Sin verdad de campo, la
+persistencia es la unica medida de calidad disponible: lo que es una condicion del lote
+sigue ahi en la escena siguiente; el ruido se mueve. Se mide como el solape de lo marcado
+hoy con lo marcado en la escena limpia anterior, dividido por el solape que daria el azar.
+
+    modelo                        marcado         persistencia
+    recta (produccion)          1,14 a 2,15%   16,4x a 42,7x el azar   (4 lotes)
+    relativa_agrupada           0,06%          no computable: no marca nada
+
+**A la tasa que hace falta para no marcar de mas, el candidato deja de marcar.** No es una
+mejora: es menos deteccion a igual tasa de falsa alarma. Queda RECHAZADO, y el codigo se
+conserva porque documenta el intento y porque el arnes sirve para el proximo candidato.
+
+Y EL HALLAZGO QUE MAS VALE DE TODA ESTA MEDICION, que no se buscaba:
+
+    persistencia de lo que marca PRODUCCION, sobre los 4 lotes reales:
+        SANTO_ANTONIO-01  42,7x     SAO_FRANCISCO-01  16,4x
+        SANTO_ANTONIO-02  36,8x     SAO_FRANCISCO-02  27,1x     media 30,8x
+
+Lo que el motor marca **ya estaba en la escena anterior mucho mas de lo que daria el azar,
+en los cuatro lotes**. Es una validacion que NO necesita verdad de campo y que el criterio
+podia fallar: dice que lo marcado es un rasgo REAL del lote y no ruido que paso el umbral.
+
+QUE HAY QUE CORREGIR DE LO QUE ESTE DOCSTRING DECIA ANTES
+--------------------------------------------------------
+Aca se venia insistiendo con que las tripas «no dan» —SD(z) entre 0,19 y 1,30, sigma 3 a 6
+veces el ruido, sesgo de -0,85— y se sospechaba SORDERA. Las mediciones siguen siendo
+ciertas, y la conclusion que se saco de ellas era apresurada:
+
+· **el diagnostico interno NO predice la calidad de la salida.** El modelo con las tripas
+  arregladas produce peor salida que el que las tiene mal.
+· lo que el motor es, medido, es **CONSERVADOR**: marca poco —en 1 de 5 fechas— y lo que
+  marca es solido (30,8x el azar). Para un producto de alerta que dirige recorridas, ese
+  es el lado correcto del error.
+· lo que sigue SIN medir es la SENSIBILIDAD: cuanto se le escapa. La persistencia dice que
+  lo que marca es real; no dice cuanto real deja pasar. Eso lo contestan los puntos de
+  control a campo (`pix_alerta/controles.py`), no una medicion satelital.
 
 LIMITES QUE HAY QUE DECLARAR
 ----------------------------
@@ -311,7 +356,8 @@ def _coleccion_limpia(geom, desde, hasta, cob_minima=COB_MINIMA_BASE):
 
 
 def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
-            ventana=None, escala=ESCALA, sitio=None, piso=None, modelo=None):
+            ventana=None, escala=ESCALA, sitio=None, piso=None, modelo=None,
+            umbral=None):
     """Mahalanobis del residuo de la fecha `hasta` contra la trayectoria del pixel.
 
     Devuelve dict con:
@@ -517,7 +563,13 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
     d2 = (arr.arrayTranspose().matrixMultiply(inv)
           .matrixMultiply(arr).arrayGet([0, 0]).rename('d2'))
 
-    umbral = CHI2.get(round(alfa, 3), CHI2[0.01])
+    # UMBRAL EXPLICITO para poder CALIBRARLO. El chi2 supone SD(z)=1, y eso no se
+    # cumple: `medicion/comparar_trayectoria.py` lo midio entre 0,19 y 1,54 segun el
+    # modelo y el lote. Cuando SD(z) no es 1 el cuantil teorico no da la tasa que
+    # promete, asi que el umbral tiene que poder fijarse por TASA EMPIRICA sobre fechas
+    # sin evento — que es el estandar que este proyecto ya adopto.
+    if umbral is None:
+        umbral = CHI2.get(round(alfa, 3), CHI2[0.01])
     # DIRECCION. La Mahalanobis es simetrica: un pixel que MEJORO mucho tambien da
     # d2 alto. Se exige ademas que el residuo apunte al deterioro en todos los ejes
     # —el mismo sentido que declara `ranking.SIGNO`—, o el motor marcaria el lote
@@ -534,6 +586,9 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
     return {'d2': d2, 'anomalia': anomalia, 'z': z, 'n_base': n_base,
             'fecha': fecha_actual, 'umbral': umbral, 'sigma': sigma,
             'mediana': med, 'residuo': r_actual,
+            # La puerta de direccion, aparte de `anomalia`, para poder barrer umbrales
+            # sin recalcular todo el criterio en cada uno.
+            'direccion': dir_mala,
             # Calidad de nube de la escena elegida. Viaja para que se pueda auditar por
             # que se acepto una escena, no solo que se acepto.
             'cs_medio': actual.get('cs_medio')}
