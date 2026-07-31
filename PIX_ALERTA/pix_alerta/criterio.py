@@ -168,9 +168,36 @@ ciertas, y la conclusion que se saco de ellas era apresurada:
 · lo que el motor es, medido, es **CONSERVADOR**: marca poco —en 1 de 5 fechas— y lo que
   marca es solido (30,8x el azar). Para un producto de alerta que dirige recorridas, ese
   es el lado correcto del error.
-· lo que sigue SIN medir es la SENSIBILIDAD: cuanto se le escapa. La persistencia dice que
-  lo que marca es real; no dice cuanto real deja pasar. Eso lo contestan los puntos de
-  control a campo (`pix_alerta/controles.py`), no una medicion satelital.
+· lo que sigue SIN medir es la SENSIBILIDAD A PROBLEMAS REALES: cuanto se le escapa. La
+  persistencia dice que lo que marca es real; no dice cuanto real deja pasar. Eso lo
+  contestan los puntos de control a campo (`pix_alerta/controles.py`).
+
+LA POTENCIA DEL DETECTOR SI SE MIDIO, Y NO ES UN NUMERO SOLO
+------------------------------------------------------------
+Inyectando caidas sinteticas de magnitud conocida en la imagen real
+(`medicion/sensibilidad.py`), sobre un parche de 0,75 ha en SANTO_ANTONIO-02:
+
+    caida            sigma BAJO        sigma MEDIO       sigma ALTO
+    CONTROL (0)       0%   no           0%   no           0%   no
+    2 x ruido         0%   no          19%  0,15 ha no    5%  0,04 ha no
+    3 x ruido         4%   no          36%  0,27 ha SI   18%  0,14 ha no
+    5 x ruido        34%  0,25 ha SI   47%  0,35 ha SI   27%  0,20 ha SI
+
+  («SI» = las hectareas marcadas superan la unidad minima de mapeo y el foco LLEGA)
+
+· Por debajo de 2 veces el ruido de corto plazo, el motor no ve nada en ninguna parte.
+· 5 veces el ruido de NDMI son 0,225 unidades = ~45% del agua del dosel de este trigo.
+
+**Y LA SENSIBILIDAD NO ES UNIFORME DENTRO DEL LOTE.** La misma caida inyectada dio z de
+-0,93 a -3,02 y d2 de 0,43 a 14,44 —treinta veces— segun donde cayera, con la inyeccion
+verificada identica (0,2250) y los tres parches 100% evaluables. La causa es que
+**SIGMA VARIA 6,1 VECES DENTRO DEL LOTE** (p5 0,031, p50 0,146, p95 0,186 en NDMI), y sigma
+es lo que divide al residuo. Que sigma sea tan heterogenea es consecuencia directa de que
+mide sobre todo el ERROR DEL MODELO de la recta, no ruido — y esa geografia no tiene nada
+que ver con la sanidad del cultivo.
+
+Es un limite del criterio que hay que declarar al cliente: hay partes del lote donde el
+motor es mas sordo que en otras, y no por el cultivo.
 
 LIMITES QUE HAY QUE DECLARAR
 ----------------------------
@@ -357,7 +384,7 @@ def _coleccion_limpia(geom, desde, hasta, cob_minima=COB_MINIMA_BASE):
 
 def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
             ventana=None, escala=ESCALA, sitio=None, piso=None, modelo=None,
-            umbral=None):
+            umbral=None, inyeccion=None):
     """Mahalanobis del residuo de la fecha `hasta` contra la trayectoria del pixel.
 
     Devuelve dict con:
@@ -533,8 +560,15 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
     else:
         sigma = mad.max(piso if piso is not None else SIGMA_MINIMA)
 
+    # INYECCION SINTETICA, para medir la ANOMALIA MINIMA DETECTABLE. Se resta una imagen
+    # a la escena evaluada —y SOLO a ella, no a la linea base— porque asi se ve un evento
+    # nuevo. Sin esto la sensibilidad no se puede medir sin verdad de campo. Ver
+    # `medicion/sensibilidad.py`. En produccion es None y no cambia nada.
+    _act = actual.select(ejes)
+    if inyeccion is not None:
+        _act = _act.subtract(ee.Image(inyeccion).select(ejes))
     r_actual = ee.Image.cat(
-        [actual.select(e).subtract(_esperado(e, t_act)).rename(e) for e in ejes])
+        [_act.select(e).subtract(_esperado(e, t_act)).rename(e) for e in ejes])
     if modelo == 'relativa_agrupada':
         # La fecha evaluada se centra con SU propia mediana espacial, igual que la
         # base. Sin esto el residuo de hoy y los de la base no serian comparables.
