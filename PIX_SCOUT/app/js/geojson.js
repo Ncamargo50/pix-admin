@@ -77,6 +77,28 @@ window.GeoLoad = (function(){
     return ['perimetro','perímetro','limite','límite','lote','boundary','campo','contorno'].indexOf(t)>=0;
   }
 
+  // ¿Es una capa de CONTEXTO? No es foco y TAMPOCO es perímetro.
+  //
+  // El motor produce dos capas que NO son alerta: zonas estructurales («esta parte viene
+  // peor de lo que su porte indica») y bloques de siembra («este bloque se implantó más
+  // tarde de lo que su fecha explica»). Hasta ahora esas capas NO podían mandarse al
+  // teléfono, porque esta función trataba como FOCO todo lo que no fuera perímetro: le
+  // asignaba severidad y número de recorrida, y mandaba al técnico a caminar una mancha
+  // de suelo como si fuera un brote de la semana.
+  //
+  // Por eso el motor las emite en un archivo aparte (`contexto_*.geojson`). Con esta
+  // versión la app ya sabe ignorarlas, así que pueden viajar en el mismo archivo sin
+  // ensuciar la recorrida. Ver PIX_ALERTA/pix_alerta/capas.py.
+  //
+  // Se distinguen por `capa:'contexto'` o por su `tipo`. NO se las trata como perímetro
+  // a propósito: si lo fueran, `ringsFromGeoJSON(gj,true)` las dibujaría como el límite
+  // del lote y el mapa quedaría mal.
+  function isContexto(props){
+    if((props.capa||'').toString().toLowerCase()==='contexto') return true;
+    const t=(props.tipo||'').toString().toLowerCase();
+    return t==='zona' || t==='estrato';
+  }
+
   function fociFromGeoJSON(gj, def){
     def=def||{};
     const feats = gj.type==='FeatureCollection' ? (gj.features||[])
@@ -86,6 +108,7 @@ window.GeoLoad = (function(){
     feats.forEach(ft=>{
       const g=ft.geometry||{}, props=ft.properties||{};
       if(isPerimeter(props)) return;                 // el perímetro no es un foco
+      if(isContexto(props)) return;                  // las capas de contexto tampoco
       const polys = g.type==='Polygon' ? [g.coordinates]
                   : g.type==='MultiPolygon' ? g.coordinates : [];
       polys.forEach(poly=>{
