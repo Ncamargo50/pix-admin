@@ -13,12 +13,12 @@
       "campanas": {
         "2026": [
           "2026-04-26",
-          "2026-08-24"
+          "2026-09-19"
         ]
       },
       "siembra": "2026-04-26",
       "solo_focos": true,
-      "ciclo_dias": 120,
+      "ciclo_dias": 146,
       "siembras": [
         "2026-04-26",
         "2026-04-29",
@@ -36,12 +36,12 @@
       "campanas": {
         "2026": [
           "2026-04-22",
-          "2026-08-20"
+          "2026-09-15"
         ]
       },
       "siembra": "2026-04-22",
       "solo_focos": true,
-      "ciclo_dias": 120,
+      "ciclo_dias": 146,
       "validacion_campo": true
     }
   ],
@@ -52,5 +52,5 @@
     "nombre": "Trigo Santo Antonio / Sao Francisco"
   },
   "K": 4,
-  "nota": "Trigo de invierno 2026. Siembra declarada por el cliente: Sao Francisco 22/04 al 25/04; Santo Antonio 26/04 al 04/05. Cosecha prevista: segunda quincena de agosto (declarado por el cliente), de donde sale ciclo_dias=120 por sitio en vez del operativo de tabla (100). La ventana se calcula desde el INICIO de siembra de cada propiedad (el lote mas adelantado es el que primero madura y el que primero invalida el criterio). OJO: en Santo Antonio la siembra se extendio 9 dias, asi que la madurez dentro del campo va a ser ASINCRONICA."
+  "nota": "Trigo de invierno 2026. Siembra declarada por el cliente: Sao Francisco 22/04 al 25/04; Santo Antonio 26/04 al 04/05. COSECHA CORREGIDA POR EL CLIENTE EL 2026-08-03: Sao Francisco, que es la PRIMERA siembra, se cosecha en la PRIMERA QUINCENA DE SEPTIEMBRE — no en la segunda quincena de agosto como se habia anotado. De ahi ciclo_dias=146 (22/04 -> 15/09), en vez de los 120 anteriores y del operativo de tabla (100). SANTO ANTONIO ES INFERIDO, NO DECLARADO: el cliente solo hablo de Sao Francisco. Se le aplica el MISMO ciclo de 146 dias porque es el mismo cultivo, la misma campaña y la misma zona, lo que lleva su fin de ventana al 19/09 (sembro 4 dias despues). Si el cliente declara otra fecha para Santo Antonio, se corrige aca. La ventana se calcula desde el INICIO de siembra de cada propiedad (el lote mas adelantado es el que primero madura y el que primero invalida el criterio). OJO 1: en Santo Antonio la siembra se extendio 9 dias, asi que la madurez dentro del campo va a ser ASINCRONICA. OJO 2 — EL COSTO DE EXTENDER LA VENTANA: el criterio busca NDMI y NDRE bajando juntos, que es exactamente la firma de la SENESCENCIA normal del trigo. Con la ventana 26 dias mas larga, las ultimas fechas caen en llenado tardio y madurez, donde el cultivo se seca porque tiene que secarse. La cohorte protege mientras TODOS los lotes maduren a la vez; en Santo Antonio no van a madurar a la vez. Los focos de las ultimas 2-3 semanas de cada sitio hay que leerlos con esa reserva, y conviene contrastarlos contra `medicion/persistencia.py` antes de mandar a nadie a caminar."
 }

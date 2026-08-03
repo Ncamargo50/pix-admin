@@ -2,9 +2,39 @@ name: pixadvisor-monitor
 
 # La maquina. Corre sola, con la PC del usuario apagada.
 # El horario esta en UTC: Bolivia y Brasil son UTC-3/-4, asi que 11:20 UTC ~ 07:20 local.
+#
+# DOS CORRIDAS POR DIA, y las dos hacen falta.
+#
+# Santo Antonio y Sao Francisco caen en el mismo tile S2 (T22KEV, orbita R081): la toma
+# es siempre a las ~13:31 UTC. Pero la escena no existe para el motor en el instante de
+# la toma. Medido sobre el catalogo de Copernicus (jun-jul 2026, las 16 escenas del
+# propio tile), el retardo toma -> PUBLICACION es cerrado y distinto por satelite:
+#
+#     S2B  +4,1 h  -> ~17:40 UTC   (6 de 6 escenas entre 17:33 y 17:42)
+#     S2C  +5,8 h  -> ~19:20 UTC   (6 de 6 escenas entre 19:17 y 19:23)
+#     S2A  +9,1 h  -> ~22:40 UTC   (y una de las 4 recien a las 01:31 del dia siguiente)
+#
+# Y este motor NO lee del catalogo: lee de GEE, que va todavia mas atras. Medido el
+# 2026-08-02: la frontera global de ingesta de GEE estaba ~6,5 h detras de la toma, y
+# la franja horaria de nuestro tile recien llega a ~90% de completitud a las 9-10 h de
+# edad. O sea que la escena del dia entra en GEE cerca de las 22:30-23:30 UTC.
+#
+# 22:40 UTC (~19:40 en Brasil, 18:40 en Bolivia) es la corrida de la tarde: agarra la
+# escena de S2B y casi siempre la de S2C EL MISMO DIA, en vez de la mañana siguiente.
+# Las de S2A (1 de cada 5) no se pueden agarrar el mismo dia a ninguna hora razonable:
+# se publican de noche y a veces despues de medianoche.
+#
+# 11:20 UTC SE QUEDA, y es la red de seguridad: recoge lo que GEE haya ingestado tarde
+# —S2A siempre, y cualquier escena que se atrase— para que no se pierda ninguna.
+#
+# Correr dos veces NO duplica el aviso: `avisar.py` deduplica por la huella de la
+# ESCENA (fecha_imagen + lotes_alertados) guardada en entregas/_avisado.json, que se
+# commitea. Si la corrida de la tarde ya aviso, la de la mañana ve la misma huella y
+# se calla. El `concurrency` de mas abajo impide que las dos se pisen.
 on:
   schedule:
-    - cron: '20 11 * * *'
+    - cron: '40 22 * * *'    # tarde: la escena del dia, el mismo dia
+    - cron: '20 11 * * *'    # mañana: red de seguridad para lo que entro tarde
   workflow_dispatch:
     inputs:
       cliente:

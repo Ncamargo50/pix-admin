@@ -295,3 +295,108 @@ def test_el_area_no_puede_delatar_cuando_hay_focos_de_areas_distintas():
         por_clase[clave['puntos'][p['id']]['clase']].add(p['area_ha'])
     assert por_clase['foco'] == por_clase['control'], (
         'el conjunto de areas separa focos de controles: %s' % por_clase)
+
+
+# --- la GEOMETRIA, que es la tercera fuga (hallada 2026-08-03) ----------------
+
+def _foco_irregular(lote='L1', i=1, area=0.28):
+    """Un foco como los que emite de verdad `focos.detectar_lote`: poligono
+    vectorizado del raster, forma irregular y numero de vertices arbitrario.
+
+    Los fixtures de arriba usan un triangulo IDENTICO para foco y control, y por eso
+    ningun test detectaba la fuga: en la salida real las formas son distintas.
+    """
+    anillo = [[0.0, 0.0], [0.0007, 0.0002], [0.0009, 0.0011], [0.0004, 0.0016],
+              [-0.0002, 0.0013], [-0.0005, 0.0006], [0.0, 0.0]]
+    f = _foco(lote=lote, i=i)
+    f['geometry'] = {'type': 'Polygon', 'coordinates': [anillo]}
+    f['properties']['area_ha'] = area
+    return f
+
+
+def _control_circular(lote='L1', i=1, area=0.28):
+    """Un control como los que emite de verdad `controles`: circulo de 24 lados."""
+    c = _control(lote=lote, i=i)
+    c['geometry'] = ct._circulo(0.01, 0.01, ct._radio_m(area))
+    c['properties']['area_ha'] = area
+    return c
+
+
+def _vertices(geom):
+    g = geom or {}
+    if g.get('type') == 'Polygon':
+        return len(g['coordinates'][0])
+    if g.get('type') == 'MultiPolygon':
+        return len(g['coordinates'][0][0])
+    return 1
+
+
+def test_la_forma_del_poligono_no_puede_delatar_la_clase():
+    """LA TERCERA FUGA DEL CIEGO, hallada revisando la salida real del 2026-08-03.
+
+    MEDIDO en `validacion_SAO_FRANCISCO_2026-08-03.geojson`: el foco tenia 15 vertices
+    y los cuatro controles tenian 25, porque los controles son circulos generados y los
+    focos son poligonos vectorizados del raster.
+
+    Y `PIX_SCOUT/app/js/map.js` DIBUJA ese anillo. El tecnico veia circulos perfectos y
+    una mancha irregular: despues de una ronda sabe cual es cual sin la clave.
+    """
+    focos = [_foco_irregular(i=1)]
+    ctrls = [_control_circular(i=1), _control_circular(i=2)]
+    gj, clave = ct.paquete_ciego(_Sitio(), {'L1': {'focos': focos}},
+                                 {'L1': {'controles': ctrls}}, '2026-07-16')
+    por_clase = {'foco': set(), 'control': set()}
+    for f in gj['features']:
+        p = f['properties']
+        if p.get('tipo') == 'perimetro':
+            continue
+        por_clase[clave['puntos'][p['id']]['clase']].add(_vertices(f['geometry']))
+    assert por_clase['foco'] == por_clase['control'], (
+        'el numero de vertices separa focos de controles: %s' % por_clase)
+
+
+def test_todos_los_puntos_del_paquete_tienen_la_misma_forma():
+    """Defensa mas fuerte que la anterior: no alcanza con que las clases coincidan,
+    TODOS los puntos tienen que ser el mismo tipo de figura. Si un dia hay un solo foco
+    y un solo control, dos conjuntos de un elemento coinciden por casualidad."""
+    gj, _ = ct.paquete_ciego(
+        _Sitio(),
+        {'L1': {'focos': [_foco_irregular(i=1, area=0.28),
+                          _foco_irregular(i=2, area=0.55)]}},
+        {'L1': {'controles': [_control_circular(i=1, area=0.28)]}},
+        '2026-07-16')
+    v = [_vertices(f['geometry']) for f in gj['features']
+         if f['properties'].get('tipo') != 'perimetro']
+    assert len(set(v)) == 1, 'los puntos no tienen todos la misma forma: %s' % v
+
+
+def test_el_punto_uniforme_sigue_cayendo_donde_estaba_el_foco():
+    """El ciego no puede costar la ubicacion: el circulo tiene que quedar SOBRE la
+    mancha original, o el tecnico camina a otro lado."""
+    f = _foco_irregular(i=1, area=0.28)
+    gj, clave = ct.paquete_ciego(_Sitio(), {'L1': {'focos': [f]}},
+                                 {'L1': {'controles': []}}, '2026-07-16')
+    pt = [x for x in gj['features']
+          if x['properties'].get('tipo') != 'perimetro'][0]
+    cx, cy = ct._centroide(pt['geometry'])
+    ox, oy = ct._centroide(f['geometry'])
+    # A esta latitud 1e-4 grados son ~11 m; el foco mide decenas de metros.
+    assert abs(cx - ox) < 1e-4 and abs(cy - oy) < 1e-4, (
+        'el punto uniforme se corrio del foco original')
+
+
+def test_el_radio_del_circulo_respeta_el_area_declarada():
+    """Si el area viaja en `properties`, la figura tiene que ser coherente con ella:
+    un circulo cuyo radio no corresponda al area declarada es otra fuga."""
+    area = 0.28
+    f = _foco_irregular(i=1, area=area)
+    gj, _ = ct.paquete_ciego(_Sitio(), {'L1': {'focos': [f]}},
+                             {'L1': {'controles': []}}, '2026-07-16')
+    pt = [x for x in gj['features']
+          if x['properties'].get('tipo') != 'perimetro'][0]
+    anillo = pt['geometry']['coordinates'][0]
+    cx, cy = ct._centroide(pt['geometry'])
+    import math
+    r_grados = max(abs(p[1] - cy) for p in anillo)
+    r_m = r_grados * 111320.0
+    assert r_m == pytest.approx(ct._radio_m(area), rel=0.05)

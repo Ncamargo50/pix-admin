@@ -262,6 +262,69 @@ def _limpio(props):
     return {k: p[k] for k in CAMPOS_DEL_PUNTO if k in p}
 
 
+def _centroide(geom):
+    """(lon, lat) del promedio de vertices del anillo exterior. None si no se puede.
+
+    Basta el promedio de vertices: el punto solo tiene que caer DENTRO de la mancha
+    para que el GPS lleve al tecnico ahi, y los focos son compactos por la MMU.
+    """
+    if not geom:
+        return None
+    t, c = geom.get('type'), geom.get('coordinates')
+    if t == 'Point':
+        return float(c[0]), float(c[1])
+    anillo = None
+    if t == 'Polygon' and c:
+        anillo = c[0]
+    elif t == 'MultiPolygon' and c and c[0]:
+        anillo = c[0][0]
+    if not anillo:
+        return None
+    pts = [p for p in anillo if isinstance(p, (list, tuple)) and len(p) >= 2]
+    if not pts:
+        return None
+    return (sum(float(p[0]) for p in pts) / len(pts),
+            sum(float(p[1]) for p in pts) / len(pts))
+
+
+def _geometria_uniforme(geom, area_ha):
+    """MISMA FORMA para todos los puntos del paquete ciego: un circulo del mismo tipo.
+
+    ⚠️ ESTA ES LA TERCERA FUGA DEL CIEGO DE ESTE PROYECTO, y la encontro una revision
+    de la salida real del 2026-08-03. Las dos anteriores fueron de PROPIEDADES y se
+    taparon con la lista blanca de `CAMPOS_DEL_PUNTO`. Esta es de GEOMETRIA, que hasta
+    hoy viajaba tal cual:
+
+        control -> circulo generado por `_circulo()`, SIEMPRE 25 vertices
+        foco    -> poligono vectorizado del raster, forma irregular, 15 vertices
+
+    Y `PIX_SCOUT/app/js/map.js` (`ringFor`) DIBUJA el anillo real cuando el punto lo
+    trae. O sea que el tecnico veia circulos perfectos para los controles y una mancha
+    irregular para el foco: despues de una sola ronda aprende que "los redondos son los
+    de mentira", y a partir de ahi registra distinto sabiendo cual es cual — que es
+    exactamente el sesgo de verificacion que la campaña entera existe para evitar.
+
+    POR QUE SE ARREGLA EN EL DATO Y NO EN LA APP: si el ciego dependiera de que la app
+    no dibuje la forma, cualquiera que abra el GeoJSON en QGIS —o una version futura de
+    la app, u otro visor— vuelve a ver la diferencia. **El ciego tiene que estar en el
+    archivo, no en el visor.** Es el mismo principio por el que la clave va en un
+    archivo aparte en vez de en un campo oculto.
+
+    QUE SE PIERDE, Y ES ACEPTABLE: la forma real del foco no llega al telefono durante
+    una campaña de validacion. No hace falta para caminarlo —el GPS lleva al centro y el
+    radio marca hasta donde mirar— y la forma real queda igual en `focos_*.geojson`,
+    que es el entregable normal del cliente y no es ciego.
+    """
+    c = _centroide(geom)
+    if c is None:
+        return geom
+    try:
+        a = float(area_ha)
+    except (TypeError, ValueError):
+        a = AREA_CONTROL_MINIMA_HA
+    return _circulo(c[0], c[1], _radio_m(a))
+
+
 def paquete_ciego(sitio, focos_por_lote, controles_por_lote, fecha, perimetro=None):
     """(geojson, clave). El geojson va al telefono; la clave NO.
 
@@ -298,7 +361,10 @@ def paquete_ciego(sitio, focos_por_lote, controles_por_lote, fecha, perimetro=No
         # TODOS los puntos con el MISMO conjunto de claves, en el mismo orden. Un campo
         # presente en unos y ausente en otros es una fuga aunque su valor sea inocente.
         p = {k: p.get(k) for k in CAMPOS_DEL_PUNTO}
-        feats.append({'type': 'Feature', 'geometry': f['geometry'], 'properties': p})
+        # La GEOMETRIA se normaliza igual que las propiedades (ver `_geometria_uniforme`):
+        # la forma del poligono delataba la clase aunque ningun campo lo dijera.
+        geom_u = _geometria_uniforme(f.get('geometry'), p.get('area_ha'))
+        feats.append({'type': 'Feature', 'geometry': geom_u, 'properties': p})
         clave[pid] = {'lote_id': lid, 'clase': clase, 'orden': i + 1,
                       'area_ha': (f.get('properties') or {}).get('area_ha')}
     return ({'type': 'FeatureCollection', 'features': feats},

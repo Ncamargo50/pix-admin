@@ -276,7 +276,31 @@ def ewma(res, lam=LAMBDA_EWMA, L=L_CONTROL):
 # quedaria con el signo invertido: el motor alertaria sobre los lotes SANOS y
 # callaria sobre los enfermos, sin fallar ni avisar. Es el error mas caro posible
 # en este archivo.
-SIGNO = {'NDVI': -1, 'NDMI': -1, 'PSRI': +1, 'NDRE': -1, 'CIRE': -1}
+SIGNO = {'NDVI': -1, 'NDMI': -1, 'PSRI': +1, 'NDRE': -1, 'CIRE': -1,
+         # kNDVI es una transformacion MONOTONA CRECIENTE de NDVI (tanh(NDVI^2)
+         # sobre NDVI>=0), asi que su alarma es el valor bajo, igual que NDVI.
+         'KNDVI': -1,
+         # --- LOS DOS DE TEXTURA: el signo es HIPOTESIS, no medicion -----------
+         # TEXNIR (contraste GLCM en B8A). Razonamiento fisico: un dosel que se
+         # degrada EN PARCHES —calvas, foco de plaga, ahogo— se vuelve mas
+         # heterogeneo a la escala de la ventana, asi que el contraste SUBE. Alarma
+         # = valor alto => +1.
+         #
+         # ⚠️ EL CASO QUE ROMPE EL RAZONAMIENTO, y hay que medirlo antes de confiar:
+         # un dosel que se degrada de forma UNIFORME (deficit hidrico parejo,
+         # senescencia normal) se vuelve mas PAREJO, no menos, y el contraste BAJA.
+         # O sea que este eje detecta daño EN PARCHES y es CIEGO —o peor, se mueve
+         # al reves— frente a daño uniforme. Eso no lo invalida: los focos de
+         # scouting son parches por definicion. Pero significa que TEXNIR no es
+         # intercambiable con un eje espectral y que su tasa hay que medirla sola.
+         'TEXNIR': +1,
+         # NDTX. **EL SIGNO NO ESTA MEDIDO NI RAZONADO CON CONFIANZA.** Se declara
+         # +1 por coherencia con TEXNIR (el numerador es el contraste de B8A), pero
+         # el cociente puede moverse por el denominador tanto como por el numerador,
+         # y no hay literatura ni medicion propia que fije la direccion sobre un
+         # cultivo en pie. **No usar como eje de produccion hasta medir el signo**
+         # con `medicion/textura_como_eje.py --signo`.
+         'NDTX': +1}
 
 # La verificacion que convierte "el error mas caro posible" en un crash al importar.
 # Sin ella, configurar un eje sin declarar su sentido no falla: el motor marca los

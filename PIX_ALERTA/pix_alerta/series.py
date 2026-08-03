@@ -15,6 +15,16 @@ from . import config as cfg
 
 CS_PLUS = 'GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED'
 
+# Bandas de dosel que `_indices` produce y que viajan en la serie. Es un CONTRATO, no
+# una lista de conveniencia: un indice que se calcula pero no entra aca no existe para
+# ningun arnes de medicion, y medirlo obliga a reextraer la campaña entera.
+# KNDVI, TEXNIR y NDTX estan como CANDIDATOS medibles, no como ejes de produccion.
+BANDAS_TEXTURA = ('TEXNIR', 'NDTX')
+BANDAS_DOSEL = (('NDVI', 'NDMI', 'PSRI', 'NDRE', 'CIRE', 'FVC', 'KNDVI')
+                + BANDAS_TEXTURA)
+COLS_SERIE = (('lote_id', 'fecha', 'area_ha', 'cobertura', 'n_px', 'calidad')
+              + BANDAS_DOSEL)
+
 
 def _cloudscore(img):
     """Banda `cs_cdf` de CloudScore+ para ESTA escena, o None si no esta.
@@ -65,12 +75,149 @@ def _mascara(img):
     return valido.rename('valido')
 
 
-def _indices(img):
+# --- TEXTURA: el unico candidato a segundo eje que NO es un indice espectral -----
+#
+# POR QUE SE AGREGA (2026-08-03)
+# ------------------------------
+# El motor tiene un problema medido y sin solucion desde hace tres iteraciones: los
+# residuos temporales de los dos ejes de produccion correlacionan rho = 0,969
+# (`medicion/banda_compartida.py`), o sea que el segundo eje aporta apenas el 6,1% de
+# varianza independiente. Se midieron PSRI (0,927) y CIre (0,830) como reemplazo y
+# ninguno decidio, porque **los tres son indices espectrales y los tres siguen la
+# biomasa**. Cambiar de indice ya se midio que compra ~2x; es el techo de esa via.
+#
+# La textura no es reflectancia: es la ORGANIZACION ESPACIAL de la reflectancia dentro
+# de una vecindad. Es ortogonal por FISICA, no por estadistica — que es exactamente la
+# propiedad que ningun par de indices logro tener. La literatura la respalda: VIs +
+# textura llega a R2 0,78-0,84 en biomasa, y los indices de textura de diferencia
+# normalizada superan a todos los VIs evaluados Y a las texturas GLCM sueltas
+# (`../INVESTIGACION_TELEDETECCION_CULTIVOS_2026.md` §2.5).
+#
+# ⚠️ ESTO ES UN CANDIDATO, NO PRODUCCION. Se calcula y viaja en la serie para que se
+# pueda MEDIR con los tres arneses que ya existen. La regla de `config.py` no cambia:
+# mover `EJES` exige una razon POSITIVA — correlacion de residuos mas baja, lift contra
+# la nula sintetica, y tasa empirica sobre fechas sin evento. Si empata, no se cambia.
+#
+# LIMITES QUE HAY QUE DECLARAR ANTES DE MEDIR
+# -------------------------------------------
+# 1. **La textura sube en el borde de nube.** Un pixel a medio enmascarar es el vecino
+#    de uno enmascarado, y esa discontinuidad es contraste puro. Por eso `_indices`
+#    aplica la mascara DESPUES: la textura se calcula sobre la escena y recien ahi se
+#    censura. Si la dilatacion de nube (80 m = 4 px) no alcanza, este eje va a marcar
+#    bordes de nube — el mismo modo de falla que ya costo tres focos falsos.
+# 2. **La textura sube en el borde del lote** por mezcla espectral. El buffer negativo
+#    de 5 m NO alcanza para una ventana de 3x3 a 20 m (60 m): un pixel a 30 m del borde
+#    todavia tiene vecinos de afuera. Es un sesgo conocido y hay que mirarlo.
+# 3. **Depende de la cuantizacion.** El contraste GLCM no es invariante al numero de
+#    niveles. Se fija en 8 bits sobre un rango de reflectancia FIJO y declarado, para
+#    que el numero sea comparable entre escenas. Un reescalado por escena —lo que hace
+#    casi todo el mundo— haria que el contraste dependa de si ese dia habia nube.
+# 4. **No mide lo mismo a otra escala.** A 20 m con ventana 3x3 la textura habla de
+#    heterogeneidad a 60 m. A 10 m seria otra variable con el mismo nombre.
+# 5. ⚠️ **DILATA EL FOCO, Y ESTA MEDIDO.** Toda medida de ventana contamina a los
+#    vecinos: un pixel anomalo altera la textura de los 8 que lo rodean. Cuantificado
+#    con la MMU real del motor (`tests/test_textura_y_kndvi.py`):
+#
+#        foco real de  5 px (0,20 ha, la MMU exacta) -> 21 px afectados (0,84 ha)  x4,2
+#        foco real de 12 px (0,48 ha)                -> 30 px afectados (1,20 ha)  x2,5
+#
+#    CONSECUENCIA OPERATIVA, y hay que separarla en dos:
+#      · para **DETECTAR** ("¿hay algo raro en este sector?") la dilatacion no invalida
+#        nada: el foco sigue estando adentro de la mancha marcada;
+#      · para **DELIMITAR** ("¿de cuantas hectareas es?") la textura NO SIRVE. El area
+#        que se le informa al cliente y la MMU de 0,20 ha tienen que seguir saliendo de
+#        los ejes ESPECTRALES. Si algun dia la textura entra al criterio, la
+#        vectorizacion del foco no puede salir de ella.
+GLCM_VENTANA_PX = 1        # radio: 1 => ventana 3x3 => 60 m a escala 20 m
+GLCM_NIVELES = 255         # cuantizacion a 8 bits
+# Rango de reflectancia sobre el que se cuantiza, en unidades de reflectancia (0-1).
+# FIJO a proposito (ver limite 3). 0,60 cubre NIR de dosel pleno sin recortar.
+GLCM_REF_MAX = 0.60
+
+
+def _glcm_contraste(img, banda):
+    """Contraste GLCM de una banda, cuantizada a 8 bits sobre un rango FIJO.
+
+    El contraste es sum_ij (i-j)^2 * p(i,j): pesa las transiciones de nivel entre
+    vecinos por el cuadrado del salto. Es alto donde el dosel es heterogeneo a la
+    escala de la ventana —calvas, fallas de siembra, daño en parches— y bajo donde es
+    parejo, tenga el vigor que tenga. Un lote uniformemente pobre da contraste BAJO:
+    por eso no es "otro indice de vigor".
+    """
+    ref = img.select(banda).divide(10000)
+    q = (ref.clamp(0, GLCM_REF_MAX).divide(GLCM_REF_MAX)
+         .multiply(GLCM_NIVELES).round().toUint8())
+    # glcmTexture devuelve ~18 bandas con sufijo (`B8A_asm`, `B8A_contrast`, ...);
+    # se toma solo el contraste.
+    #
+    # ⚠️ GOTCHA DE GEE, encontrado con la escena real T22KDV del 2026-07-15: **Earth
+    # Engine RECHAZA los nombres de banda que empiezan con guion bajo.** Renombrar a
+    # '_c' revienta con `Image.select: Invalid band name: '_c'` — y no falla al
+    # construir el grafo, falla recien en el `getInfo`, o sea en produccion y no en el
+    # editor. El nombre tiene que empezar con letra.
+    return (q.glcmTexture(size=GLCM_VENTANA_PX)
+            .select([banda + '_contrast'], ['CONTRASTE']))
+
+
+def _textura(img):
+    """Bandas de textura candidatas: TEXNIR y NDTX.
+
+    TEXNIR — contraste GLCM en B8A (NIR estrecho, nativo de 20 m). Es la heterogeneidad
+    estructural del dosel.
+
+    NDTX — diferencia normalizada entre el contraste de B8A y el de B5 (borde rojo,
+    tambien nativo de 20 m):
+
+        NDTX = (C_B8A - C_B5) / (C_B8A + C_B5)
+
+    ⚠️ NOMBRE: **NDTX, no NDTI.** La sigla NDTI ya esta tomada por el *Normalized
+    Difference Tillage Index* (SWIR1-SWIR2, van Deventer et al. 1997), que mide
+    rastrojo y no tiene nada que ver con textura. Usar NDTI aca seria fabricar la misma
+    colision de nomenclatura que este repositorio ya documenta para NDWI/NDMI.
+
+    POR QUE NORMALIZAR EN VEZ DE USAR EL CONTRASTE CRUDO: el contraste absoluto escala
+    con el brillo de la escena y con la atmosfera. La diferencia normalizada entre dos
+    bandas de la MISMA escena cancela la parte comun, igual que hace un indice
+    espectral con la iluminacion.
+
+    Las dos bandas se calculan SIN mascara; el enmascarado lo aplica quien las use
+    (ver limite 1 del bloque de arriba).
+    """
+    c_nir = _glcm_contraste(img, 'B8A')
+    c_re = _glcm_contraste(img, 'B5')
+    texnir = c_nir.rename('TEXNIR')
+    ndtx = (c_nir.subtract(c_re)
+            .divide(c_nir.add(c_re).max(1e-6)).rename('NDTX'))
+    return texnir.addBands(ndtx)
+
+
+def _hace_falta_textura(con_textura=None):
+    """¿Hay que pagar el GLCM en esta llamada?
+
+    ⚠️ NO ES COSMETICO. `glcmTexture` construye una matriz de co-ocurrencia por pixel
+    y es de lejos lo mas caro de `_indices`. El criterio lo llama una vez por escena y
+    por lote, y despues descarta todo lo que no esta en `cfg.EJES`: calcular textura
+    ahi seria pagar el costo mas alto del modulo para tirar el resultado, en el camino
+    CALIENTE que corre dos veces por dia en la nube.
+
+    Por defecto se calcula solo si alguna banda de textura esta declarada como eje —
+    que es justo lo que hacen los arneses de medicion cuando pisan `cfg.EJES`.
+    `con_textura=True` la fuerza (extraccion de archivo); `False` la apaga.
+    """
+    if con_textura is not None:
+        return bool(con_textura)
+    return any(b in cfg.EJES for b in BANDAS_TEXTURA)
+
+
+def _indices(img, con_textura=None):
     """Los ejes de dosel candidatos + NDVI para la compuerta de vegetacion.
 
     Cuales de estos ENTRAN al criterio lo decide `cfg.EJES`, no este modulo. Se
     calculan todos porque la eleccion del par de ejes es una decision medible
     (ver `medicion/comparar_ejes.py`) y para medirla hacen falta en la serie.
+
+    La textura es la excepcion y se decide aparte (ver `_hace_falta_textura`): es la
+    unica cuyo costo justifica no calcularla siempre.
     """
     b = lambda n: img.select(n).divide(10000)
     B2, B4, B5, B6, B7, B8, B8A, B11 = (b('B2'), b('B4'), b('B5'), b('B6'),
@@ -99,7 +246,42 @@ def _indices(img):
     # afectada por la atmosfera. Cual de los tres queda es una MEDICION, no un gusto.
     ndre = B8A.subtract(B5).divide(B8A.add(B5)).rename('NDRE')
     cire = B7.divide(B5.max(1e-6)).subtract(1).rename('CIRE')
-    return (ndvi.addBands(ndmi).addBands(psri).addBands(ndre).addBands(cire))
+    # kNDVI. Camps-Valls et al. 2021 (10.1126/sciadv.abc7447), ec. 6: con la longitud
+    # de escala sigma = (NIR + Rojo)/2 —la que el propio paper recomienda como opcion
+    # practica— el kernel RBF colapsa a kNDVI = tanh(NDVI^2), sin parametros libres.
+    #
+    # QUE COMPRA: NO satura donde NDVI satura (dosel cerrado). El paper lo mide contra
+    # GPP de torres de flujo y contra SIF en todos los biomas y zonas climaticas, y le
+    # gana a NDVI y a NIRv en las dos.
+    #
+    # QUE **NO** COMPRA EN ESTE MOTOR, Y ES CASI TODO. Auditado 2026-08-03, y la
+    # conclusion es que kNDVI **no aporta nada aca**. Tres razones, en orden de peso:
+    #
+    # 1. **NDVI no es un eje del criterio.** Los ejes son NDMI y NDRE. El NDVI solo se
+    #    usa para la compuerta de dosel. Un reemplazo del NDVI no toca la deteccion.
+    #
+    # 2. **La saturacion del NDVI no le pega a este motor.** El motor NUNCA usa valores
+    #    absolutos: compara cada pixel contra su PROPIA trayectoria y contra su cohorte.
+    #    La saturacion arruina los umbrales absolutos —que es contra lo que kNDVI se
+    #    propuso— y este criterio no tiene ninguno.
+    #
+    # 3. ⚠️ **USARLO EN LA COMPUERTA SERIA UN CAMBIO NO CALIBRADO, NO UNA MEJORA.**
+    #    MEDIDO sobre 20.000 pixeles sinteticos de trigo: la correlacion de RANGOS entre
+    #    NDVI y kNDVI es 1,000000 —o sea que el orden es identico— pero FVC no es
+    #    invariante a transformaciones monotonas NO LINEALES, asi que el umbral efectivo
+    #    se corre: **1,29% de los pixeles cambian de lado de la compuerta**, y el NDVI
+    #    equivalente al corte pasa de 0,6465 a 0,6510. Mover el umbral 1,29% sin ninguna
+    #    razon positiva es exactamente lo que `config.py` prohibe.
+    #
+    # QUEDA COMO BANDA DE ARCHIVO, no como mejora: viaja en la serie para que se pueda
+    # graficar y comparar, y por si algun dia el motor trabaja con umbrales absolutos o
+    # con un cultivo de dosel muy cerrado. **No entra al criterio ni a la compuerta.**
+    kndvi = ndvi.pow(2).tanh().rename('KNDVI')
+    out = (ndvi.addBands(ndmi).addBands(psri).addBands(ndre).addBands(cire)
+           .addBands(kndvi))
+    if _hace_falta_textura(con_textura):
+        out = out.addBands(_textura(img))
+    return out
 
 
 def _fvc(ndvi, geom, escala=20):
@@ -157,11 +339,16 @@ def _lotes_ee(sitio):
     return ee.FeatureCollection(feats)
 
 
-def extraer(sitio, ini, fin, escala=20, verbose=True):
+def extraer(sitio, ini, fin, escala=20, verbose=True, con_textura=False):
     """Devuelve el DataFrame largo (lote_id, fecha, NDVI, NDMI, PSRI, calidad...).
 
     `escala=20` no es una concesion: el test espacial pide agregar a 20-30 m antes
     de testear, y a 20 m un lote de 200 ha sigue teniendo ~5.000 unidades.
+
+    `con_textura=False` por defecto Y A PROPOSITO: el GLCM es lo mas caro del modulo
+    (ver `_hace_falta_textura`) y retrollenar tres campañas de 220 lotes con textura
+    encendida es una corrida de otra magnitud. Se prende cuando la extraccion es PARA
+    medir textura, no como default.
     """
     lotes = _lotes_ee(sitio)
     col = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
@@ -180,7 +367,7 @@ def extraer(sitio, ini, fin, escala=20, verbose=True):
     def por_escena(img):
         img = ee.Image(img)
         valido = _mascara(img)
-        idx = _indices(img)
+        idx = _indices(img, con_textura=con_textura)
         # Los extremos del FVC se anclan SOLO sobre pixel limpio: calcularlos
         # sobre la escena completa los ancla en la nube y la compuerta se rompe.
         fvc = _fvc(idx.select('NDVI').updateMask(valido), aoi, escala)
@@ -218,8 +405,7 @@ def extraer(sitio, ini, fin, escala=20, verbose=True):
         return df
 
     # reduceRegions devuelve <banda>_mean / <banda>_count
-    df = df.rename(columns={f'{b}_mean': b for b in
-                            ('NDVI', 'NDMI', 'PSRI', 'NDRE', 'CIRE', 'FVC')})
+    df = df.rename(columns={f'{b}_mean': b for b in BANDAS_DOSEL})
     # n_px = pixeles LIMPIOS. `cob` esta unmask(0), asi que `cob_count` cuenta todo
     # el footprint del lote: era constante a lo largo de la campaña (corr con
     # cobertura = -0,016) y el filtro de MIN_PIXELES descartaba 0 de 2.537 filas.
@@ -236,9 +422,7 @@ def extraer(sitio, ini, fin, escala=20, verbose=True):
         df['cobertura'], [-0.01, cfg.UMBRAL_PARCIAL, cfg.UMBRAL_PLENO, 1.01],
         labels=['descartado', 'parcial', 'pleno'])
     df['fecha'] = pd.to_datetime(df['fecha'])
-    cols = ['lote_id', 'fecha', 'area_ha', 'cobertura', 'n_px', 'calidad',
-            'NDVI', 'NDMI', 'PSRI', 'NDRE', 'CIRE', 'FVC']
-    df = df[[c for c in cols if c in df.columns]]
+    df = df[[c for c in COLS_SERIE if c in df.columns]]
     # Un lote puede caer en dos tiles MGRS y aparecer dos veces la misma fecha.
     # Se conserva la observacion con mejor cobertura, no la ultima que llego.
     df = (df.sort_values(['lote_id', 'fecha', 'cobertura'])
