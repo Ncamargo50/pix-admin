@@ -57,6 +57,11 @@ class Sitio:
     #
     # Vacio / None = usar el default medido. Cambiarlos EXIGE volver a correr
     # `medicion/calibrar_criterio.py` sobre fechas sin evento de ese cliente.
+    # Como se ajusta la trayectoria del pixel: 'mco' (produccion) o 'theilsen'
+    # (robusto, punto de ruptura 29%). Ver criterio.AJUSTES. Cambiarlo EXIGE volver
+    # a correr `medicion/calibrar_criterio.py`: la tasa de falsa alarma se midio
+    # con MCO y no transfiere a otro estimador.
+    ajuste_trayectoria: str = ''
     sigma_minima: float = None     # pisa el piso de escala (unidades del indice)
     cs_medio_minimo: float = None  # pisa la puerta de calidad de escena (CloudScore+)
     mmu_ha: float = None           # pisa la unidad minima de mapeo de los focos

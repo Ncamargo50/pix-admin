@@ -298,6 +298,53 @@ SIGMA_MINIMA = 0.010
 # con OTROS lotes — que es el ranking entre lotes, y necesita >= 8 lotes.
 MODELO = 'recta'
 MODELOS = ('recta', 'relativa_agrupada')
+
+# --- COMO SE AJUSTA LA TRAYECTORIA DEL PIXEL ---------------------------------
+#
+# EL PROBLEMA, Y ESTA MEDIDO. Mouret, F. et al. (2022), Comput. Electron. Agric.
+# 198:106983 (DOI 10.1016/j.compag.2022.106983) senala el patron: **un pixel con
+# anomalia real arrastra la recta de minimos cuadrados hacia si y encoge su propio
+# residuo.** Cuanto mas grande el evento, menos detectable se vuelve — el estimador
+# se sabotea justo cuando mas importa.
+#
+# MEDIDO EN GEE el 2026-08-03 sobre una serie de 10 puntos con tendencia real de
+# -0,010/dia y una caida brusca de -0,22 en el ultimo punto:
+#
+#     ajuste       pendiente   ordenada   esperado en t=9   RESIDUO recuperado
+#     (verdad)      -0,010      0,500          0,410           -0,210
+#     MCO           -0,0215     0,531          0,338           -0,1375   <- pierde 35%
+#     Theil-Sen     -0,010      0,500          0,410           -0,210    <- exacto
+#
+# El MCO absorbio la anomalia en la PENDIENTE: duplico la tasa de declive y subio la
+# ordenada, y con eso se comio el 35% del residuo que el criterio necesita ver.
+#
+# POR QUE THEIL-SEN Y NO OTRO: es la mediana de las pendientes de todos los pares,
+# con punto de ruptura 29% — hasta ~1 de cada 3 observaciones puede ser anomala sin
+# mover la recta. Existe como reducer nativo (`ee.Reducer.sensSlope`), asi que no
+# cuesta un viaje extra ni codigo propio.
+#
+# ⚠️ POR QUE EL DEFAULT SIGUE SIENDO 'mco': cambiar el ajuste **invalida la
+# calibracion existente**. La tasa de falsa alarma medida (mediana 0,00%, maximo
+# 0,2-2,2% sobre fechas sin evento) se midio CON MCO. La regla de la casa no cambia
+# por tener un buen argumento: hace falta la razon POSITIVA medida —
+#     medicion/calibrar_criterio.py --ajuste theilsen   (tasa sobre fechas sin evento)
+#     medicion/sensibilidad.py      --ajuste theilsen   (anomalia minima detectable)
+# y recien con las dos a favor se mueve el default.
+AJUSTES = ('mco', 'theilsen')
+AJUSTE = 'mco'
+
+# --- Δt_max: hasta donde se puede FECHAR un evento ---------------------------
+# Si la observacion limpia anterior esta a mas de esto, el foco pudo aparecer en
+# cualquier momento del intervalo y el informe **no puede dar una fecha**: solo
+# puede acotarla. Patron tomado de Sen4CAP (De Vroey et al. 2022, RSE 280:113145),
+# que usa 60 dias y degrada la salida a un intervalo en vez de interpolar.
+#
+# 20 dias, y el numero sale de la propia disponibilidad medida: con S2B+S2C cada 5
+# dias y 48% de dekadas utiles, dos escenas limpias consecutivas separadas por mas
+# de 20 dias significan que se perdieron al menos 3 pasadas seguidas. A partir de
+# ahi la ventana de ocurrencia es mas ancha que la dekada de entrega, y fechar el
+# evento es una precision falsa.
+DT_MAX_DIAS = 20
 # Recorte robusto antes de agrupar cuadrados, en sigmas, y su factor de consistencia:
 # recortar subestima sigma y el sesgo tiene forma cerrada (c=3 -> 0,99750).
 RECORTE_SIGMAS = 3.0
@@ -384,7 +431,7 @@ def _coleccion_limpia(geom, desde, hasta, cob_minima=COB_MINIMA_BASE):
 
 def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
             ventana=None, escala=ESCALA, sitio=None, piso=None, modelo=None,
-            umbral=None, inyeccion=None):
+            umbral=None, inyeccion=None, ajuste=None):
     """Mahalanobis del residuo de la fecha `hasta` contra la trayectoria del pixel.
 
     Devuelve dict con:
@@ -501,10 +548,20 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
         return t.addBands(img.select(ejes)).updateMask(img.select(ejes[0]).mask())
 
     con_t = base.map(_con_t)
+    ajuste = ajuste or cfg.valor_de(sitio, 'ajuste_trayectoria', AJUSTE)
+    if ajuste not in AJUSTES:
+        raise ValueError('ajuste desconocido: %r. Hay: %s' % (ajuste, AJUSTES))
     pend, orden = {}, {}
     for e in ejes:
-        fit = con_t.select(['t', e]).reduce(ee.Reducer.linearFit())
-        pend[e] = fit.select('scale')      # pendiente por dia
+        if ajuste == 'theilsen':
+            # Theil-Sen: mediana de las pendientes de todos los pares. Punto de
+            # ruptura 29%: hasta ~1 de cada 3 observaciones puede ser anomala sin
+            # mover la recta. `sensSlope` devuelve 'slope'/'offset' (no 'scale').
+            fit = con_t.select(['t', e]).reduce(ee.Reducer.sensSlope())
+            pend[e] = fit.select('slope')
+        else:
+            fit = con_t.select(['t', e]).reduce(ee.Reducer.linearFit())
+            pend[e] = fit.select('scale')      # pendiente por dia
         orden[e] = fit.select('offset')
 
     t_act = ee.Number(ee.Date(fecha_actual).millis()).subtract(dia0).divide(86400000)
@@ -617,9 +674,31 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
     anomalia = (d2.gte(umbral).And(dir_mala)
                 .And(n_base.gte(min_base))
                 .rename('anomalia'))
+    # --- CUANDO SE PUDO HABER PRODUCIDO EL EVENTO ----------------------------
+    # El criterio compara la escena de `fecha_actual` contra la trayectoria de la
+    # base. Si la observacion limpia ANTERIOR esta lejos, el foco pudo aparecer en
+    # cualquier momento de ese intervalo — decir "apareci0 el 1 de agosto" cuando la
+    # anterior es del 15 de julio es inventar precision temporal que no se tiene.
+    #
+    # Sen4CAP (De Vroey et al. 2022, RSE 280:113145, el sistema de la Comision
+    # Europea para control de la PAC) resuelve esto declarando un Δt_max: cuando la
+    # brecha con la ultima escena limpia excede el tope, **degradan la salida a un
+    # INTERVALO de fechas en lugar de una fecha**. Cambian la resolucion del
+    # producto en vez de inventar el dato. Ellos usan 60 dias; acá los huecos
+    # medidos llegan a 66.
+    _f_base = base.aggregate_array('fecha').getInfo() or []
+    _prev = max([f for f in _f_base if f < fecha_actual], default=None)
+    _dt = None
+    if _prev:
+        _dt = int((pd.Timestamp(fecha_actual) - pd.Timestamp(_prev)).days)
     return {'d2': d2, 'anomalia': anomalia, 'z': z, 'n_base': n_base,
             'fecha': fecha_actual, 'umbral': umbral, 'sigma': sigma,
             'mediana': med, 'residuo': r_actual,
+            # Ventana temporal REAL dentro de la que pudo ocurrir el evento.
+            'fecha_previa': _prev,
+            'dt_dias': _dt,
+            # True => el informe NO puede fechar el evento, solo acotarlo.
+            'fecha_imprecisa': bool(_dt is not None and _dt > DT_MAX_DIAS),
             # La puerta de direccion, aparte de `anomalia`, para poder barrer umbrales
             # sin recalcular todo el criterio en cada uno.
             'direccion': dir_mala,
@@ -804,7 +883,7 @@ def zonas(geom, fecha, z=Z_ZONA, escala=ESCALA):
 
 # --- puente hacia focos.py ----------------------------------------------------
 
-def para_focos(geom, hasta, alfa=ALFA, sitio=None, modelo=None):
+def para_focos(geom, hasta, alfa=ALFA, sitio=None, modelo=None, ajuste=None):
     """Lo que `focos.detectar_lote` necesita, calculado con el criterio v2.
 
     Devuelve exactamente la misma interfaz que ya consumia el vectorizador, para
@@ -824,7 +903,7 @@ def para_focos(geom, hasta, alfa=ALFA, sitio=None, modelo=None):
     inventar una fecha de referencia que ya no existe.
     """
     import pandas as pd
-    r = evaluar(geom, hasta, alfa=alfa, sitio=sitio, modelo=modelo)
+    r = evaluar(geom, hasta, alfa=alfa, sitio=sitio, modelo=modelo, ajuste=ajuste)
     dosel = compuerta_dosel(geom, hasta, sitio=sitio)
     ejes = list(cfg.EJES)
     zs = {e: r['z'][e].updateMask(dosel).rename('z_' + e) for e in ejes}
@@ -833,6 +912,11 @@ def para_focos(geom, hasta, alfa=ALFA, sitio=None, modelo=None):
     desde = str(pd.Timestamp(hasta) - pd.Timedelta(days=ventana_de(sitio)))[:10]
     return {'zs': zs, 'foco': foco, 'evaluada': evaluada,
             'ref': zs[ejes[0]], 'fecha_img': r['fecha'],
+            # Ventana real de ocurrencia (patron Δt_max de Sen4CAP). El informe usa
+            # `fecha_imprecisa` para decidir si puede FECHAR el foco o solo ACOTARLO.
+            'fecha_previa': r.get('fecha_previa'),
+            'dt_dias': r.get('dt_dias'),
+            'fecha_imprecisa': r.get('fecha_imprecisa', False),
             'n_base': r['n_base'], 'base_desde': desde,
             'base_hasta': str(pd.Timestamp(hasta) - pd.Timedelta(days=1))[:10],
             'd2': r['d2'], 'umbral': r['umbral']}

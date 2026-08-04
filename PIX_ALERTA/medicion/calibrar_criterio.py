@@ -60,7 +60,7 @@ def fechas_limpias(sitio, geom, hasta, cri):
     return sorted(set(col.aggregate_array('fecha').getInfo() or []))
 
 
-def tasa_en_fecha(sitio, geom, fecha, cri, modelo, escala):
+def tasa_en_fecha(sitio, geom, fecha, cri, modelo, escala, ajuste=None):
     """Fraccion del lote marcada usando `fecha` como si fuera hoy.
 
     Devuelve (fraccion, n_pixeles, n_base) o None si esa fecha no es evaluable.
@@ -71,7 +71,8 @@ def tasa_en_fecha(sitio, geom, fecha, cri, modelo, escala):
     import pandas as pd
     corte = str(pd.Timestamp(fecha) + pd.Timedelta(days=1))[:10]
     try:
-        r = cri.evaluar(geom, corte, sitio=sitio, escala=escala, modelo=modelo)
+        r = cri.evaluar(geom, corte, sitio=sitio, escala=escala, modelo=modelo,
+                        ajuste=ajuste)
     except cri.SinBase:
         return None
     except Exception as exc:                      # noqa: BLE001
@@ -102,6 +103,9 @@ def main(argv=None):
     ap.add_argument('--ejes', default=None,
                     help='par de ejes a medir, coma-separado (ej. NDMI,CIRE). '
                          'Por defecto, los de config.EJES.')
+    ap.add_argument('--ajuste', default=None,
+                    help="como se ajusta la trayectoria: 'mco' (produccion) o "
+                         "'theilsen' (robusto). Por defecto, criterio.AJUSTE.")
     a = ap.parse_args(argv)
 
     from pix_alerta.ee_init import inicializar
@@ -133,8 +137,14 @@ def main(argv=None):
         cfg.EJES = nuevos
     print('EJES medidos: %s' % ' + '.join(cfg.EJES))
     escala = a.escala or cri.ESCALA
+    ajuste = a.ajuste or cri.AJUSTE
+    if ajuste not in cri.AJUSTES:
+        print('ajuste desconocido: %r. Hay: %s' % (ajuste, cri.AJUSTES))
+        return 1
     print('alfa declarada por el criterio: %.1f%%   modelos: %s   escala: %d m'
           % (100 * cri.ALFA, ', '.join(modelos), escala))
+    print('AJUSTE de trayectoria: %s%s'
+          % (ajuste, '   <- NO es el de produccion' if ajuste != cri.AJUSTE else ''))
 
     resumen = {}
     for s in cliente.sitios:
@@ -149,7 +159,7 @@ def main(argv=None):
             for modelo in modelos:
                 tasas, detalle = [], []
                 for fe in fechas:
-                    r = tasa_en_fecha(s, geom, fe, cri, modelo, escala)
+                    r = tasa_en_fecha(s, geom, fe, cri, modelo, escala, ajuste)
                     if r is None:
                         continue
                     if r[0] == 'averia':
