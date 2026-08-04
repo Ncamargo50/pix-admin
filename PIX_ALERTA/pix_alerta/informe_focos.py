@@ -259,6 +259,17 @@ def generar(cliente, sitio, por_lote, geometrias, ruta, fecha, feats=None,
                 'Imagen Sentinel-2 en color natural del <b>%s</b>, %s. El contorno '
                 'blanco es el lote; los círculos amarillos marcan dónde está cada '
                 'mancha.' % (r['fecha_img'], comparacion), 'Note'))
+            # CUANDO PUDO APARECER LA MANCHA. Si la escena limpia anterior esta
+            # lejos, decir "aparecio el 1 de agosto" es inventar una precision que
+            # no se tiene: pudo aparecer cualquier dia del intervalo. Patron Δt_max
+            # de Sen4CAP. Ver `criterio.DT_MAX_DIAS`.
+            if r.get('fecha_imprecisa') and r.get('fecha_previa'):
+                st.append(B.P(
+                    '<b>Cuándo pudo aparecer:</b> la imagen limpia anterior es del '
+                    '%s, o sea <b>%d días antes</b>. La mancha pudo formarse en '
+                    'cualquier momento de ese intervalo — esta fecha es cuando se '
+                    'la vio, no cuando apareció.'
+                    % (r['fecha_previa'], r['dt_dias']), 'Note'))
             st.append(Spacer(1, 0.3 * cm))
 
         if pares:

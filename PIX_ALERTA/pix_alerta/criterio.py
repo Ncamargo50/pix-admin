@@ -333,6 +333,60 @@ MODELOS = ('recta', 'relativa_agrupada')
 AJUSTES = ('mco', 'theilsen')
 AJUSTE = 'mco'
 
+# --- CORRECCION DEL ESCALON INSTRUMENTAL ENTRE SATELITES ---------------------
+# Ver el bloque largo dentro de `evaluar`. Resumen: S2C lleva B5 en 707,1 nm contra
+# 703,8-704,1 de S2A/S2B, y eso mete un escalon MEDIDO de 0,052 en NDRE — 5,2 veces
+# SIGMA_MINIMA — que el criterio lee como deterioro.
+#
+# ⚠️ ESTA CORRECCION SI ENTRA EN PRODUCCION, y la razon positiva es abrumadora.
+# MEDIDO el 2026-08-03 sobre los 4 lotes de trigo, SD(z) sobre datos reales — que
+# vale 1,0 si la escala esta bien calibrada:
+#
+#     lote                sin corregir        corrigiendo
+#                        z_NDMI  z_NDRE      z_NDMI  z_NDRE
+#     SANTO_ANTONIO-01    0,228   0,172       1,025   1,153
+#     SANTO_ANTONIO-02    0,895   0,762       1,055   1,532
+#     SAO_FRANCISCO-01    0,358   0,264       0,863   0,826
+#     SAO_FRANCISCO-02    0,236   0,142       0,986   0,542
+#     ------------------------------------------------------
+#     MEDIA               0,429   0,335       0,982   1,013
+#     |desvio de 1,0|          0,618               0,194
+#
+# **La escala pasa de estar aplastada a un tercio de lo que deberia, a estar
+# practicamente exacta.** El escalon instrumental estaba inflando la MAD de la base,
+# la sigma salia sobreestimada y el z quedaba dividido por ~3: el criterio estaba
+# SORDO, no calibrado. Con SD(z)=0,33 el corte en chi2=9,21 equivalia a tres veces
+# mas sigmas de las declaradas.
+#
+# 🔎 Y ESTO CIERRA UN PENDIENTE QUE ESTABA ABIERTO SIN EXPLICACION. La auditoria del
+# 2026-07-29 dejo anotado que "sigma es 2,7-6,5x el ruido (ERROR DE MODELO)" sin
+# saber por que. El reciproco de las SD de arriba da 1,1 a 7,0 — **el mismo rango**.
+# El "error de modelo" no era del modelo: era el escalon entre satelites.
+#
+# CONSECUENCIA QUE HAY QUE ANTICIPAR: al devolverle al z su escala real, el motor
+# marca MAS. No es que se haya vuelto ruidoso — es que deja de estar sordo. La tasa
+# empirica hay que volver a medirla con la correccion puesta, y el numero viejo
+# (mediana 0,00%, maximo 0,2-2,2%) queda invalidado.
+#
+# 🔎 Y EXPLICA UNA SEGUNDA COSA QUE ESTABA SIN EXPLICAR: por que
+# `relativa_agrupada` "arreglaba las tripas". Esa variante lleva la razon sigma/ruido
+# de 3,3-5,0 a 1,1-1,4 y la mediana de z de -0,85 a -0,01, y nadie sabia por que
+# funcionaba tan bien. La razon es que su centrado por fecha —restarle a cada escena
+# la mediana espacial de su propio residuo— **tambien elimina el escalon
+# instrumental**, porque el escalon es espacialmente uniforme. Lo corregia de
+# rebote.
+#
+# Por eso tambien marcaba 3-4 veces mas y por eso quedo apagado: estaba pagando el
+# precio correcto (devolver la escala) por el camino equivocado. La correccion por
+# satelite hace lo mismo de forma DIRIGIDA, y sin el precio estructural de
+# `relativa_agrupada`, que es quedar ciego a un evento uniforme sobre todo el lote
+# —helada, deficit general— porque se lo lleva puesto el centrado.
+CORREGIR_SAT = True
+# Escenas minimas de un satelite en la base para poder estimarle el sesgo. Con una
+# sola, su "sesgo" ES el residuo de esa escena: restarlo borraria cualquier anomalia
+# real de esa fecha. Con dos, la mediana ya no puede ser un solo evento.
+MIN_ESCENAS_SAT = 2
+
 # --- Δt_max: hasta donde se puede FECHAR un evento ---------------------------
 # Si la observacion limpia anterior esta a mas de esto, el foco pudo aparecer en
 # cualquier momento del intervalo y el informe **no puede dar una fecha**: solo
@@ -369,6 +423,42 @@ COB_MINIMA_ACTUAL = 0.70
 ALFA = 0.01
 CHI2 = {0.05: 5.991, 0.02: 7.824, 0.01: 9.210, 0.005: 10.597, 0.001: 13.816}
 
+# --- UMBRAL DE d2, FIJADO POR TASA EMPIRICA ---------------------------------
+#
+# El chi2 al 1% vale 9,21 y supone dos cosas que no se cumplen: SD(z) = 1 y pixeles
+# INDEPENDIENTES. Lo primero se arreglo el 2026-08-03 corrigiendo el escalon entre
+# satelites (SD(z) paso de 0,38 a 1,00). Lo segundo no tiene arreglo: los pixeles de
+# un lote estan espacialmente autocorrelacionados, y por eso la fraccion marcada
+# tiene mas cola que la binomial que el chi2 supone.
+#
+# ⚠️ El primer problema estaba TAPANDO al segundo. Con la escala aplastada el motor
+# marcaba poco porque estaba sordo, y la tasa parecia razonable. Al devolverle la
+# escala correcta, el umbral quedo al descubierto.
+#
+# MEDIDO el 2026-08-03 con `medicion/recalibrar.py --paso 1`, sobre las 8 fechas sin
+# evento de los 4 lotes, CON la correccion de satelite puesta:
+#
+#     umbral d2    MEDIANA peor lote    MAXIMO peor lote
+#        9,21           2,15%               4,30%        <- chi2 al 1%
+#       11,00           1,39%               3,35%
+#     **13,00           0,62%               2,48%**      <- ELEGIDO
+#       15,00           0,46%               2,17%
+#       22,00           0,38%               1,08%
+#
+# Se toma 13,00: es el primero que deja la mediana del PEOR lote por debajo del 1%
+# declarado. Con 11,00 quedaria en 1,39%, o sea incumpliendo el alfa que se promete.
+#
+# QUE SE PAGA, Y HAY QUE DECIRLO: subir el umbral cuesta sensibilidad. La diferencia
+# con la sordera anterior es que esto es una decision DECLARADA y medida, no un
+# artefacto — y que el numero que se le da al cliente ahora se cumple. La anomalia
+# minima detectable con este umbral hay que volver a medirla
+# (`medicion/sensibilidad.py`) antes de prometer nada sobre tamaño de foco.
+#
+# NO ES UNA CONSTANTE UNIVERSAL. Sale de trigo de invierno en Parana, 4 lotes, una
+# campaña. Otro cultivo, otra region u otra escala piden volver a correr el arnes.
+# Por eso es declarable por sitio via `Sitio.umbral_d2`.
+UMBRAL_D2 = 13.00
+
 
 class SinBase(Exception):
     """No hay observaciones limpias suficientes para armar la trayectoria."""
@@ -404,7 +494,11 @@ def _coleccion_limpia(geom, desde, hasta, cob_minima=COB_MINIMA_BASE):
         out = (ejes.select(list(cfg.EJES) + ['NDVI']).updateMask(valido)
                .copyProperties(img, ['system:time_start'])
                .set('fecha', ee.Date(img.get('system:time_start'))
-                    .format('YYYY-MM-dd')))
+                    .format('YYYY-MM-dd'))
+               # QUE SATELITE TOMO LA ESCENA. `_indices` arma una imagen nueva y sin
+               # esto la propiedad se pierde — que es como el escalon instrumental
+               # entre S2A/S2B/S2C estuvo entrando al criterio sin que nadie lo viera.
+               .set('sat', img.get('SPACECRAFT_NAME')))
         out = ee.Image(out)
         cob = valido.unmask(0, False).reduceRegion(
             reducer=ee.Reducer.mean(), geometry=geom, scale=ESCALA,
@@ -431,7 +525,7 @@ def _coleccion_limpia(geom, desde, hasta, cob_minima=COB_MINIMA_BASE):
 
 def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
             ventana=None, escala=ESCALA, sitio=None, piso=None, modelo=None,
-            umbral=None, inyeccion=None, ajuste=None):
+            umbral=None, inyeccion=None, ajuste=None, corregir_sat=None):
     """Mahalanobis del residuo de la fecha `hasta` contra la trayectoria del pixel.
 
     Devuelve dict con:
@@ -449,6 +543,8 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
         raise ValueError('modelo desconocido: %r. Hay: %s' % (modelo, MODELOS))
     if piso is None:
         piso = cfg.valor_de(sitio, 'sigma_minima', SIGMA_MINIMA)
+    if corregir_sat is None:
+        corregir_sat = cfg.valor_de(sitio, 'corregir_sat', CORREGIR_SAT)
     desde = str(pd.Timestamp(hasta) - pd.Timedelta(days=ventana))[:10]
     fin_base = str(pd.Timestamp(hasta) - pd.Timedelta(days=1))[:10]
 
@@ -576,10 +672,86 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
         t = (ee.Number(ee.Date(img.get('system:time_start')).millis())
              .subtract(dia0).divide(86400000))
         cap = [img.select(e).subtract(_esperado(e, t)).rename(e) for e in ejes]
+        # `sat` viaja junto con la marca de tiempo: sin ella, el filtro por satelite
+        # de la correccion de escalon devuelve una coleccion VACIA y el reduceRegion
+        # explota con "Dictionary does not contain key". Paso de verdad al
+        # implementarlo el 2026-08-03.
         return (ee.Image.cat(cap).updateMask(img.select(ejes[0]).mask())
-                .copyProperties(img, ['system:time_start']))
+                .copyProperties(img, ['system:time_start', 'sat']))
 
     res = base.map(resid)
+
+    # --- ESCALON INSTRUMENTAL ENTRE SATELITES -------------------------------
+    #
+    # ⚠️ MEDIDO EL 2026-08-03 SOBRE LOS 4 LOTES DE TRIGO, 38 escenas. Sentinel-2C
+    # lleva la banda B5 centrada en **707,1 nm**, contra 703,8-704,1 nm de S2A y
+    # S2B (verificado en SentiWiki). En el borde rojo, donde la pendiente espectral
+    # es maxima, ese corrimiento de 3 nm mueve la reflectancia medida.
+    #
+    # Residuo medio contra la tendencia, por satelite:
+    #
+    #     indice   bandas        S2A       S2B       S2C     escalon B-C   en SD
+    #     NDRE     B8A, **B5**  +0,0056   +0,0196   -0,0324    0,0520      2,3 x
+    #     NDMI     B8A, B11     +0,0045   +0,0014   -0,0088    0,0102      1,0 x
+    #     NDVI     B8, B4       -0,0034   +0,0040   +0,0006    0,0034      0,4 x
+    #
+    # TEST DISCRIMINANTE: **el sesgo escala con QUE BANDAS usa cada indice.** NDRE
+    # usa B5 y se sesga 2,3 SD; NDMI no la usa y se sesga 5 veces menos; NDVI
+    # tampoco y practicamente no se sesga. Si fuera fenologia, atmosfera o angulo
+    # de vista, los tres se moverian igual. No lo hacen: es INSTRUMENTAL.
+    #
+    # POR QUE ES GRAVE: 0,052 de NDRE son **5,2 veces SIGMA_MINIMA**. Y S2C da NDRE
+    # mas BAJO, asi que una escena S2C evaluada contra una base de S2A/S2B produce
+    # una caida que NO ocurrio en el campo — exactamente la firma de deterioro que
+    # busca el criterio. La serie de SA/SF alterna los tres satelites sin patron.
+    #
+    # COMO SE CORRIGE, Y POR QUE ASI: se estima el sesgo DENTRO de cada corrida, no
+    # con una constante de tabla. Un numero medido sobre 4 lotes de trigo en una
+    # campaña no transfiere a otro cultivo, otra region ni otro estadio — seria el
+    # mismo error que este repositorio ya documenta para los umbrales absolutos. Se
+    # toma la mediana espacial del residuo de las escenas de cada satelite y se
+    # resta. Es el mismo patron que `relativa_agrupada` usa para el centrado por
+    # fecha, aplicado al eje instrumental en vez del temporal.
+    #
+    # GUARDA: con una sola escena de un satelite, su "sesgo" es el residuo de esa
+    # escena — o sea, restarlo BORRARIA cualquier anomalia real de esa fecha. Por
+    # eso hace falta un minimo de escenas por satelite, y si no se alcanza no se
+    # corrige y se declara.
+    sats_base = base.aggregate_array('sat').getInfo() or []
+    _cuenta = {s: sats_base.count(s) for s in set(sats_base) if s}
+    _corregibles = sorted(s for s, k in _cuenta.items() if k >= MIN_ESCENAS_SAT)
+    _sat_actual = actual.get('sat').getInfo()
+    # CORREGIR ES TODO O NADA. Si el satelite de la escena evaluada no tiene sesgo
+    # estimable, quitarselo solo a la base fabricaria un escalon del mismo tamaño y
+    # signo contrario — seria peor que no tocar nada. La condicion es unica y cubre
+    # los dos lados.
+    _aplicar = bool(corregir_sat and len(_cuenta) > 1
+                    and _sat_actual in _corregibles)
+    if _aplicar:
+        def _sesgo_de(sat):
+            """Mediana espacio-temporal del residuo de las escenas de `sat`."""
+            sub = res.filter(ee.Filter.eq('sat', sat))
+            m = sub.median().reduceRegion(
+                reducer=ee.Reducer.median(), geometry=geom, scale=escala,
+                maxPixels=1e9, bestEffort=True)
+            return ee.Image.cat([
+                ee.Image.constant(ee.Number(
+                    ee.Algorithms.If(m.get(e), m.get(e), 0))).rename(e)
+                for e in ejes])
+
+        _sesgos = {s: _sesgo_de(s) for s in _corregibles}
+        _cero = ee.Image.cat([ee.Image.constant(0).rename(e) for e in ejes])
+
+        def _sin_escalon(img):
+            img = ee.Image(img)
+            s = ee.String(img.get('sat'))
+            corr = _cero
+            for nombre, im in _sesgos.items():
+                corr = ee.Image(ee.Algorithms.If(s.compareTo(nombre).eq(0), im, corr))
+            return (img.subtract(corr)
+                    .copyProperties(img, ['system:time_start', 'sat']))
+
+        res = res.map(_sin_escalon)
 
     def _mediana_lote(img):
         """Mediana espacial del residuo de ESA fecha, como imagen constante."""
@@ -626,6 +798,19 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
         _act = _act.subtract(ee.Image(inyeccion).select(ejes))
     r_actual = ee.Image.cat(
         [_act.select(e).subtract(_esperado(e, t_act)).rename(e) for e in ejes])
+    # ⚠️ LA ESCENA EVALUADA SE CORRIGE CON EL MISMO SESGO QUE SU SATELITE.
+    #
+    # Es el paso que hace que la correccion sea correcta y no un arreglo a medias:
+    # si se le quita el escalon a la base y NO a la fecha de hoy, se FABRICA un
+    # sesgo nuevo del mismo tamaño y de signo contrario. El residuo de hoy y los de
+    # la base tienen que estar en la misma referencia, igual que ya ocurre con el
+    # centrado por fecha de `relativa_agrupada`.
+    #
+    # Si el satelite de hoy no tiene suficientes escenas en la base, no hay sesgo
+    # estimable para el: no se corrige NADA (ni la base ni hoy) y queda declarado en
+    # `sat_corregidos`. Corregir solo una parte es peor que no corregir.
+    if _aplicar:
+        r_actual = r_actual.subtract(_sesgos[_sat_actual])
     if modelo == 'relativa_agrupada':
         # La fecha evaluada se centra con SU propia mediana espacial, igual que la
         # base. Sin esto el residuo de hoy y los de la base no serian comparables.
@@ -659,6 +844,8 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
     # modelo y el lote. Cuando SD(z) no es 1 el cuantil teorico no da la tasa que
     # promete, asi que el umbral tiene que poder fijarse por TASA EMPIRICA sobre fechas
     # sin evento — que es el estandar que este proyecto ya adopto.
+    if umbral is None:
+        umbral = cfg.valor_de(sitio, 'umbral_d2', UMBRAL_D2)
     if umbral is None:
         umbral = CHI2.get(round(alfa, 3), CHI2[0.01])
     # DIRECCION. La Mahalanobis es simetrica: un pixel que MEJORO mucho tambien da
@@ -695,10 +882,16 @@ def evaluar(geom, hasta, alfa=ALFA, min_base=MIN_BASE,
             'fecha': fecha_actual, 'umbral': umbral, 'sigma': sigma,
             'mediana': med, 'residuo': r_actual,
             # Ventana temporal REAL dentro de la que pudo ocurrir el evento.
+            # True => el informe NO puede fechar el evento, solo acotarlo.
             'fecha_previa': _prev,
             'dt_dias': _dt,
-            # True => el informe NO puede fechar el evento, solo acotarlo.
             'fecha_imprecisa': bool(_dt is not None and _dt > DT_MAX_DIAS),
+            # Escalon instrumental: que satelites hay en la base, cual tomo la escena
+            # evaluada, y si se pudo corregir. Viaja para que un foco se pueda
+            # auditar contra el satelite que lo produjo.
+            'sat': _sat_actual,
+            'sats_base': _cuenta,
+            'sat_corregido': _aplicar,
             # La puerta de direccion, aparte de `anomalia`, para poder barrer umbrales
             # sin recalcular todo el criterio en cada uno.
             'direccion': dir_mala,

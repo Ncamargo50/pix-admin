@@ -62,6 +62,14 @@ class Sitio:
     # a correr `medicion/calibrar_criterio.py`: la tasa de falsa alarma se midio
     # con MCO y no transfiere a otro estimador.
     ajuste_trayectoria: str = ''
+    # Corregir el escalon instrumental entre S2A/S2B/S2C (ver criterio.CORREGIR_SAT).
+    # None = usar el default. Se declara por sitio porque un sitio cubierto por un
+    # solo satelite no necesita la correccion y no debe gastar la estimacion.
+    corregir_sat: bool = None
+    # Umbral de d2 fijado por TASA EMPIRICA (ver criterio.UMBRAL_D2). None = usar el
+    # default medido. Cambiarlo EXIGE volver a correr `medicion/recalibrar.py`: el
+    # 13,00 sale de trigo en Parana y no es una constante universal.
+    umbral_d2: float = None
     sigma_minima: float = None     # pisa el piso de escala (unidades del indice)
     cs_medio_minimo: float = None  # pisa la puerta de calidad de escena (CloudScore+)
     mmu_ha: float = None           # pisa la unidad minima de mapeo de los focos

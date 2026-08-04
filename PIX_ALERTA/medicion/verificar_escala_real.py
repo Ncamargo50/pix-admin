@@ -57,7 +57,7 @@ def _stats(img, geom, escala):
     return d
 
 
-def medir(sitio, feat, hasta, escala=None):
+def medir(sitio, feat, hasta, escala=None, corregir_sat=None):
     import ee
 
     from pix_alerta import config as cfg
@@ -70,7 +70,8 @@ def medir(sitio, feat, hasta, escala=None):
     print('LOTE %s   fecha de corte %s   escala %d m' % (lid, hasta, escala))
     print('=' * 74)
     try:
-        r = cri.evaluar(geom, hasta, sitio=sitio, escala=escala)
+        r = cri.evaluar(geom, hasta, sitio=sitio, escala=escala,
+                        corregir_sat=corregir_sat)
     except cri.SinBase as e:
         print('  SIN BASE: %s' % e)
         return None

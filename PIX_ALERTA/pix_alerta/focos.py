@@ -485,6 +485,12 @@ def detectar_lote(sitio, feat, hasta, z=Z_FOCO, mmu_ha=None):
         evaluada = r2['evaluada']
         ia = r2['ref']
         base['fecha_img'] = r2['fecha_img']
+        # Ventana real de ocurrencia y satelite de la escena. Viajan hasta el
+        # informe: sin esto el cliente lee una fecha exacta que el dato no sostiene,
+        # y un foco no se puede auditar contra el satelite que lo produjo.
+        for k in ('fecha_previa', 'dt_dias', 'fecha_imprecisa',
+                  'sat', 'sat_corregido'):
+            base[k] = r2.get(k)
         # La referencia ya NO es una fecha: es la trayectoria del propio pixel.
         # Se declara como tal en vez de inventar una fecha que no existe.
         base['fecha_ref'] = 'trayectoria %s a %s' % (r2['base_desde'],
