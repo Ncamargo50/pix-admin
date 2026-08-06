@@ -1,0 +1,28 @@
+# Dependencias de los ARNESES DE MEDICION. NO son de produccion.
+#
+# `requirements.txt` es lo que instala la corrida de la nube. Este archivo es lo que
+# hace falta para correr algunos modulos de `medicion/`, y se instala a mano cuando se
+# los va a usar:
+#
+#     pip install -r requirements-medicion.txt
+#
+# POR QUE ESTAN SEPARADAS, Y NO ES UN DETALLE
+# -------------------------------------------
+# Cada dependencia que entra a `requirements.txt` entra al camino critico: si se rompe,
+# el cliente deja de recibir su informe. Estas dos no calculan nada que el motor
+# entregue — sirven para AUDITAR lo que el motor calcula. Meterlas en produccion seria
+# aceptar un riesgo a cambio de nada.
+#
+# Los modulos que las usan degradan limpiamente si faltan: avisan y salen sin fallar.
+
+# eemont — extiende Google Earth Engine (davemlz/eemont, JOSS doi:10.21105/joss.03168).
+# Lo usa `medicion/control_cruzado_eemont.py` como SEGUNDA OPINION independiente sobre
+# las formulas del motor. Medido el 2026-08-04: NDVI y PSRI coinciden hasta 3e-8; NDMI y
+# NDRE difieren por B8A vs B8, que es una diferencia declarada y correcta.
+eemont>=0.3
+
+# spyndex — calcula cualquiera de los 280 indices de awesome-spectral-indices.
+# `medicion/indice_candidato.py` NO lo importa (arma la expresion desde el JSON
+# congelado en referencias_primarias/catalogos/, para no depender de red ni de version),
+# pero es util para explorar el catalogo de forma interactiva.
+spyndex>=0.6
