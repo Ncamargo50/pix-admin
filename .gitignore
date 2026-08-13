@@ -81,6 +81,10 @@ _pre_clone_backup/
 salida/
 scratch/
 
+# Espectros de referencia bajados de EcoSIS y las SRF de ESA (~18 MB): son dato
+# publico y reproducible, el arnes los vuelve a bajar solo si faltan.
+_cache_espectros/
+
 # CREDENCIALES Y COPIAS: red de seguridad a nivel de workspace.
 # Los .gitignore de cada subproyecto ya lo cubren, pero uno solo que
 # falte —o un subproyecto nuevo— alcanza para publicar una clave.
