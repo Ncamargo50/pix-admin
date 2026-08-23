@@ -1,0 +1,154 @@
+{
+  "solo_medicion": true,
+  "nota": "ARNES DE MEDICION, no fuente del entregable: los numeros del cliente salen de orden_cosecha.py (geometrias del catalogo + piso medido en la corrida + guardas de publicacion de madurez.ajuste_cruce). Los cruce_cire1 llevan SESGO conocido: la validacion del 21-ago midio que la logistica sobre-predice CIre 0,15-0,38 (la clorofila cae mas rapido que la cola); ninguna fecha de este JSON se publica sin pasar por madurez.ajuste_cruce.",
+  "piso_cire": 0.6964,
+  "piso_ndmi": 0.0248,
+  "nivel_cire": 1.0,
+  "unidades": {
+    "SA-01": {
+      "unidad": "SA-01",
+      "val_cire": {
+        "pred": 0.816,
+        "medido": 0.5065,
+        "delta": -0.309,
+        "en_rmse": 1.34
+      },
+      "val_ndmi": {
+        "pred": 0.164,
+        "medido": 0.1846,
+        "delta": 0.02,
+        "en_rmse": 2.25
+      },
+      "cire_rmse": 0.242,
+      "n_post_pico": 5,
+      "cruce_cire1": "2026-08-16",
+      "cruce_cire1_ic": [
+        "2026-08-13",
+        "2026-08-20"
+      ],
+      "seco_ndmi": "2026-08-31",
+      "seco_ndmi_ic": [
+        "2026-08-29",
+        "2026-09-02"
+      ],
+      "seco_hoy": false,
+      "b11_delta_ref": -0.0662
+    },
+    "SF-01": {
+      "unidad": "SF-01",
+      "val_cire": {
+        "pred": 0.841,
+        "medido": 0.4611,
+        "delta": -0.379,
+        "en_rmse": 1.36
+      },
+      "val_ndmi": {
+        "pred": 0.207,
+        "medido": 0.2092,
+        "delta": 0.002,
+        "en_rmse": 0.19
+      },
+      "cire_rmse": 0.293,
+      "n_post_pico": 5,
+      "cruce_cire1": "2026-08-16",
+      "cruce_cire1_ic": [
+        "2026-08-12",
+        "2026-08-21"
+      ],
+      "seco_ndmi": "2026-09-04",
+      "seco_ndmi_ic": [
+        "2026-09-02",
+        "2026-09-06"
+      ],
+      "seco_hoy": false,
+      "b11_delta_ref": -0.0657
+    },
+    "SF-02": {
+      "unidad": "SF-02",
+      "val_ndmi": {
+        "pred": 0.26,
+        "medido": 0.257,
+        "delta": -0.003,
+        "en_rmse": 0.41
+      },
+      "cire_rmse": 0.027,
+      "n_post_pico": 4,
+      "cruce_cire1": "2026-08-14",
+      "cruce_cire1_ic": [
+        "2026-08-13",
+        "2026-08-15"
+      ],
+      "seco_ndmi": "2026-09-10",
+      "seco_ndmi_ic": [
+        "2026-09-08",
+        "2026-09-14"
+      ],
+      "seco_hoy": false,
+      "b11_delta_ref": -0.0794
+    },
+    "SA-02 bloque 1": {
+      "unidad": "SA-02 bloque 1",
+      "val_cire": {
+        "pred": 1.393,
+        "medido": 1.2346,
+        "delta": -0.159,
+        "en_rmse": 0.99
+      },
+      "val_ndmi": {
+        "pred": 0.349,
+        "medido": 0.37,
+        "delta": 0.021,
+        "en_rmse": 5.14
+      },
+      "cire_rmse": 0.153,
+      "n_post_pico": 5,
+      "cruce_cire1": "2026-08-25",
+      "cruce_cire1_ic": [
+        "2026-08-22",
+        "2026-08-28"
+      ],
+      "seco_ndmi": "2026-09-13",
+      "seco_ndmi_ic": [
+        "2026-09-08",
+        "2026-09-18"
+      ],
+      "seco_hoy": false,
+      "b11_delta_ref": -0.0933
+    },
+    "SA-02 bloque 2": {
+      "unidad": "SA-02 bloque 2",
+      "val_cire": {
+        "pred": 1.541,
+        "medido": 1.3911,
+        "delta": -0.15,
+        "en_rmse": 1.89
+      },
+      "cire_rmse": 0.087,
+      "n_post_pico": 5,
+      "cruce_cire1": "2026-08-26",
+      "cruce_cire1_ic": [
+        "2026-08-25",
+        "2026-08-28"
+      ],
+      "seco_ndmi": "2026-09-20",
+      "seco_ndmi_ic": [
+        "2026-09-20",
+        "2026-09-20"
+      ],
+      "seco_hoy": false,
+      "b11_delta_ref": -0.1011
+    },
+    "SA-02 bloque 3": {
+      "unidad": "SA-02 bloque 3",
+      "cire_rmse": 0.013,
+      "n_post_pico": 4,
+      "cruce_cire1": "2026-09-07",
+      "cruce_cire1_ic": [
+        "2026-09-06",
+        "2026-09-08"
+      ],
+      "seco_hoy": false,
+      "b11_delta_ref": -0.1035
+    }
+  }
+}
