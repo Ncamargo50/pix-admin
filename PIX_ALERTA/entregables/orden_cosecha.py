@@ -22,6 +22,19 @@ publica: cruce o extremo del intervalo a >30 d de la ultima escena, <4 puntos
 post-pico, bootstrap inestable o intervalo degenerado. Graficos: gantt de ventanas,
 trayectorias NDMI con ajuste, mapas de agua (NDMI) junto a los de CIre.
 
+v5 (2026-08-23): MEDICION separada de RENDER.
+  · run() persiste salida/resultados_{hkey}_{fecha}.json (todo lo que el PDF
+    necesita) + salida/rasteres_{hkey}_{fecha}.npz (rasteres de los mapas), y
+    renderiza el PDF en ESPANOL y en PORTUGUES BRASILENO en la misma corrida
+    (mismo JSON: los numeros son identicos por construccion).
+  · render_pdf(resultados, idioma) y render_graficos(...) arman todo el producto
+    desde ese JSON sin tocar GEE. Re-render:
+        python orden_cosecha.py --render salida/resultados_SA_SF_2026-08-21.json pt
+  · nivel PRO: columna de decision destacada, chips de color por estado, figuras
+    numeradas, leyenda "como leer", fecha de escena en el titulo de seccion,
+    contacto corporativo, pie de pagina sin colision, fechas dia-mes en todo el
+    documento (PT usa 'set', no 'sep').
+
 Uso:
     python orden_cosecha.py SA_SF 2026-08-01
 Producto RELATIVO: ordena lotes por madurez. No da fecha de cosecha.
@@ -30,7 +43,8 @@ import ee, json, sys, os, datetime, numpy as np, requests
 import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPoly
-from matplotlib.dates import DateFormatter, MonthLocator, date2num
+from matplotlib.dates import DateFormatter, MonthLocator, date2num, num2date
+from matplotlib.ticker import FuncFormatter
 import rasterio
 from rasterio.io import MemoryFile
 
@@ -42,9 +56,14 @@ SKILL  = r"C:/Users/Usuario/.claude/skills/pixadvisor-propuesta-ejecutiva"
 sys.path.insert(0, RAIZ)
 sys.path.insert(0, f"{SKILL}/scripts")
 from pix_alerta import madurez as mz
-from pix_branding import Brand
-from reportlab.platypus import PageBreak, Image
+from pix_branding import Brand, TEAL as B_TEAL, LIMA_PALE, GRIS, GRIS_MED
+from reportlab.platypus import PageBreak, Image, KeepTogether
+from reportlab.platypus import TableStyle
 from reportlab.lib.units import cm
+from reportlab.lib.colors import HexColor
+
+# contacto corporativo: en TODO documento Pixadvisor (regla de la casa)
+CONTACTO = "nilton.camargo@pixadvisor.network · +591 721 49171"
 
 # ---------- catalogo de haciendas ----------
 # fuentes: [(prefijo, geojson)] · referencia_seca (opcional): geojson de un lote que el
@@ -65,9 +84,15 @@ HACIENDAS = {
                   bloques={'SA-02': f"{LOTES}/bloques_santo_antonio_02.geojson"}),
 }
 
-ee.Initialize(project='ee-gisagronomico')
-CS = ee.ImageCollection('GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED')
+CS = None   # CloudScore+ (se inicializa en _ee_init: el modo --render no toca GEE)
 _f2d = lambda c: c[:2] if isinstance(c[0], (int, float)) else [_f2d(x) for x in c]
+
+
+def _ee_init():
+    global CS
+    if CS is None:
+        ee.Initialize(project='ee-gisagronomico')
+        CS = ee.ImageCollection('GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED')
 
 
 def cargar_lotes(fuentes):
@@ -221,12 +246,263 @@ def raster_cire(geom, fecha):
     return raster_indice(geom, fecha, 'CIRE')
 
 
-# ---------- render ----------
+# ---------- textos por idioma (los NUMEROS salen del mismo JSON: identicos) ----------
+TEAL, LIMA = '#0D9488', '#7FD633'
+# fechas SIEMPRE dia-mes con nombre ('29-ago'): '09-01' se lee 9 de enero en pt-BR
+MESES    = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+MESES_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+
+def _dm(iso, meses=MESES):
+    return f"{int(iso[8:10]):02d}-{meses[int(iso[5:7]) - 1]}"
+
+
+TXT = {
+ 'es': dict(
+    meses=MESES,
+    figura="Figura",
+    footer="Orden de madurez %s · Trigo",
+    cover_title="Orden de madurez — Trigo",
+    cover_sub="%s · Análisis satelital del %s",
+    ficha="Ficha", cliente="Cliente", lotes_k="Lotes", analisis_k="Análisis",
+    producto_k="Producto", contacto_k="Contacto",
+    analisis_v="Sentinel-2 · escena del %s",
+    producto_v="Orden relativo de madurez (no es fecha de cosecha)",
+    situacion="Situación",
+    situacion_txt="Lotes con clorofila agotada: %d. Más avanzado: %s. "
+                  "La humedad de grano y el PH (peso hectolítrico) se miden a campo.",
+    comoleer="Cómo leer este documento",
+    ley_col=("Estado", "Significado"),
+    leyenda=[("#1B7A1B", "Verde (&lt;15 %)", "En llenado; sin caída relevante del CIre."),
+             ("#7FD633", "Caída inicial (15-40 %)", "La senescencia comenzó."),
+             ("#B8860B", "Caída avanzada (40-70 %)", "Senescencia dominante."),
+             ("#CC0000", "Clorofila agotada (≥70 %)", "CIre en piso; el eje que separa pasa a ser el agua del dosel (NDMI)."),
+             ("#8B5A2B", "Seco como la referencia", "CIre y NDMI al nivel de la referencia seca declarada por el cliente.")],
+    ley_simbolos="Símbolos de la tabla: '-' = serie aún no ajustable o cruce a más de 30 días "
+                 "(no se extrapola) · 'alcanzado' = la última medición ya está al nivel de la "
+                 "referencia · 'ver sectores' = lote desparejo: el número accionable vive en las sub-filas.",
+    resumen="Resumen",
+    kpi=("lotes", "ha", "clorofila agotada", "más avanzado"),
+    cinta_cap="Verde = en llenado · rojo = clorofila agotada. Línea punteada = fecha de análisis. "
+              "CIre de S2C llevado a escala S2A/B (factor por nivel).",
+    sec1="Orden de madurez — escena del %s",
+    cols=("#", "Lote / Sector", "Área", "Estado", "Avance", "NDMI", "Seco como ref. (est.)"),
+    desparejo_fila="DESPAREJO: ver sectores",
+    ver_sectores="ver sectores", alcanzado="alcanzado",
+    convergieron="   - bloques convergieron: se reportan juntos",
+    nota_sectores="Sectores: pasadas y fechas de siembra declaradas por el cliente; el límite entre "
+                  "sectores está estimado por satélite (NDVI may-jul), es fijo durante la campaña y no es "
+                  "catastral (±10-20 m). Las pasadas del 26 y 29-abr no se distinguen en madurez y se "
+                  "reportan como un solo sector. Cada sector se mide contra su PROPIO pico. "
+                  "El orden del lote lo fija su sector más avanzado.",
+    nota_ref="Referencia seca declarada por el cliente: CIre ≤ %s y NDMI ≤ %s. "
+             "'Seco como la referencia' exige los dos ejes: cuando la clorofila toca piso, "
+             "el que separa es el agua del dosel (NDMI).",
+    nota_ventana="'Seco como ref. (est.)' = ventana estimada en que el lote alcanza el nivel de "
+                 "agua de dosel de la referencia seca (NDMI ≤ p90 de la referencia, el mismo "
+                 "umbral del estado), por ajuste de la trayectoria NDMI con piso anclado en la "
+                 "referencia, medido en el compuesto ±5 días de la fecha de análisis. El "
+                 "intervalo usa la repetibilidad medida del NDMI (0,021); cobertura simulada "
+                 "~90 % en el régimen publicable. Es una fecha de estado espectral, no de "
+                 "cosecha: la humedad de grano y el PH (peso hectolítrico) se miden a campo. "
+                 "La ventana asume la trayectoria de secado observada: lluvia re-humedece el "
+                 "dosel y la corre hacia adelante; se recalcula con cada escena limpia (~5 "
+                 "días). '-' = serie aún no ajustable o cruce a más de 30 días (no se "
+                 "extrapola). 'alcanzado' = la última medición ya está al nivel de la referencia.",
+    nota_control="Control de consistencia (21-ago-2026): el ajuste construido solo con datos al "
+                 "19-ago reprodujo el NDMI de la escena siguiente con error ≤ 0,021. Es una "
+                 "verificación a 2 días, no una validación de la fecha extrapolada; el eje CIre "
+                 "no pasó la misma prueba y por eso las fechas se estiman solo sobre el agua.",
+    nota_b11="En la escena del análisis, la banda B11 (agua) de todas las unidades "
+             "quedó %s-%s por debajo de la referencia seca: ningún dosel alcanzó su estado.",
+    nota_no_eval="Referencia seca declarada pero SIN escena limpia en ±5 días de la fecha de "
+                 "análisis: el eje de agua y la columna 'Seco como ref. (est.)' NO SON "
+                 "EVALUABLES en esta corrida. Se reintenta en el próximo paso satelital.",
+    nota_bruma="Fechas excluidas por bruma (cs mediana < 0,80, PSRI < −0,02 o B2 > 0,15): ",
+    sec2="Ventana estimada de secado",
+    gantt_cap="Barra = intervalo de la estimación (cobertura simulada ~90 %) · punto = estimación central · línea roja = "
+              "fecha de análisis. Estado espectral, no fecha de cosecha.",
+    tray_cap="Puntos = NDMI medido por escena (sin bruma) · curva = ajuste logístico con piso "
+             "en la referencia seca · punteada = nivel de cruce.",
+    sec3="Mapas por lote: madurez y agua del dosel",
+    mapa_cire_cap="CIre (clorofila): rojo = clorofila agotada. Ordena la madurez general.",
+    mapa_ndmi_cap="NDMI (agua del dosel): marrón = más seco, azul-verde = más húmedo. DENTRO de cada "
+                  "lote, los sectores marrones se secan primero: por ahí empezar el muestreo de "
+                  "humedad de grano.",
+    sec4="Método y alcance",
+    metodo="Madurez por caída del CIre respecto del pico propio (pico solo con escenas S2A/B; "
+           "S2C corregido por nivel). Compuerta de bruma por lote y fecha. Producto RELATIVO: "
+           "ordena lotes para priorizar el muestreo de humedad de grano. La columna 'Seco como "
+           "ref. (est.)' es la fecha estimada de un estado espectral (agua de dosel al nivel de "
+           "la referencia seca declarada), no una fecha de cosecha: la ventana de trilla la "
+           "fijan la humedad de grano y el PH (peso hectolítrico) medidos a campo.",
+    prox="Próximo paso",
+    prox_txt="Medir humedad de grano y PH (peso hectolítrico) empezando por %s. Reevaluar en el "
+             "próximo paso satelital limpio (~5 días). Contacto: " + CONTACTO + ".",
+    # --- graficos ---
+    g_cinta_tit="Madurez del trigo por lote (CIre en escala S2A/B) — verde = en llenado · rojo = clorofila agotada",
+    g_cinta_labels=('Clor. agotada', 'Madurando', 'Verde', 'Pleno'),
+    g_gantt_tit='Ventana estimada "seco como la referencia" — estado espectral, no fecha de cosecha',
+    g_gantt_sin='sin estimación publicable (serie no ajustable o cruce a >30 días)',
+    g_gantt_alc='alcanzado (%s)',
+    g_gantt_ana=' análisis %s',
+    g_tray_tit='Agua del dosel (NDMI): trayectoria medida y ajuste con piso en la referencia seca',
+    g_tray_yl='NDMI (agua del dosel)',
+    g_tray_nivel='  nivel de la referencia seca declarada (NDMI p90)',
+    g_tray_alc=' (nivel alcanzado)',
+    g_tray_sin=' (sin ajuste publicable)',
+    g_mapa_tit='Madurez dentro de cada lote · %s · CIre, superficie suavizada (~30 m) para lectura',
+    g_agua_tit='Agua del dosel por lote · %s · NDMI, superficie suavizada (~30 m) para lectura',
+    g_agua_labels=('Seco', 'Secándose', 'Húmedo', 'Muy húmedo'),
+    g_ref_marca='ref. seca', g_avance='avance',
+ ),
+ 'pt': dict(
+    meses=MESES_PT,
+    figura="Figura",
+    footer="Ordem de maturação %s · Trigo",
+    cover_title="Ordem de maturação — Trigo",
+    cover_sub="%s · Análise por satélite de %s",
+    ficha="Ficha", cliente="Cliente", lotes_k="Talhões", analisis_k="Análise",
+    producto_k="Produto", contacto_k="Contato",
+    analisis_v="Sentinel-2 · cena de %s",
+    producto_v="Ordem relativa de maturação (não é data de colheita)",
+    situacion="Situação",
+    situacion_txt="Talhões com clorofila esgotada: %d. Mais avançado: %s. "
+                  "A umidade do grão e o PH (peso hectolítrico) se medem no campo.",
+    comoleer="Como ler este documento",
+    ley_col=("Estado", "Significado"),
+    leyenda=[("#1B7A1B", "Verde (&lt;15 %)", "Em enchimento; sem queda relevante do CIre."),
+             ("#7FD633", "Queda inicial (15-40 %)", "A senescência começou."),
+             ("#B8860B", "Queda avançada (40-70 %)", "Senescência dominante."),
+             ("#CC0000", "Clorofila esgotada (≥70 %)", "CIre no piso; o eixo que separa passa a ser a água do dossel (NDMI)."),
+             ("#8B5A2B", "Seca como a referência", "CIre e NDMI no nível da referência seca declarada pelo cliente.")],
+    ley_simbolos="Símbolos da tabela: '-' = série ainda não ajustável ou cruzamento a mais de 30 dias "
+                 "(não se extrapola) · 'atingido' = a última medição já está no nível da "
+                 "referência · 'ver setores' = talhão desuniforme: o número acionável vive nas sublinhas.",
+    resumen="Resumo",
+    kpi=("talhões", "ha", "clorofila esgotada", "mais avançado"),
+    cinta_cap="Verde = em enchimento · vermelho = clorofila esgotada. Linha pontilhada = data de "
+              "análise. CIre do S2C levado à escala S2A/B (fator por nível).",
+    sec1="Ordem de maturação — cena de %s",
+    cols=("#", "Talhão / Setor", "Área", "Estado", "Avanço", "NDMI", "Seco como a referência (est.)"),
+    desparejo_fila="DESUNIFORME: ver setores",
+    ver_sectores="ver setores", alcanzado="atingido",
+    convergieron="   - blocos convergiram: reportados juntos",
+    nota_sectores="Setores: passadas e datas de semeadura declaradas pelo cliente; o limite entre "
+                  "setores foi estimado por satélite (NDVI mai-jul), é fixo durante a safra e não é "
+                  "cadastral (±10-20 m). As passadas de 26 e 29-abr não se distinguem em maturação e "
+                  "são reportadas como um único setor. Cada setor é medido contra o seu PRÓPRIO pico. "
+                  "A ordem do talhão é definida pelo seu setor mais avançado.",
+    nota_ref="Referência seca declarada pelo cliente: CIre ≤ %s e NDMI ≤ %s. "
+             "'Seca como a referência' exige os dois eixos: quando a clorofila toca o piso, "
+             "o que separa é a água do dossel (NDMI).",
+    nota_ventana="'Seco como a referência (est.)' = janela estimada em que o talhão atinge o nível "
+                 "de água do dossel da referência seca (NDMI ≤ p90 da referência, o mesmo limiar "
+                 "do estado), por ajuste da trajetória do NDMI com piso ancorado na referência, "
+                 "medida no composto ±5 dias da data de análise. O intervalo usa a repetibilidade "
+                 "medida do NDMI (0,021); cobertura simulada ~90 % no regime publicável. É uma "
+                 "data de estado espectral, NÃO uma data de colheita: a umidade do grão e o PH "
+                 "(peso hectolítrico) se medem no campo. A janela assume a trajetória de secagem "
+                 "observada: chuva re-umedece o dossel e empurra a janela para a frente; "
+                 "recalcula-se a cada cena limpa (~5 dias). '-' = série ainda não ajustável ou "
+                 "cruzamento a mais de 30 dias (não se extrapola). 'atingido' = a última medição "
+                 "já está no nível da referência.",
+    nota_control="Controle de consistência (21-ago-2026): o ajuste construído somente com dados "
+                 "até 19-ago reproduziu o NDMI da cena seguinte com erro ≤ 0,021. É uma "
+                 "verificação a 2 dias, não uma validação da data extrapolada; o eixo CIre não "
+                 "passou na mesma prova e por isso as datas se estimam somente sobre a água.",
+    nota_b11="Na cena da análise, a banda B11 (água) de todas as unidades ficou %s-%s abaixo "
+             "da referência seca: nenhum dossel atingiu o seu estado.",
+    nota_no_eval="Referência seca declarada mas SEM cena limpa em ±5 dias da data de análise: "
+                 "o eixo de água e a coluna 'Seco como a referência (est.)' NÃO SÃO AVALIÁVEIS "
+                 "nesta rodada. Nova tentativa no próximo passe do satélite.",
+    nota_bruma="Datas excluídas por bruma/névoa seca (cs mediana < 0,80, PSRI < −0,02 ou B2 > 0,15): ",
+    sec2="Janela estimada de secagem",
+    gantt_cap="Barra = intervalo da estimativa (cobertura simulada ~90 %) · ponto = estimativa central · linha vermelha = "
+              "data de análise. Estado espectral, não data de colheita.",
+    tray_cap="Pontos = NDMI medido por cena (sem bruma/névoa seca) · curva = ajuste logístico com "
+             "piso na referência seca · pontilhada = nível de cruzamento.",
+    sec3="Mapas por talhão: maturação e água do dossel",
+    mapa_cire_cap="CIre (clorofila): vermelho = clorofila esgotada. Ordena a maturação geral.",
+    mapa_ndmi_cap="NDMI (água do dossel): marrom = mais seco, azul-esverdeado = mais úmido. DENTRO "
+                  "de cada talhão, os setores marrons secam primeiro: por aí começar a amostragem "
+                  "de umidade do grão.",
+    sec4="Método e alcance",
+    metodo="Maturação pela queda do CIre em relação ao pico próprio (pico somente com cenas "
+           "S2A/B; S2C corrigido por nível). Comporta de bruma/névoa seca por talhão e data. "
+           "Produto RELATIVO: ordena talhões para priorizar a amostragem de umidade do grão. "
+           "A coluna 'Seco como a referência (est.)' é a data estimada de um estado espectral "
+           "(água do dossel no nível da referência seca declarada), não uma data de colheita: "
+           "a janela de trilha é definida pela umidade do grão e pelo PH (peso hectolítrico) "
+           "medidos no campo.",
+    prox="Próximo passo",
+    prox_txt="Medir umidade do grão e PH (peso hectolítrico) começando por %s. Reavaliar no "
+             "próximo passe limpo do satélite (~5 dias). Contato: " + CONTACTO + ".",
+    # --- graficos ---
+    g_cinta_tit="Maturação do trigo por talhão (CIre na escala S2A/B) — verde = em enchimento · vermelho = clorofila esgotada",
+    g_cinta_labels=('Clor. esgotada', 'Amadurecendo', 'Verde', 'Pleno'),
+    g_gantt_tit='Janela estimada "seca como a referência" — estado espectral, não data de colheita',
+    g_gantt_sin='sem estimativa publicável (série não ajustável ou cruzamento a >30 dias)',
+    g_gantt_alc='atingido (%s)',
+    g_gantt_ana=' análise %s',
+    g_tray_tit='Água do dossel (NDMI): trajetória medida e ajuste com piso na referência seca',
+    g_tray_yl='NDMI (água do dossel)',
+    g_tray_nivel='  nível da referência seca declarada (NDMI p90)',
+    g_tray_alc=' (nível atingido)',
+    g_tray_sin=' (sem ajuste publicável)',
+    g_mapa_tit='Maturação dentro de cada talhão · %s · CIre, superfície suavizada (~30 m) para leitura',
+    g_agua_tit='Água do dossel por talhão · %s · NDMI, superfície suavizada (~30 m) para leitura',
+    g_agua_labels=('Seco', 'Secando', 'Úmido', 'Muito úmido'),
+    g_ref_marca='ref. seca', g_avance='avanço',
+ ),
+}
+
+# estados de madurez.py (es) -> pt-BR fiel; y acentuacion para display en es
+_EST_PT = [
+    ('Clorofila agotada, dosel aun humedo', 'Clorofila esgotada, dossel ainda úmido'),
+    ('Clorofila agotada (>=70 %)', 'Clorofila esgotada (>=70 %)'),
+    ('Caida avanzada (40-70 %)', 'Queda avançada (40-70 %)'),
+    ('Caida inicial (15-40 %)', 'Queda inicial (15-40 %)'),
+    ('Seco como la referencia', 'Seca como a referência'),
+    ('desparejo, ver mapa', 'desuniforme, ver mapa'),
+    ('Sector', 'Setor'),
+]
+_EST_ES = [
+    ('Clorofila agotada, dosel aun humedo', 'Clorofila agotada, dosel aún húmedo'),
+    ('Caida avanzada', 'Caída avanzada'),
+    ('Caida inicial', 'Caída inicial'),
+]
+# forma corta para la celda de la tabla
+_EST_CORTO = {
+    'es': ('Clorofila agotada, dosel aún húmedo', 'Clor. agotada, aún húmedo'),
+    'pt': ('Clorofila esgotada, dossel ainda úmido', 'Clor. esgotada, ainda úmido'),
+}
+
+
+def traducir_estado(txt, idioma):
+    for a, b in (_EST_PT if idioma == 'pt' else _EST_ES):
+        txt = txt.replace(a, b)
+    return txt
+
+
+def _nombre_display(nombre, idioma):
+    """Nombre del cliente para portada/textos ('Sao Francisco' lleva tilde en pt)."""
+    if idioma == 'pt':
+        return nombre.replace('Sao Francisco', 'São Francisco')
+    return nombre
+
+
+# ---------- render de graficos ----------
 CMAP = plt.get_cmap('RdYlGn'); VMIN, VMAX = 0.2, 5.3
 COL_RK = {0: '#1B7A1B', 1: '#7FD633', 2: '#B8860B', 3: '#CC0000'}
 
 
-def cinta(lotes_ord, fecha, out):
+def _fmt_mes(meses):
+    return FuncFormatter(lambda x, _: meses[num2date(x).month - 1])
+
+
+def cinta(lotes_ord, fecha, out, T):
+    meses = T['meses']
     d0, d1 = datetime.date(int(fecha[:4]), 5, 1), datetime.date.fromisoformat(fecha) + datetime.timedelta(3)
     days = [d0 + datetime.timedelta(n) for n in range((d1 - d0).days + 1)]
     xn = np.array([date2num(x) for x in days])
@@ -242,20 +518,21 @@ def cinta(lotes_ord, fecha, out):
                    extent=[xn[0], xn[-1], len(lotes_ord) - 0.5, -0.5], interpolation='bilinear')
     ax.set_yticks(range(len(lotes_ord)))
     ax.set_yticklabels([f"{r['id']}  ({r['area']:.0f} ha)" for r in lotes_ord], fontsize=10)
-    ax.xaxis_date(); ax.xaxis.set_major_locator(MonthLocator()); ax.xaxis.set_major_formatter(DateFormatter('%b'))
+    ax.xaxis_date(); ax.xaxis.set_major_locator(MonthLocator())
+    ax.xaxis.set_major_formatter(_fmt_mes(meses))
     ax.axvline(date2num(datetime.date.fromisoformat(fecha)), color='k', ls=':', lw=1.2)
-    ax.set_title('Madurez del trigo por lote (CIre en escala S2A/B) — verde = en llenado · rojo = clorofila agotada',
-                 fontsize=12, fontweight='bold')
+    ax.set_title(T['g_cinta_tit'], fontsize=12, fontweight='bold')
     cb = fig.colorbar(im, ax=ax, pad=0.01, fraction=0.035); cb.set_ticks([0.35, 1.6, 3.2, 5.0])
-    cb.set_ticklabels(['Clor. agotada', 'Madurando', 'Verde', 'Pleno']); cb.ax.tick_params(labelsize=8)
+    cb.set_ticklabels(list(T['g_cinta_labels'])); cb.ax.tick_params(labelsize=8)
     plt.tight_layout(); plt.savefig(out, dpi=140, bbox_inches='tight'); plt.close()
 
 
-def gantt_ventanas(filas, fecha, out):
-    """El grafico de DECISION: calendario con una barra por unidad = IC 95 % de la
+def gantt_ventanas(filas, fecha, out, T):
+    """El grafico de DECISION: calendario con una barra por unidad = intervalo (cobertura simulada ~90 %) de la
     ventana estimada 'seco como la referencia', punto = estimacion central, linea
     punteada = fecha de analisis. Unidad sin ventana publicable -> rotulo explicito
     (nunca una barra inventada)."""
+    meses = T['meses']; dm = lambda iso: _dm(iso, meses)
     f0 = datetime.date.fromisoformat(fecha)
     fig, ax = plt.subplots(figsize=(11, 0.66 * len(filas) + 1.9))
     xmin = f0 - datetime.timedelta(2); xmax = f0 + datetime.timedelta(14)
@@ -264,7 +541,7 @@ def gantt_ventanas(filas, fecha, out):
         if v and v.get('alcanzado'):
             fc = datetime.date.fromisoformat(v['fecha'])
             ax.plot(date2num(fc), y, '*', color=LIMA, ms=14, mec='#3A6B12', zorder=4)
-            ax.annotate('alcanzado (%s)' % _dm(v['fecha']), (date2num(fc), y + 0.32),
+            ax.annotate(T['g_gantt_alc'] % dm(v['fecha']), (date2num(fc), y + 0.32),
                         ha='center', fontsize=9, fontweight='bold', color='#3A6B12')
         elif v and v.get('ic'):
             fc = datetime.date.fromisoformat(v['fecha'])
@@ -274,35 +551,33 @@ def gantt_ventanas(filas, fecha, out):
                     color=TEAL, alpha=0.8, edgecolor='none', zorder=3)
             xmax = max(xmax, b_ + datetime.timedelta(4))
             ax.plot(date2num(fc), y, 'o', color='#083D3A', ms=7, zorder=4)
-            ax.annotate(_dm(v['fecha']), (date2num(fc), y + 0.32), ha='center',
+            ax.annotate(dm(v['fecha']), (date2num(fc), y + 0.32), ha='center',
                         fontsize=9, fontweight='bold', color='#083D3A')
             xmax = max(xmax, fc + datetime.timedelta(5))
         else:
-            ax.annotate('sin estimación publicable (serie no ajustable o cruce a >30 días)',
+            ax.annotate(T['g_gantt_sin'],
                         (date2num(f0 + datetime.timedelta(1)), y), va='center',
                         fontsize=8.5, color='#8A8A8A', style='italic')
     ax.set_yticks(range(len(filas)))
     ax.set_yticklabels([f"{r['id']}  ({r['area']:.0f} ha)" for r in filas[::-1]], fontsize=10)
     ax.axvline(date2num(f0), color='#CC0000', ls='--', lw=1.2)
-    ax.annotate(' análisis %s' % _dm(f0.isoformat()), (date2num(f0), len(filas) - 0.42),
+    ax.annotate(T['g_gantt_ana'] % dm(f0.isoformat()), (date2num(f0), len(filas) - 0.42),
                 fontsize=8.5, color='#CC0000')
     ax.set_xlim(date2num(xmin), date2num(xmax)); ax.set_ylim(-0.6, len(filas) - 0.25)
-    from matplotlib.ticker import FuncFormatter
-    from matplotlib.dates import num2date
     ax.xaxis_date()
     ax.xaxis.set_major_formatter(FuncFormatter(
-        lambda x, _: _dm(num2date(x).date().isoformat())))
+        lambda x, _: dm(num2date(x).date().isoformat())))
     ax.grid(axis='x', alpha=0.3); ax.set_axisbelow(True)
     for sp in ('top', 'right', 'left'):
         ax.spines[sp].set_visible(False)
-    ax.set_title('Ventana estimada "seco como la referencia" — estado espectral, no fecha de cosecha',
-                 fontsize=12, fontweight='bold', loc='left')
+    ax.set_title(T['g_gantt_tit'], fontsize=12, fontweight='bold', loc='left')
     plt.tight_layout(); plt.savefig(out, dpi=150, bbox_inches='tight'); plt.close()
 
 
-def trayectorias_ndmi(unis, nivel, fecha, out):
+def trayectorias_ndmi(unis, nivel, fecha, out, T):
     """La EVIDENCIA de las ventanas: puntos NDMI medidos por unidad + curva del
     ajuste logistico (piso anclado en la referencia seca) + nivel de cruce."""
+    meses = T['meses']
     fig, ax = plt.subplots(figsize=(11, 5.0))
     cmap = plt.get_cmap('tab10')
     f0 = datetime.date.fromisoformat(fecha)
@@ -323,19 +598,19 @@ def trayectorias_ndmi(unis, nivel, fecha, out):
             ax.plot([d0t + datetime.timedelta(days=float(x)) for x in t], y,
                     '-', lw=1.6, color=col, label=u['id'])
         elif v and v.get('alcanzado'):
-            ax.plot([], [], 'o-', color=col, label=u['id'] + ' (nivel alcanzado)')
+            ax.plot([], [], 'o-', color=col, label=u['id'] + T['g_tray_alc'])
         else:
-            ax.plot([], [], 'o-', color=col, label=u['id'] + ' (sin ajuste publicable)')
+            ax.plot([], [], 'o-', color=col, label=u['id'] + T['g_tray_sin'])
     ax.axhline(nivel, color='k', ls=':', lw=1.2)
-    ax.annotate('  nivel de la referencia seca declarada (NDMI p90)', (date2num(f0 - datetime.timedelta(55)), nivel),
+    ax.annotate(T['g_tray_nivel'], (date2num(f0 - datetime.timedelta(55)), nivel),
                 fontsize=8.5, va='bottom')
     ax.axvline(date2num(f0), color='#CC0000', ls='--', lw=1.0, alpha=0.7)
     ax.set_xlim(date2num(datetime.date(int(fecha[:4]), 6, 1)), date2num(f0 + datetime.timedelta(28)))
-    ax.xaxis_date(); ax.xaxis.set_major_locator(MonthLocator()); ax.xaxis.set_major_formatter(DateFormatter('%b'))
-    ax.grid(alpha=0.25); ax.set_ylabel('NDMI (agua del dosel)')
+    ax.xaxis_date(); ax.xaxis.set_major_locator(MonthLocator())
+    ax.xaxis.set_major_formatter(_fmt_mes(meses))
+    ax.grid(alpha=0.25); ax.set_ylabel(T['g_tray_yl'])
     ax.legend(fontsize=8.5, loc='upper right', ncol=2)
-    ax.set_title('Agua del dosel (NDMI): trayectoria medida y ajuste con piso en la referencia seca',
-                 fontsize=12, fontweight='bold', loc='left')
+    ax.set_title(T['g_tray_tit'], fontsize=12, fontweight='bold', loc='left')
     plt.tight_layout(); plt.savefig(out, dpi=150, bbox_inches='tight'); plt.close()
 
 
@@ -352,12 +627,6 @@ def _suave(a, sigma=2.0, zoom=3):
     return np.where(wbig > 0.5, big, np.nan)
 
 
-TEAL, LIMA = '#0D9488', '#7FD633'
-# fechas SIEMPRE dia-mes con nombre ('29-ago'): '09-01' se lee 9 de enero en pt-BR
-MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-_dm = lambda iso: f"{int(iso[8:10]):02d}-{MESES[int(iso[5:7]) - 1]}"
-
-
 def _anillos(ring):
     """Lista de anillos [(x,y)...] tolerante a Polygon/MultiPolygon."""
     if isinstance(ring[0][0], (int, float)):
@@ -367,10 +636,9 @@ def _anillos(ring):
     return [rr for parte in ring for rr in _anillos(parte)]
 
 
-def mapas(lotes_ord, fecha, out, key='raster', cmap=None, vmin=0.3, vmax=VMAX,
-          cticks=(0.5, 1.6, 3.2, 5.0),
-          clabels=('Clor. agotada', 'Madurando', 'Verde', 'Pleno'),
-          suptit=None, ref_marca=None):
+def mapas(lotes_ord, fecha, out, T, key='raster', cmap=None, vmin=0.3, vmax=VMAX,
+          cticks=(0.5, 1.6, 3.2, 5.0), clabels=None, suptit=None, ref_marca=None,
+          idioma='es'):
     """Mapa cartografico por lote: fondo satelital real + indice suavizado recortado
     al lote + escala + norte + chip de estado. Aspecto corregido por latitud.
     Por defecto renderiza CIre (key='raster'); con key/cmap/cticks se reusa para el
@@ -381,6 +649,7 @@ def mapas(lotes_ord, fecha, out, key='raster', cmap=None, vmin=0.3, vmax=VMAX,
     from matplotlib_scalebar.scalebar import ScaleBar
     import matplotlib.patheffects as pe
     cmap = cmap or CMAP
+    clabels = clabels or T['g_cinta_labels']
     n = len(lotes_ord); cols = 2; rows = (n + 1) // 2
     fig, axs = plt.subplots(rows, cols, figsize=(11.5, 5.1 * rows), facecolor='white')
     axs = np.atleast_1d(axs).ravel()
@@ -415,7 +684,8 @@ def mapas(lotes_ord, fecha, out, key='raster', cmap=None, vmin=0.3, vmax=VMAX,
                 xs = [p[0] for rr in _anillos(bq['ring']) for p in rr]
                 ys = [p[1] for rr in _anillos(bq['ring']) for p in rr]
                 px, py = float(np.mean(xs)), float(np.mean(ys))
-            ax.annotate('%s · %.0f %%' % (bq['nombre'].split(' (')[0], bq['prog']),
+            nom_bq = traducir_estado(bq['nombre'].split(' (')[0], idioma)
+            ax.annotate('%s · %.0f %%' % (nom_bq, bq['prog']),
                         (px, py), ha='center', va='center',
                         fontsize=9, fontweight='bold', color='white', zorder=7,
                         path_effects=[pe.withStroke(linewidth=2.8, foreground='#000000A0')])
@@ -430,8 +700,8 @@ def mapas(lotes_ord, fecha, out, key='raster', cmap=None, vmin=0.3, vmax=VMAX,
             sp.set_edgecolor('#DDE3E1'); sp.set_linewidth(1.0)
         # titulo-banda del panel
         mezclado = bool(r.get('bloques')) and not r.get('colapsado')
-        av_txt = ('%.0f-%.0f %%' % r['prog_rango']) if mezclado else ('%.0f %%' % r['prog'])
-        ax.set_title(' %s  ·  %.0f ha  ·  avance %s ' % (r['id'], r['area'], av_txt),
+        av_txt = ('%.0f-%.0f %%' % tuple(r['prog_rango'])) if mezclado else ('%.0f %%' % r['prog'])
+        ax.set_title(' %s  ·  %.0f ha  ·  %s %s ' % (r['id'], r['area'], T['g_avance'], av_txt),
                      fontsize=11, fontweight='bold', color='white', loc='left',
                      bbox=dict(boxstyle='square,pad=0.42', fc=TEAL, ec='none'), pad=7)
         # escala y norte
@@ -458,13 +728,318 @@ def mapas(lotes_ord, fecha, out, key='raster', cmap=None, vmin=0.3, vmax=VMAX,
         cb.ax.axvline(val, color='#1a1a1a', lw=1.6)
         cb.ax.annotate(txt, (val, 1.15), xycoords=('data', 'axes fraction'),
                        ha='center', va='bottom', fontsize=8.5, fontweight='bold')
-    fig.suptitle(suptit or ('Madurez dentro de cada lote · %s · CIre, superficie suavizada (~30 m) para lectura'
-                            % fecha), fontsize=12.5, fontweight='bold', color='#0D9488', y=0.975)
+    fig.suptitle(suptit, fontsize=12.5, fontweight='bold', color='#0D9488', y=0.975)
     plt.savefig(out, dpi=170, bbox_inches='tight', facecolor='white'); plt.close()
+
+
+# ---------- persistencia MEDICION <-> RENDER ----------
+_CLAVES_UNIDAD = ('id', 'area', 'fecha', 'cire', 'cire_corr', 'pico', 'psri', 'ndmi',
+                  'ndvi', 'b11', 'prog', 'rk', 'estado', 'ventana', 'inicio', 'serie')
+
+
+def _np2py(o):
+    if isinstance(o, np.integer):
+        return int(o)
+    if isinstance(o, np.floating):
+        return float(o)
+    if isinstance(o, np.bool_):
+        return bool(o)
+    if isinstance(o, np.ndarray):
+        return o.tolist()
+    raise TypeError(f"no serializable: {type(o)}")
+
+
+def _pack_unidad(u):
+    d = {k: u.get(k) for k in _CLAVES_UNIDAD}
+    return d
+
+
+def empaquetar(hkey, fecha, cfg, orden, ref, excluidas, b, propio, n_pares):
+    lotes_out = []
+    for r in orden:
+        d = _pack_unidad(r)
+        d.update(ring=r['ring'], desparejo=bool(r['desparejo']),
+                 dispersion=r['dispersion'], colapsado=bool(r['colapsado']),
+                 prog_rango=list(r['prog_rango']) if 'prog_rango' in r else None,
+                 prog_orden=r['prog_orden'],
+                 bloques=[dict(_pack_unidad(bq), ring=bq['ring'], nombre=bq['nombre'])
+                          for bq in r['bloques']])
+        lotes_out.append(d)
+    return dict(hkey=hkey, fecha=fecha, nombre=cfg['nombre'],
+                referencia_declarada=bool(cfg.get('referencia_seca')),
+                ref=ref, excluidas=excluidas,
+                factor=dict(b=b, propio=bool(propio), pares=n_pares),
+                lotes=lotes_out)
+
+
+def guardar_resultados(res, rasters):
+    jpath = f"{SALIDA}/resultados_{res['hkey']}_{res['fecha']}.json"
+    npath = f"{SALIDA}/rasteres_{res['hkey']}_{res['fecha']}.npz"
+    res['npz'] = npath
+    arrs = {}
+    for lid, d in rasters.items():
+        for k in ('cire', 'ndmi', 'rgb'):
+            a, ext = d[k]
+            arrs[f"{lid}|{k}"] = a
+            arrs[f"{lid}|{k}_ext"] = np.asarray(ext, float)
+    np.savez_compressed(npath, **arrs)
+    with open(jpath, 'w', encoding='utf-8') as f:
+        json.dump(res, f, ensure_ascii=False, indent=1, default=_np2py)
+    print("resultados ->", jpath)
+    print("rasteres   ->", npath)
+    return jpath
+
+
+def cargar_resultados(jpath):
+    res = json.load(open(jpath, encoding='utf-8'))
+    z = np.load(res['npz'])
+    rasters = {}
+    for r in res['lotes']:
+        lid = r['id']
+        rasters[lid] = {k: (z[f"{lid}|{k}"], list(z[f"{lid}|{k}_ext"])) for k in ('cire', 'ndmi', 'rgb')}
+    return res, rasters
+
+
+def _filas_gantt(res, idioma):
+    """Unidades del gantt/trayectorias = las mismas filas que la tabla: lote entero,
+    o sus sectores si esta DESPAREJO (el numero accionable vive en las sub-filas)."""
+    filas, unis = [], []
+    for r in res['lotes']:
+        mezclado = bool(r['bloques']) and not r['colapsado']
+        if mezclado:
+            for bq in sorted(r['bloques'], key=lambda x: -x['prog']):
+                nom = f"{r['id']} · {traducir_estado(bq['nombre'].split(' (')[0], idioma)}"
+                filas.append(dict(id=nom, area=bq['area'], ventana=bq.get('ventana')))
+                unis.append(dict(id=nom, serie=bq['serie'], ventana=bq.get('ventana')))
+        else:
+            filas.append(dict(id=r['id'], area=r['area'], ventana=r.get('ventana')))
+            unis.append(dict(id=r['id'], serie=r['serie'], ventana=r.get('ventana')))
+    return filas, unis
+
+
+def render_graficos(res, rasters, idioma):
+    """Genera los 4-5 PNGs del entregable en el idioma pedido (sufijo _pt).
+    Todo sale del JSON + npz: sin GEE."""
+    T = TXT[idioma]
+    hkey, fecha = res['hkey'], res['fecha']
+    suf = '' if idioma == 'es' else '_pt'
+    dmy = f"{_dm(fecha, T['meses'])}-{fecha[:4]}"
+    lotes = []
+    for r in res['lotes']:
+        d = dict(r)
+        d['raster'] = rasters[r['id']]['cire']
+        d['raster_ndmi'] = rasters[r['id']]['ndmi']
+        d['rgb'] = rasters[r['id']]['rgb']
+        lotes.append(d)
+    pngs = dict(
+        cinta=f"{MED}/cinta_orden_cosecha_{hkey}{suf}.png",
+        mapas=f"{MED}/mapas_madurez_{hkey}{suf}.png",
+        ndmi=f"{MED}/mapas_agua_{hkey}{suf}.png",
+        gantt=f"{MED}/ventanas_secado_{hkey}{suf}.png",
+        tray=f"{MED}/trayectoria_agua_{hkey}{suf}.png")
+    cinta(lotes, fecha, pngs['cinta'], T)
+    ref = res['ref']
+    mapas(lotes, fecha, pngs['mapas'], T, suptit=T['g_mapa_tit'] % dmy, idioma=idioma)
+    mapas(lotes, fecha, pngs['ndmi'], T, key='raster_ndmi', cmap=plt.get_cmap('BrBG'),
+          vmin=0.0, vmax=0.5, cticks=(0.04, 0.18, 0.32, 0.46),
+          clabels=T['g_agua_labels'], suptit=T['g_agua_tit'] % dmy,
+          ref_marca=(ref['ndmi_p90'], T['g_ref_marca']) if ref else None, idioma=idioma)
+    if ref:
+        filas_g, unis_t = _filas_gantt(res, idioma)
+        gantt_ventanas(filas_g, fecha, pngs['gantt'], T)
+        trayectorias_ndmi(unis_t, ref['ndmi_p90'], fecha, pngs['tray'], T)
+    return pngs
+
+
+# ---------- render del PDF ----------
+def _img_ajustada(path, width=15 * cm, max_h=18.5 * cm):
+    """Image con la RELACION DE ASPECTO REAL del PNG (la altura fija de v4
+    achataba los mapas) y tope de alto para no desbordar la pagina."""
+    from PIL import Image as _PIL
+    w, h = _PIL.open(path).size
+    ih = width * h / w
+    if ih > max_h:
+        width = width * max_h / ih
+        ih = max_h
+    return Image(path, width=width, height=ih)
+
+
+def _chip_color(estado, rk, mezclado=False):
+    if mezclado:
+        return '#8A8A8A'
+    if estado.startswith('Sec'):        # 'Seco como la referencia' / 'Seca como a referência'
+        return '#8B5A2B'
+    return COL_RK.get(rk, '#8A8A8A')
+
+
+def render_pdf(res, idioma, pngs=None):
+    """Arma el PDF de marca desde el dict de resultados (sin GEE)."""
+    T = TXT[idioma]
+    meses = T['meses']; dm = lambda iso: _dm(iso, meses)
+    hkey, fecha, yr = res['hkey'], res['fecha'], res['fecha'][:4]
+    dmy = f"{dm(fecha)}-{yr}"
+    suf = '' if idioma == 'es' else '_pt'
+    if pngs is None:
+        pngs = dict(cinta=f"{MED}/cinta_orden_cosecha_{hkey}{suf}.png",
+                    mapas=f"{MED}/mapas_madurez_{hkey}{suf}.png",
+                    ndmi=f"{MED}/mapas_agua_{hkey}{suf}.png",
+                    gantt=f"{MED}/ventanas_secado_{hkey}{suf}.png",
+                    tray=f"{MED}/trayectoria_agua_{hkey}{suf}.png")
+    lotes = res['lotes']; ref = res['ref']; excluidas = res['excluidas']
+    nombre = _nombre_display(res['nombre'], idioma)
+    nombre_corto = nombre.replace('Trigo ', '', 1)
+    B = Brand(logo=f"{SKILL}/assets/logo_pix_azulnegro_trim.png",
+              footer_center=T['footer'] % yr)
+    _co = lambda x: f"{x:.2f}".replace('.', ',')      # coma decimal en todo el documento
+    _co1 = lambda x: f"{x:.1f}".replace('.', ',')
+    tot = round(sum(r['area'] for r in lotes), 1)
+    agot = sum(1 for r in lotes if r['rk'] == 3)
+    prim = lotes[0]['id']
+    nfig = [0]
+
+    def figcap(txt):
+        nfig[0] += 1
+        return B.P(f"<b><font color='{TEAL}'>{T['figura']} {nfig[0]}.</font></b>  {txt}", "Note")
+
+    def estado_display(u, corto=True):
+        est = traducir_estado(u, idioma)
+        if corto:
+            a, b_ = _EST_CORTO[idioma]
+            est = est.replace(a, b_)
+        return est
+
+    st = []
+    # ---- pagina 1: ficha + situacion + leyenda ----
+    st += B.cover_filler()
+    st += [B.P(T['ficha'], "H1"), B.hr()]
+    st += [B.meta_table([
+        (T['cliente'], nombre),
+        (T['lotes_k'], f"{len(lotes)}  ·  {_co1(tot)} ha"),
+        (T['analisis_k'], T['analisis_v'] % dmy),
+        (T['producto_k'], T['producto_v']),
+        (T['contacto_k'], CONTACTO)])]
+    st += [B.callout(T['situacion'], T['situacion_txt'] % (agot, prim))]
+    st += [B.P(T['comoleer'], "H2")]
+    ley = [[B.P(f"<b>{T['ley_col'][0]}</b>", "Cell"), B.P(f"<b>{T['ley_col'][1]}</b>", "Cell")]]
+    for color, nom, desc in T['leyenda']:
+        ley.append([B.P(f"<font color='{color}' size='11'>&bull;</font>  {nom}", "Cell"),
+                    B.P(desc, "Cell")])
+    tl = B.tbl(ley, [5.4 * cm, 9.6 * cm], header=False)
+    tl.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), HexColor("#EAF6F4"))]))
+    st += [tl]
+    st += [B.P(T['ley_simbolos'], "Note")]
+    st += [PageBreak()]
+
+    # ---- resumen + cinta ----
+    st += [B.P(T['resumen'], "H1"), B.hr()]
+    st += [B.kpi_strip([(f"{len(lotes)}", T['kpi'][0]), (f"{tot:.0f}", T['kpi'][1]),
+                        (f"{agot}", T['kpi'][2]), (prim, T['kpi'][3])])]
+    st += [KeepTogether([_img_ajustada(pngs['cinta']), figcap(T['cinta_cap'])])]
+
+    # ---- seccion 1: tabla de decision ----
+    st += [B.sec(1, T['sec1'] % dmy)]
+
+    def _vent(u):
+        v = u.get('ventana')
+        if not v:
+            return "-"
+        if v.get('alcanzado'):
+            return T['alcanzado']
+        if v['ic']:
+            return f"{dm(v['ic'][0])}..{dm(v['ic'][1])}"
+        return "-"      # sin intervalo no se publica fecha (auditoria 21-ago)
+
+    tab = [[B.P(c, "CellB") for c in T['cols']]]
+    estilos_extra = []
+    for k, r in enumerate(lotes, 1):
+        mezclado = bool(r['bloques']) and not r['colapsado']
+        # REGLA (consulta a dos agentes, 2026-08-19): un lote con bandera NO lleva
+        # promedio — un rango o nada. El numero accionable vive en las sub-filas.
+        av = (f"{r['prog_rango'][0]:.0f}-{r['prog_rango'][1]:.0f}%" if mezclado
+              else f"{r['prog']:.0f}%")
+        if mezclado:
+            est_txt = T['desparejo_fila']
+        else:
+            est_txt = estado_display(r['estado'])
+        chip = _chip_color(est_txt, r['rk'], mezclado)
+        est_p = B.P(f"<font color='{chip}' size='11'>&bull;</font> {est_txt}", "Cell")
+        # 'ver sectores' y no '-': el '-' queda reservado para 'no ajustable /
+        # no se extrapola' — dos significados nunca viajan con el mismo simbolo
+        tab.append([str(k), r['id'], f"{r['area']:.0f} ha", est_p, av,
+                    _co(r['ndmi']), T['ver_sectores'] if mezclado else _vent(r)])
+        if mezclado:
+            for bq in sorted(r['bloques'], key=lambda x: -x['prog']):
+                est_b = estado_display(bq['estado'])
+                chip_b = _chip_color(est_b, bq['rk'])
+                tab.append(["", "   - " + traducir_estado(bq['nombre'], idioma),
+                            f"{bq['area']:.0f} ha",
+                            B.P(f"<font color='{chip_b}' size='11'>&bull;</font> {est_b}", "Cell"),
+                            f"{bq['prog']:.0f}%", _co(bq['ndmi']), _vent(bq)])
+        elif r['colapsado']:
+            tab.append(["", T['convergieron'], "", "", "", "", ""])
+    t = B.tbl(tab, [0.6 * cm, 3.4 * cm, 1.2 * cm, 4.2 * cm, 1.7 * cm, 1.25 * cm, 3.45 * cm],
+              aligns={0: 'CENTER', 2: 'RIGHT', 4: 'CENTER', 5: 'CENTER', 6: 'CENTER'})
+    # columna de DECISION destacada: fondo lima palido + negrita (pintada despues de
+    # ROWBACKGROUNDS, asi gana en todas las filas)
+    t.setStyle(TableStyle([
+        ("FONTSIZE", (0, 1), (-1, -1), 9),
+        ("TEXTCOLOR", (0, 1), (-1, -1), GRIS),
+        ("BACKGROUND", (6, 1), (6, -1), LIMA_PALE),
+        ("FONTNAME", (6, 1), (6, -1), "Helvetica-Bold"),
+        ("LINEBEFORE", (6, 0), (6, -1), 1.2, HexColor("#7FD633")),
+    ]))
+    st += [t]
+
+    # ---- notas de salvaguarda (auditadas: sobreviven identicas en ambos idiomas) ----
+    if any(r['bloques'] for r in lotes):
+        st += [B.P(T['nota_sectores'], "Note")]
+    if ref:
+        st += [B.P(T['nota_ref'] % (_co(ref['cire_p90']),
+                                    f"{ref['ndmi_p90']:.3f}".replace('.', ',')), "Note")]
+        st += [B.P(T['nota_ventana'], "Note")]
+        st += [B.P(T['nota_control'], "Note")]
+        # linea B11 intra-escena, calculada EN ESTA corrida: sostiene 'aun humedo'
+        b11s = [u['b11'] for r0 in lotes for u in ([r0] + r0['bloques']) if u.get('b11') is not None]
+        if b11s and ref.get('b11_p50') is not None:
+            dmin = ref['b11_p50'] - max(b11s); dmax = ref['b11_p50'] - min(b11s)
+            if dmin > 0:
+                st += [B.P(T['nota_b11'] % (_co(dmin), _co(dmax)), "Note")]
+    elif res.get('referencia_declarada'):
+        # 'no pude mirar' nunca viaja como 'sin novedad': la columna queda en '-'
+        # y esta nota dice POR QUE (referencia nublada/brumosa en toda la ventana)
+        st += [B.P(T['nota_no_eval'], "Note")]
+    if excluidas:
+        vistos = sorted({(e['fecha'], e['lote']) for e in excluidas})
+        st += [B.P(T['nota_bruma'] + " · ".join(f"{dm(f)} ({l})" for f, l in vistos), "Note")]
+
+    # ---- seccion 2: ventana de secado ----
+    if ref:
+        st += [B.sec(2, T['sec2'])]
+        st += [KeepTogether([_img_ajustada(pngs['gantt']), figcap(T['gantt_cap'])])]
+        st += [KeepTogether([_img_ajustada(pngs['tray']), figcap(T['tray_cap'])])]
+    sec_m = 3 if ref else 2
+
+    # ---- seccion 3: mapas ----
+    st += [B.sec(sec_m, T['sec3'])]
+    st += [KeepTogether([_img_ajustada(pngs['mapas'], max_h=17.5 * cm), figcap(T['mapa_cire_cap'])])]
+    st += [KeepTogether([_img_ajustada(pngs['ndmi'], max_h=17.5 * cm), figcap(T['mapa_ndmi_cap'])])]
+
+    # ---- seccion final: metodo + proximo paso (fluye: sin pagina semivacia) ----
+    st += [KeepTogether([B.sec(sec_m + 1, T['sec4']),
+                         B.P(T['metodo'], "Body"),
+                         B.callout(T['prox'], T['prox_txt'] % prim)])]
+
+    sufpdf = '' if idioma == 'es' else '_PT'
+    out_pdf = f"{SALIDA}/Entregable_Orden_Madurez_{hkey}_{fecha}{sufpdf}.pdf"
+    B.build(out_pdf, st, cover_title=T['cover_title'],
+            cover_subtitle=T['cover_sub'] % (nombre_corto, dmy))
+    print("PDF ->", out_pdf)
+    return out_pdf
 
 
 # ---------- main ----------
 def run(hkey, fecha):
+    _ee_init()
     cfg = HACIENDAS[hkey]
     yr = fecha[:4]
     lotes = cargar_lotes(cfg['fuentes'])
@@ -542,6 +1117,7 @@ def run(hkey, fecha):
                 sigma_min=mz.SIGMA_NDMI_ESCENA)
         u['inicio'] = mz.inicio_cobertura([(p['fecha'], p['cire_corr']) for p in u['serie']])
 
+    rasters = {}
     for r in lotes:
         evaluar(r)
         for bq in r['bloques']:
@@ -549,9 +1125,10 @@ def run(hkey, fecha):
         # colapso de DISPLAY: si los bloques convergieron se reporta una sola fila
         # (la geometria del catalogo no se toca: la fecha de siembra es un hecho).
         r['colapsado'] = mz.colapsar_bloques([bq['prog'] for bq in r['bloques']]) if r['bloques'] else False
-        r['raster'] = raster_cire(r['geom'], fecha)
-        r['raster_ndmi'] = raster_indice(r['geom'], fecha, 'NDMI')
-        r['rgb'] = raster_rgb(r['geom'], fecha)
+        ras_cire = raster_cire(r['geom'], fecha)
+        ras_ndmi = raster_indice(r['geom'], fecha, 'NDMI')
+        ras_rgb = raster_rgb(r['geom'], fecha)
+        rasters[r['id']] = dict(cire=ras_cire, ndmi=ras_ndmi, rgb=ras_rgb)
         # bandera universal de lote DESPAREJO (log CIre p90-p10 de la escena; umbral
         # medido contra los lotes uniformes de la flota SA/SF). LIMITE declarado: es
         # una bandera DE UNA ESCENA; cuando las trayectorias se cruzan (caso 01-ago)
@@ -559,7 +1136,7 @@ def run(hkey, fecha):
         # el umbral de desparejo se calibro sobre INTERIOR (sin borde): erosionar
         # 2 px de 10 m (= 20 m) antes de medir, o el borde dispara la bandera solo.
         from scipy.ndimage import binary_erosion as _be
-        _a = r['raster'][0]
+        _a = ras_cire[0]
         _fin = _be(np.isfinite(_a), np.ones((5, 5)))
         r['desparejo'], r['dispersion'] = mz.desparejo(_a[_fin])
         mezclado = bool(r['bloques']) and not r['colapsado']
@@ -589,168 +1166,31 @@ def run(hkey, fecha):
                   f"seco_est={_vtxt(bq)}  {bq['estado']}")
     orden = sorted(lotes, key=lambda r: -r['prog_orden'])
 
-    png_cinta = f"{MED}/cinta_orden_cosecha_{hkey}.png"
-    png_mapas = f"{MED}/mapas_madurez_{hkey}.png"
-    png_ndmi = f"{MED}/mapas_agua_{hkey}.png"
-    png_gantt = f"{MED}/ventanas_secado_{hkey}.png"
-    png_tray = f"{MED}/trayectoria_agua_{hkey}.png"
-    cinta(orden, fecha, png_cinta); mapas(orden, fecha, png_mapas)
-    mapas(orden, fecha, png_ndmi, key='raster_ndmi', cmap=plt.get_cmap('BrBG'),
-          vmin=0.0, vmax=0.5, cticks=(0.04, 0.18, 0.32, 0.46),
-          clabels=('Seco', 'Secándose', 'Húmedo', 'Muy húmedo'),
-          suptit='Agua del dosel por lote · %s · NDMI, superficie suavizada (~30 m) para lectura' % fecha,
-          ref_marca=(ref['ndmi_p90'], 'ref. seca') if ref else None)
-    # unidades del gantt/trayectorias = las mismas filas que la tabla: lote entero,
-    # o sus sectores si esta DESPAREJO (el numero accionable vive en las sub-filas)
-    filas_g, unis_t = [], []
-    for r in orden:
-        mezclado = bool(r['bloques']) and not r['colapsado']
-        if mezclado:
-            for bq in sorted(r['bloques'], key=lambda x: -x['prog']):
-                nom = f"{r['id']} · {bq['nombre'].split(' (')[0]}"
-                filas_g.append(dict(id=nom, area=bq['area'], ventana=bq.get('ventana')))
-                unis_t.append(dict(id=nom, serie=bq['serie'], ventana=bq.get('ventana')))
-        else:
-            filas_g.append(dict(id=r['id'], area=r['area'], ventana=r.get('ventana')))
-            unis_t.append(dict(id=r['id'], serie=r['serie'], ventana=r.get('ventana')))
-    n_gantt = len(filas_g)
-    if ref:
-        gantt_ventanas(filas_g, fecha, png_gantt)
-        trayectorias_ndmi(unis_t, ref['ndmi_p90'], fecha, png_tray)
-
-    B = Brand(logo=f"{SKILL}/assets/logo_pix_azulnegro_trim.png",
-              footer_center=f"{cfg['nombre']} · Orden de madurez {yr}")
-    tot = round(sum(r['area'] for r in lotes), 1)
-    agot = sum(1 for r in lotes if r['rk'] == 3)
-    prim = orden[0]['id']
-    st = []
-    st += B.cover_filler()
-    st += [B.P("Ficha", "H1"), B.hr()]
-    st += [B.meta_table([("Cliente", cfg['nombre']), ("Lotes", f"{len(lotes)}  ·  {tot} ha"),
-                         ("Análisis", f"Sentinel-2 · {fecha}"),
-                         ("Producto", "Orden relativo de madurez (no es fecha de cosecha)")])]
-    st += [B.callout("Situación", f"Lotes con clorofila agotada: {agot}. Más avanzado: {prim}. "
-                     f"La humedad de grano y el PH se miden a campo.")]
-    st += [PageBreak()]
-    st += [B.P("Resumen", "H1"), B.hr()]
-    st += [B.kpi_strip([(f"{len(lotes)}", "lotes"), (f"{tot:.0f}", "ha"),
-                        (f"{agot}", "clorofila agotada"), (prim, "más avanzado")])]
-    st += [Image(png_cinta, width=15 * cm, height=min(9 * cm, 15 * cm * (0.62 * len(lotes) + 1.6) / 11))]
-    st += [B.P("Verde = en llenado · rojo = clorofila agotada. Línea punteada = fecha de análisis. "
-               "CIre de S2C llevado a escala S2A/B (factor por nivel).", "Note")]
-    st += [B.sec(1, "Orden de madurez")]
-
-    def _vent(u):
-        v = u.get('ventana')
-        if not v:
-            return "-"
-        if v.get('alcanzado'):
-            return "alcanzado"
-        if v['ic']:
-            return f"{_dm(v['ic'][0])}..{_dm(v['ic'][1])}"
-        return "-"      # sin intervalo no se publica fecha (auditoria 21-ago)
-
-    _co = lambda x: f"{x:.2f}".replace('.', ',')      # coma decimal en todo el documento
-    tab = [["#", "Lote / Sector", "Área", "Estado", "Avance", "NDMI", "Seco como ref. (est.)"]]
-    for k, r in enumerate(orden, 1):
-        mezclado = bool(r['bloques']) and not r['colapsado']
-        # REGLA (consulta a dos agentes, 2026-08-19): un lote con bandera NO lleva
-        # promedio — un rango o nada. El numero accionable vive en las sub-filas.
-        av = (f"{r['prog_rango'][0]:.0f}-{r['prog_rango'][1]:.0f}%" if mezclado
-              else f"{r['prog']:.0f}%")
-        est = (r['estado'].replace('Clorofila agotada, dosel aun humedo', 'Clor. agotada, aun humedo')
-                          .replace('DESPAREJO - %d plantios, ver sectores' % len(r['bloques']), 'DESPAREJO: ver sectores'))
-        # 'ver sectores' y no '-': el '-' queda reservado para 'no ajustable /
-        # no se extrapola' — dos significados nunca viajan con el mismo simbolo
-        tab.append([str(k), r['id'], f"{r['area']:.0f} ha", est, av,
-                    _co(r['ndmi']), "ver sectores" if mezclado else _vent(r)])
-        if mezclado:
-            for bq in sorted(r['bloques'], key=lambda x: -x['prog']):
-                tab.append(["", "   - " + bq['nombre'], f"{bq['area']:.0f} ha",
-                            bq['estado'].replace('Clorofila agotada, dosel aun humedo', 'Clor. agotada, aun humedo'),
-                            f"{bq['prog']:.0f}%", _co(bq['ndmi']), _vent(bq)])
-        elif r['colapsado']:
-            tab.append(["", "   - bloques convergieron: se reportan juntos", "", "", "", "", ""])
-    st += [B.tbl(tab, [0.7 * cm, 3.7 * cm, 1.4 * cm, 4.3 * cm, 1.5 * cm, 1.1 * cm, 3.1 * cm])]
-    if any(r['bloques'] for r in lotes):
-        st += [B.P("Sectores: pasadas y fechas de siembra declaradas por el cliente; el límite entre "
-                   "sectores está estimado por satélite (NDVI may-jul), es fijo durante la campaña y no es "
-                   "catastral (±10-20 m). Las pasadas del 26 y 29-abr no se distinguen en madurez y se "
-                   "reportan como un solo sector. Cada sector se mide contra su PROPIO pico. "
-                   "El orden del lote lo fija su sector más avanzado.", "Note")]
-    if ref:
-        ndmi90_txt = f"{ref['ndmi_p90']:.3f}".replace('.', ',')
-        st += [B.P(f"Referencia seca declarada por el cliente: CIre ≤ {_co(ref['cire_p90'])} y "
-                   f"NDMI ≤ {ndmi90_txt}. "
-                   "'Seco como la referencia' exige los dos ejes: cuando la clorofila toca piso, "
-                   "el que separa es el agua del dosel (NDMI).", "Note")]
-        st += [B.P("'Seco como ref. (est.)' = ventana estimada en que el lote alcanza el nivel de "
-                   "agua de dosel de la referencia seca (NDMI ≤ p90 de la referencia, el mismo "
-                   "umbral del estado), por ajuste de la trayectoria NDMI con piso anclado en la "
-                   "referencia, medido en el compuesto ±5 días de la fecha de análisis. El "
-                   "intervalo usa la repetibilidad medida del NDMI (0,021); cobertura simulada "
-                   "~90 % en el régimen publicable. Es una fecha de estado espectral, no de "
-                   "cosecha: la humedad de grano y el PH se miden a campo. La ventana asume la "
-                   "trayectoria de secado observada: lluvia re-humedece el dosel y la corre hacia "
-                   "adelante; se recalcula con cada escena limpia (~5 días). '-' = serie aún no "
-                   "ajustable o cruce a más de 30 días (no se extrapola). 'alcanzado' = la última "
-                   "medición ya está al nivel de la referencia.", "Note")]
-        st += [B.P("Control de consistencia (21-ago-2026): el ajuste construido solo con datos al "
-                   "19-ago reprodujo el NDMI de la escena siguiente con error ≤ 0,021. Es una "
-                   "verificación a 2 días, no una validación de la fecha extrapolada; el eje CIre "
-                   "no pasó la misma prueba y por eso las fechas se estiman solo sobre el agua.", "Note")]
-        # linea B11 intra-escena, calculada EN ESTA corrida: sostiene 'aun humedo'
-        b11s = [u['b11'] for r0 in lotes for u in ([r0] + r0['bloques']) if u.get('b11') is not None]
-        if b11s and ref.get('b11_p50') is not None:
-            dmin = ref['b11_p50'] - max(b11s); dmax = ref['b11_p50'] - min(b11s)
-            if dmin > 0:
-                st += [B.P(f"En la escena del análisis, la banda B11 (agua) de todas las unidades "
-                           f"quedó {_co(dmin)}-{_co(dmax)} por debajo de la referencia seca: "
-                           "ningún dosel alcanzó su estado.", "Note")]
-    elif cfg.get('referencia_seca'):
-        # 'no pude mirar' nunca viaja como 'sin novedad': la columna queda en '-'
-        # y esta nota dice POR QUE (referencia nublada/brumosa en toda la ventana)
-        st += [B.P("Referencia seca declarada pero SIN escena limpia en ±5 días de la fecha de "
-                   "análisis: el eje de agua y la columna 'Seco como ref. (est.)' NO SON "
-                   "EVALUABLES en esta corrida. Se reintenta en el próximo paso satelital.", "Note")]
-    if excluidas_todas:
-        st += [B.P("Fechas excluidas por bruma (cs mediana < 0,80, PSRI < −0,02 o B2 > 0,15): "
-                   + " · ".join(sorted({f"{e['fecha']} ({e['lote']})" for e in excluidas_todas})), "Note")]
-    if ref:
-        st += [B.sec(2, "Ventana estimada de secado")]
-        st += [Image(png_gantt, width=15 * cm,
-                     height=min(9 * cm, 15 * cm * (0.66 * n_gantt + 1.9) / 11))]
-        st += [B.P("Barra = intervalo de confianza 95 % · punto = estimación central · línea roja = "
-                   "fecha de análisis. Estado espectral, no fecha de cosecha.", "Note")]
-        st += [Image(png_tray, width=15 * cm, height=15 * cm * 5.0 / 11)]
-        st += [B.P("Puntos = NDMI medido por escena (sin bruma) · curva = ajuste logístico con piso "
-                   "en la referencia seca · punteada = nivel de cruce.", "Note")]
-    sec_m = 3 if ref else 2
-    st += [B.sec(sec_m, "Mapas por lote: madurez y agua del dosel")]
-    st += [Image(png_mapas, width=15 * cm, height=15 * cm * 0.4 * ((len(lotes) + 1) // 2))]
-    st += [B.P("CIre (clorofila): rojo = clorofila agotada. Ordena la madurez general.", "Note")]
-    st += [Image(png_ndmi, width=15 * cm, height=15 * cm * 0.4 * ((len(lotes) + 1) // 2))]
-    st += [B.P("NDMI (agua del dosel): marrón = más seco, azul-verde = más húmedo. DENTRO de cada "
-               "lote, los sectores marrones se secan primero: por ahí empezar el muestreo de "
-               "humedad de grano.", "Note")]
-    st += [PageBreak()]
-    st += [B.sec(sec_m + 1, "Método y alcance")]
-    st += [B.P("Madurez por caída del CIre respecto del pico propio (pico solo con escenas S2A/B; "
-               "S2C corregido por nivel). Compuerta de bruma por lote y fecha. Producto RELATIVO: "
-               "ordena lotes para priorizar el muestreo de humedad de grano. La columna 'Seco como "
-               "ref. (est.)' es la fecha estimada de un estado espectral (agua de dosel al nivel de "
-               "la referencia seca declarada), no una fecha de cosecha: la ventana de trilla la "
-               "fijan la humedad de grano y el PH medidos a campo.", "Body")]
-    st += [B.callout("Acción", f"Medir humedad de grano y PH empezando por {prim}. "
-                     "Reevaluar en el próximo paso satelital limpio (~5 días).")]
-    out_pdf = f"{SALIDA}/Entregable_Orden_Madurez_{hkey}_{fecha}.pdf"
-    B.build(out_pdf, st, cover_title="Orden de madurez — Trigo",
-            cover_subtitle=f"{cfg['nombre']} · Seguimiento satelital · {yr}")
-    print("PDF ->", out_pdf)
-    return out_pdf
+    # 5) MEDICION lista: persistir y renderizar (es + pt) desde el mismo JSON
+    res = empaquetar(hkey, fecha, cfg, orden, ref, excluidas_todas, b, propio, len(pares))
+    # JSON round-trip antes de renderizar: el render de ESTA corrida usa exactamente
+    # lo mismo que veria un --render posterior (ninguna divergencia silenciosa).
+    jpath = guardar_resultados(res, rasters)
+    res, rasters = cargar_resultados(jpath)
+    salidas = []
+    for idioma in ('es', 'pt'):
+        pngs = render_graficos(res, rasters, idioma)
+        salidas.append(render_pdf(res, idioma, pngs))
+    return salidas
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == '--render':
+        # re-render sin GEE: python orden_cosecha.py --render salida/resultados_X.json [es|pt]
+        jpath = sys.argv[2]
+        idiomas = [sys.argv[3]] if len(sys.argv) > 3 else ['es', 'pt']
+        res, rasters = cargar_resultados(jpath)
+        for idioma in idiomas:
+            if idioma not in TXT:
+                sys.exit(f"Idioma '{idioma}' no soportado. Opciones: {list(TXT)}")
+            pngs = render_graficos(res, rasters, idioma)
+            render_pdf(res, idioma, pngs)
+        sys.exit(0)
     hkey = sys.argv[1] if len(sys.argv) > 1 else 'SA_SF'
     fecha = sys.argv[2] if len(sys.argv) > 2 else datetime.date.today().isoformat()
     if hkey not in HACIENDAS:
