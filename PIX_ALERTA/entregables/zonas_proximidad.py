@@ -5,8 +5,10 @@ en la referencia seca de ESA corrida (p90) y bordes 0,12/0,20/0,35, con hectarea
 por zona normalizadas al area oficial del lote (el raster recortado trae halo de
 borde que infla 13-17 % en lotes angostos).
 
-Anclas de campo (29-ago-2026): 'trillable' (<= ref p90) salio a 15 % de humedad;
-NDMI ~0,16 ('cerca') estaba a 23 %. Los 'dias' asumen la tasa de secado medida
+Anclas de campo (29-ago-2026, corregidas 30-ago por el cliente): 'trillable'
+(<= ref p90) salio a ~18 % de humedad = INICIO de ventana de trilla (16-18 %
+Embrapa), PH 78; NDMI ~0,16 ('cerca') estaba a 23 %; promedio de la parte alta
+de Sao Francisco: 20 %. Los 'dias' asumen la tasa de secado medida
 (~0,025-0,03 NDMI/dia) y SIN lluvia. Estado espectral: la humedad de grano decide.
 
 Uso suelto:  python zonas_proximidad.py ../salida/resultados_SA_SF_2026-08-29.json [es|pt]

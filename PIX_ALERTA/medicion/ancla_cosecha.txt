@@ -18,8 +18,12 @@ Faltan mas lotes con fecha de cosecha para cerrar la relacion CIre -> dias con I
 == 2026-08-29/30 · SA-SF (cohorte tardia, norte Parana) — PRIMERAS ANCLAS HUMEDAD<->NDMI ==
 Fuente: cliente, cosecha parcial Sao Francisco (fecha exacta de corte entre 22 y 29-ago).
 1) Zona SECA de SF (cuartil mas seco al 21-ago; NDMI21 0,13-0,19 -> NDMI29 ~0,00, ya al
-   nivel de la referencia): HUMEDAD DE GRANO 15 % al corte. => "seco como la referencia"
-   corresponde a humedad de trilla comercial (<16-18 % Embrapa).
+   nivel de la referencia): HUMEDAD DE GRANO 18 % al corte [CORREGIDO 30-ago por el
+   cliente: el 15 % informado primero era erroneo]. => "seco como la referencia" =
+   INICIO de la ventana de trilla (16-18 % Embrapa), NO grano seco comercial (13-15 %):
+   al alcanzar el nivel se ENTRA a ventana y se mide humedad, no se asume seco.
+1b) Promedio de la parte ALTA (norte) de Sao Francisco: 20 % de humedad · PH 78
+   (peso hectolitrico, calidad comercial). Medido 29-ago.
 2) Zona VERDE (cuartil mas humedo al 29-ago, sobre todo SF-02; NDMI29 ~0,16): 23 % de
    humedad. => NDMI ~0,15-0,16 aun NO es trillable.
 3) REF Assai COSECHADA el 22-ago: espectralmente CASI SIN CAMBIO al 29-ago (NDMI 0,042->0,019,

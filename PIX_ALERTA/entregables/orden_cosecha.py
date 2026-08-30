@@ -371,7 +371,7 @@ TXT = {
     mapa_ndmi_cap="NDMI (agua del dosel): marrón = más seco, azul-verde = más húmedo. DENTRO de cada "
                   "lote, los sectores marrones se secan primero: por ahí empezar el muestreo de "
                   "humedad de grano.",
-    mapa_zonas_cap="Proximidad en 5 zonas con hectareas por clase: el nivel trillable es el p90 de la referencia seca de esta corrida (validado: 15 % de humedad al alcanzarlo; la zona cerca midio 23 %). Los dias asumen la tasa de secado medida y sin lluvia. La barra de cada lote dice cuantas hectareas entran esta semana y cuantas despues.",
+    mapa_zonas_cap="Proximidad en 5 zonas con hectareas por clase: el nivel trillable es el p90 de la referencia seca de esta corrida (medido a campo 29-ago: ~18 % de humedad al alcanzarlo = inicio de ventana de trilla, PH 78; la zona cerca midio 23 %). Los dias asumen la tasa de secado medida y sin lluvia. La barra de cada lote dice cuantas hectareas entran esta semana y cuantas despues.",
     sec4="Método y alcance",
     metodo="Madurez por caída del CIre respecto del pico propio (pico solo con escenas S2A/B; "
            "S2C corregido por nivel). Compuerta de bruma por lote y fecha. Producto RELATIVO: "
@@ -471,7 +471,7 @@ TXT = {
     mapa_ndmi_cap="NDMI (água do dossel): marrom = mais seco, azul-esverdeado = mais úmido. DENTRO "
                   "de cada talhão, os setores marrons secam primeiro: por aí começar a amostragem "
                   "de umidade do grão.",
-    mapa_zonas_cap="Proximidade em 5 zonas com hectares por classe: o nivel trilhavel e o p90 da referencia seca desta rodada (validado: 15 % de umidade ao atingi-lo; a zona perto mediu 23 %). Os dias assumem a taxa de secagem medida e sem chuva. A barra de cada talhao diz quantos hectares entram nesta semana e quantos depois.",
+    mapa_zonas_cap="Proximidade em 5 zonas com hectares por classe: o nivel trilhavel e o p90 da referencia seca desta rodada (medido no campo 29-ago: ~18 % de umidade ao atingi-lo = inicio da janela de trilha, PH 78; a zona perto mediu 23 %). Os dias assumem a taxa de secagem medida e sem chuva. A barra de cada talhao diz quantos hectares entram nesta semana e quantos depois.",
     sec4="Método e alcance",
     metodo="Maturação pela queda do CIre em relação ao pico próprio (pico somente com cenas "
            "S2A/B; S2C corrigido por nível). Comporta de bruma/névoa seca por talhão e data. "
