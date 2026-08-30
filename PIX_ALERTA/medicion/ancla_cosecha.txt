@@ -1,0 +1,36 @@
+ANCLAS DE COSECHA — Trigo temprano (soja->trigo, siembra ~mar), norte de Parana 2026
+Ambos lotes CONFIRMADOS por campo, cosecha 01/08/2026.
+
+Sitio                          area     CIre 15-jul   CIre 01-ago
+TRIGO_AOI_COSECHADO_01AGO      ~353 ha     1,03          cosechado
+TRIGO_KMZ2_COSECHADO_01AGO     117,7 ha    1,87          1,02 (rastrojo)
+
+=> A 17 dias de la cosecha, CIre ~ 1,0 - 1,9 (2 lotes). Esa es la BANDA empirica
+   del ancla (dispersion entre lotes, no ruido). PSRI 15-jul: +0,13 a +0,18.
+
+Trayectoria CIre (media por lote):
+  TRIGO_AOI : 02-jun 5,10 | 22-jun 3,47 | 05-jul 2,09 | 15-jul 1,03 | 01-ago cosechado
+  TRIGO_KMZ2: 02-jun 4,33 | 22-jun 3,44 | 05-jul 2,60 | 15-jul 1,87 | 01-ago 1,02
+
+OJO S2C: las escenas S2C leen CIre mas bajo (escalon B5 707nm). Segregar/corregir.
+Faltan mas lotes con fecha de cosecha para cerrar la relacion CIre -> dias con IC.
+
+== 2026-08-29/30 · SA-SF (cohorte tardia, norte Parana) — PRIMERAS ANCLAS HUMEDAD<->NDMI ==
+Fuente: cliente, cosecha parcial Sao Francisco (fecha exacta de corte entre 22 y 29-ago).
+1) Zona SECA de SF (cuartil mas seco al 21-ago; NDMI21 0,13-0,19 -> NDMI29 ~0,00, ya al
+   nivel de la referencia): HUMEDAD DE GRANO 15 % al corte. => "seco como la referencia"
+   corresponde a humedad de trilla comercial (<16-18 % Embrapa).
+2) Zona VERDE (cuartil mas humedo al 29-ago, sobre todo SF-02; NDMI29 ~0,16): 23 % de
+   humedad. => NDMI ~0,15-0,16 aun NO es trillable.
+3) REF Assai COSECHADA el 22-ago: espectralmente CASI SIN CAMBIO al 29-ago (NDMI 0,042->0,019,
+   B11 0,237->0,244, NDVI 0,49->0,52). El rastrojo y el trigo seco en pie NO se distinguen
+   a 10 m: la referencia sigue valida como piso de agua DESPUES de cosechada, y la cosecha
+   NO se puede mapear desde S2 una vez que el dosel llego al estado seco.
+4) VALIDACION DE VENTANA: SA-01 predicho "seco como ref." 25..31-ago (corrida 21-ago);
+   el 29-ago el 92 % del lote esta al nivel de la referencia (NDMI mediana -0,009). CUMPLIDA.
+   SF-01 (28-ago..03-sep): 91 % al nivel el 29-ago. CUMPLIDA. SF-02 (26-ago..14-sep): 60 %,
+   coherente con mitad de ventana.
+Cautelas: humedades reportadas por el cliente a nivel de zona (no georreferenciadas);
+fecha de corte de la zona seca incierta (22-29 ago); escena 29-ago es S2C (NDMI no afectado).
+(Reconstruido 2026-08-30 tras perdida del workspace D: — commits sin push. Los numeros
+provienen de la corrida documentada en memoria de proyecto y chat de la sesion 29/30-ago.)
