@@ -48,7 +48,9 @@ from matplotlib.ticker import FuncFormatter
 import rasterio
 from rasterio.io import MemoryFile
 
-RAIZ   = r"D:/PIXADVISOR_AGENT_WORKSPACE/PIX_ALERTA"
+# RAIZ derivada de __file__: el workspace vivio en D:\ y ahora en C:\ — un
+# hardcode de disco ya costo una sesion entera (30-ago)
+RAIZ   = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).replace("\\", "/")
 LOTES  = f"{RAIZ}/lotes"
 MED    = f"{RAIZ}/medicion"
 SALIDA = f"{RAIZ}/salida"
@@ -166,6 +168,45 @@ def trayectoria(geom, ini, fin):
     return sorted(pts, key=lambda x: x['fecha'])
 
 
+def trayectoria_landsat(geom, ini, fin):
+    """Puntos Landsat 8/9 SOLO para el eje de AGUA (NDMI + NDVI + B2): sin red-edge
+    no hay CIre, asi que jamas tocan pico/avance/estado. Compuertas: QA_PIXEL
+    (nube bit 3, sombra 4, cirro 2), cobertura >= 0.85 y B2 <= 0.15 (anti-bruma,
+    mismo corte que madurez.bruma; Landsat no tiene CloudScore+ ni PSRI con B6
+    red-edge, el azul es la firma que queda)."""
+    col = (ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+           .merge(ee.ImageCollection('LANDSAT/LC09/C02/T1_L2'))
+           .filterBounds(geom).filterDate(ini, fin))
+    pts = []
+    for i in col.aggregate_array('system:index').getInfo():
+        im = ee.Image(col.filter(ee.Filter.eq('system:index', i)).first())
+        qa = im.select('QA_PIXEL').toInt()
+        m = (qa.bitwiseAnd(1 << 3).eq(0).And(qa.bitwiseAnd(1 << 4).eq(0))
+             .And(qa.bitwiseAnd(1 << 2).eq(0)))
+        sr = lambda b: im.select(b).multiply(0.0000275).add(-0.2)
+        iv = ee.Image.cat(
+            sr('SR_B5').subtract(sr('SR_B6')).divide(sr('SR_B5').add(sr('SR_B6'))).rename('NDMI'),
+            sr('SR_B5').subtract(sr('SR_B4')).divide(sr('SR_B5').add(sr('SR_B4'))).rename('NDVI'),
+            sr('SR_B2').rename('B2')).updateMask(m)
+        d = ee.Dictionary({
+            't': im.get('system:time_start'),
+            's': im.get('SPACECRAFT_ID'),
+            'c': im.select('SR_B4').updateMask(m).mask().reduceRegion(
+                ee.Reducer.mean(), geom, 30, maxPixels=1e9).get('SR_B4'),
+            'r': iv.reduceRegion(ee.Reducer.median(), geom, 30, maxPixels=1e9),
+        }).getInfo()
+        r = d.get('r') or {}
+        if (d['c'] and d['c'] > 0.85 and r.get('NDMI') is not None
+                and r.get('B2') is not None and r['B2'] <= mz.B2_MAX):
+            pts.append(dict(
+                fecha=datetime.datetime.fromtimestamp(
+                    d['t'] / 1000, datetime.timezone.utc).strftime('%Y-%m-%d'),
+                sat='L9' if str(d.get('s', '')).endswith('9') else 'L8',
+                NDMI=round(r['NDMI'], 4), NDVI=round(r['NDVI'], 3),
+                B2=round(r['B2'], 4)))
+    return sorted(pts, key=lambda x: x['fecha'])
+
+
 def cortes_referencia(geom, fecha):
     """p50/p90 de CIre y NDMI de la referencia seca en el compuesto limpio ~fecha.
 
@@ -266,7 +307,7 @@ TXT = {
     cover_sub="%s · Análisis satelital del %s",
     ficha="Ficha", cliente="Cliente", lotes_k="Lotes", analisis_k="Análisis",
     producto_k="Producto", contacto_k="Contacto",
-    analisis_v="Sentinel-2 · escena del %s",
+    analisis_v="Sentinel-2 (+ Landsat 8/9 en el eje de agua) · escena del %s",
     producto_v="Orden relativo de madurez (no es fecha de cosecha)",
     situacion="Situación",
     situacion_txt="Lotes con clorofila agotada: %d. Más avanzado: %s. "
@@ -322,20 +363,22 @@ TXT = {
     sec2="Ventana estimada de secado",
     gantt_cap="Barra = intervalo de la estimación (cobertura simulada ~90 %) · punto = estimación central · línea roja = "
               "fecha de análisis. Estado espectral, no fecha de cosecha.",
-    tray_cap="Puntos = NDMI medido por escena (sin bruma) · curva = ajuste logístico con piso "
-             "en la referencia seca · punteada = nivel de cruce.",
+    tray_cap="Círculos = NDMI Sentinel-2 · triángulos = Landsat 8/9 (offset +0,02 medido, ya "
+             "corregido) · curva = ajuste logístico con piso en la referencia seca · "
+             "punteada = nivel de cruce.",
     sec3="Mapas por lote: madurez y agua del dosel",
     mapa_cire_cap="CIre (clorofila): rojo = clorofila agotada. Ordena la madurez general.",
     mapa_ndmi_cap="NDMI (agua del dosel): marrón = más seco, azul-verde = más húmedo. DENTRO de cada "
                   "lote, los sectores marrones se secan primero: por ahí empezar el muestreo de "
                   "humedad de grano.",
+    mapa_zonas_cap="Proximidad en 5 zonas con hectareas por clase: el nivel trillable es el p90 de la referencia seca de esta corrida (validado: 15 % de humedad al alcanzarlo; la zona cerca midio 23 %). Los dias asumen la tasa de secado medida y sin lluvia. La barra de cada lote dice cuantas hectareas entran esta semana y cuantas despues.",
     sec4="Método y alcance",
     metodo="Madurez por caída del CIre respecto del pico propio (pico solo con escenas S2A/B; "
            "S2C corregido por nivel). Compuerta de bruma por lote y fecha. Producto RELATIVO: "
            "ordena lotes para priorizar el muestreo de humedad de grano. La columna 'Seco como "
            "ref. (est.)' es la fecha estimada de un estado espectral (agua de dosel al nivel de "
            "la referencia seca declarada), no una fecha de cosecha: la ventana de trilla la "
-           "fijan la humedad de grano y el PH (peso hectolítrico) medidos a campo.",
+           "fijan la humedad de grano y el PH (peso hectolítrico) medidos a campo. El eje de agua (NDMI) suma escenas Landsat 8/9 (SWIR equivalente; offset +0,02 medido en 12 pares mismo día y corregido) para asegurar cadencia cerca de la ventana.",
     prox="Próximo paso",
     prox_txt="Medir humedad de grano y PH (peso hectolítrico) empezando por %s. Reevaluar en el "
              "próximo paso satelital limpio (~5 días). Contacto: " + CONTACTO + ".",
@@ -364,7 +407,7 @@ TXT = {
     cover_sub="%s · Análise por satélite de %s",
     ficha="Ficha", cliente="Cliente", lotes_k="Talhões", analisis_k="Análise",
     producto_k="Produto", contacto_k="Contato",
-    analisis_v="Sentinel-2 · cena de %s",
+    analisis_v="Sentinel-2 (+ Landsat 8/9 no eixo de água) · cena de %s",
     producto_v="Ordem relativa de maturação (não é data de colheita)",
     situacion="Situação",
     situacion_txt="Talhões com clorofila esgotada: %d. Mais avançado: %s. "
@@ -420,13 +463,15 @@ TXT = {
     sec2="Janela estimada de secagem",
     gantt_cap="Barra = intervalo da estimativa (cobertura simulada ~90 %) · ponto = estimativa central · linha vermelha = "
               "data de análise. Estado espectral, não data de colheita.",
-    tray_cap="Pontos = NDMI medido por cena (sem bruma/névoa seca) · curva = ajuste logístico com "
-             "piso na referência seca · pontilhada = nível de cruzamento.",
+    tray_cap="Círculos = NDMI Sentinel-2 · triângulos = Landsat 8/9 (offset +0,02 medido, já "
+             "corrigido) · curva = ajuste logístico com piso na referência seca · "
+             "pontilhada = nível de cruzamento.",
     sec3="Mapas por talhão: maturação e água do dossel",
     mapa_cire_cap="CIre (clorofila): vermelho = clorofila esgotada. Ordena a maturação geral.",
     mapa_ndmi_cap="NDMI (água do dossel): marrom = mais seco, azul-esverdeado = mais úmido. DENTRO "
                   "de cada talhão, os setores marrons secam primeiro: por aí começar a amostragem "
                   "de umidade do grão.",
+    mapa_zonas_cap="Proximidade em 5 zonas com hectares por classe: o nivel trilhavel e o p90 da referencia seca desta rodada (validado: 15 % de umidade ao atingi-lo; a zona perto mediu 23 %). Os dias assumem a taxa de secagem medida e sem chuva. A barra de cada talhao diz quantos hectares entram nesta semana e quantos depois.",
     sec4="Método e alcance",
     metodo="Maturação pela queda do CIre em relação ao pico próprio (pico somente com cenas "
            "S2A/B; S2C corrigido por nível). Comporta de bruma/névoa seca por talhão e data. "
@@ -434,7 +479,7 @@ TXT = {
            "A coluna 'Seco como a referência (est.)' é a data estimada de um estado espectral "
            "(água do dossel no nível da referência seca declarada), não uma data de colheita: "
            "a janela de trilha é definida pela umidade do grão e pelo PH (peso hectolítrico) "
-           "medidos no campo.",
+           "medidos no campo. O eixo de água (NDMI) soma cenas Landsat 8/9 (SWIR equivalente; offset +0,02 medido em 12 pares no mesmo dia e corrigido) para garantir cadência perto da janela.",
     prox="Próximo passo",
     prox_txt="Medir umidade do grão e PH (peso hectolítrico) começando por %s. Reavaliar no "
              "próximo passe limpo do satélite (~5 dias). Contato: " + CONTACTO + ".",
@@ -583,9 +628,18 @@ def trayectorias_ndmi(unis, nivel, fecha, out, T):
     f0 = datetime.date.fromisoformat(fecha)
     for j, u in enumerate(unis):
         col = cmap(j % 10)
-        pts = [(datetime.date.fromisoformat(p['fecha']), p['NDMI'])
-               for p in u['serie'] if p.get('NDMI') is not None]
-        ax.plot([d for d, _ in pts], [v for _, v in pts], 'o', ms=4.5, color=col)
+        # serie de agua fusionada si existe (S2 circulos, Landsat triangulos)
+        fuente = u.get('serie_agua') or u['serie']
+        pts_s2 = [(datetime.date.fromisoformat(p['fecha']), p['NDMI'])
+                  for p in fuente if p.get('NDMI') is not None
+                  and p.get('src', 'S2') == 'S2']
+        pts_l = [(datetime.date.fromisoformat(p['fecha']), p['NDMI'])
+                 for p in fuente if p.get('NDMI') is not None
+                 and p.get('src', 'S2') != 'S2']
+        ax.plot([d for d, _ in pts_s2], [v for _, v in pts_s2], 'o', ms=4.5, color=col)
+        if pts_l:
+            ax.plot([d for d, _ in pts_l], [v for _, v in pts_l], '^', ms=5.5,
+                    color=col, markeredgecolor='white', markeredgewidth=0.6)
         v = u.get('ventana')
         if v and v.get('params'):
             pp = v['params']
@@ -734,7 +788,8 @@ def mapas(lotes_ord, fecha, out, T, key='raster', cmap=None, vmin=0.3, vmax=VMAX
 
 # ---------- persistencia MEDICION <-> RENDER ----------
 _CLAVES_UNIDAD = ('id', 'area', 'fecha', 'cire', 'cire_corr', 'pico', 'psri', 'ndmi',
-                  'ndvi', 'b11', 'prog', 'rk', 'estado', 'ventana', 'inicio', 'serie')
+                  'ndvi', 'b11', 'prog', 'rk', 'estado', 'ventana', 'inicio', 'serie',
+                  'serie_agua')
 
 
 def _np2py(o):
@@ -810,10 +865,12 @@ def _filas_gantt(res, idioma):
             for bq in sorted(r['bloques'], key=lambda x: -x['prog']):
                 nom = f"{r['id']} · {traducir_estado(bq['nombre'].split(' (')[0], idioma)}"
                 filas.append(dict(id=nom, area=bq['area'], ventana=bq.get('ventana')))
-                unis.append(dict(id=nom, serie=bq['serie'], ventana=bq.get('ventana')))
+                unis.append(dict(id=nom, serie=bq['serie'],
+                                 serie_agua=bq.get('serie_agua'), ventana=bq.get('ventana')))
         else:
             filas.append(dict(id=r['id'], area=r['area'], ventana=r.get('ventana')))
-            unis.append(dict(id=r['id'], serie=r['serie'], ventana=r.get('ventana')))
+            unis.append(dict(id=r['id'], serie=r['serie'],
+                             serie_agua=r.get('serie_agua'), ventana=r.get('ventana')))
     return filas, unis
 
 
@@ -848,6 +905,15 @@ def render_graficos(res, rasters, idioma):
         filas_g, unis_t = _filas_gantt(res, idioma)
         gantt_ventanas(filas_g, fecha, pngs['gantt'], T)
         trayectorias_ndmi(unis_t, ref['ndmi_p90'], fecha, pngs['tray'], T)
+        # mapa de PROXIMIDAD en 5 zonas con hectareas (necesita la referencia:
+        # el nivel 'trillable' es su p90). Mismo JSON+npz, sin GEE.
+        from zonas_proximidad import render as _zonas_render
+        pngs['zonas'] = f"{MED}/zonas_proximidad_{hkey}{suf}.png"
+        z_arrays = {}
+        for lid, d in rasters.items():
+            for k in ('ndmi', 'rgb'):
+                z_arrays[f'{lid}|{k}'], z_arrays[f'{lid}|{k}_ext'] = d[k]
+        _zonas_render(res, z_arrays, pngs['zonas'], idioma)
     return pngs
 
 
@@ -1023,6 +1089,9 @@ def render_pdf(res, idioma, pngs=None):
     st += [B.sec(sec_m, T['sec3'])]
     st += [KeepTogether([_img_ajustada(pngs['mapas'], max_h=17.5 * cm), figcap(T['mapa_cire_cap'])])]
     st += [KeepTogether([_img_ajustada(pngs['ndmi'], max_h=17.5 * cm), figcap(T['mapa_ndmi_cap'])])]
+    if pngs.get('zonas'):
+        st += [KeepTogether([_img_ajustada(pngs['zonas'], max_h=17.5 * cm),
+                             figcap(T['mapa_zonas_cap'])])]
 
     # ---- seccion final: metodo + proximo paso (fluye: sin pagina semivacia) ----
     st += [KeepTogether([B.sec(sec_m + 1, T['sec4']),
@@ -1053,6 +1122,12 @@ def run(hkey, fecha):
         r['serie_cruda'] = serie
         r['serie'], excl = mz.filtrar_bruma(serie)
         excluidas_todas += [dict(lote=r['id'], **e) for e in excl]
+        # Landsat 8/9: refuerza SOLO el eje de agua (offset medido, madurez.fusionar_agua)
+        sl = trayectoria_landsat(r['geom'], f"{yr}-04-15", fin)
+        r['serie_agua'] = mz.fusionar_agua(
+            [(p['fecha'], p['NDMI']) for p in r['serie']],
+            [(p['fecha'], p['NDMI'], p['sat']) for p in sl])
+        print('%s: %d escenas S2 + %d Landsat en el eje de agua' % (r['id'], len(r['serie']), len(sl)))
         r['area'] = round(r['geom'].area(1).getInfo() / 1e4, 1)
         r['bloques'] = []
         if r['id'] in bloques_cfg and os.path.exists(bloques_cfg[r['id']]):
@@ -1062,10 +1137,15 @@ def run(hkey, fecha):
                 sb = trayectoria(geob, f"{yr}-04-15", fin)
                 sbl, exb = mz.filtrar_bruma(sb)
                 excluidas_todas += [dict(lote=ft['properties']['bloque_id'], **e) for e in exb]
+                slb = trayectoria_landsat(geob, f"{yr}-04-15", fin)
                 r['bloques'].append(dict(id=ft['properties']['bloque_id'],
                                          nombre=ft['properties'].get('nombre', ft['properties']['bloque_id']),
                                          ring=_f2d(gb['coordinates']),
-                                         serie=sbl, area=round(geob.area(1).getInfo() / 1e4, 1)))
+                                         serie=sbl,
+                                         serie_agua=mz.fusionar_agua(
+                                             [(p['fecha'], p['NDMI']) for p in sbl],
+                                             [(p['fecha'], p['NDMI'], p['sat']) for p in slb]),
+                                         area=round(geob.area(1).getInfo() / 1e4, 1)))
 
     # 2) factor S2C por nivel, ajustado con TODOS los lotes y bloques de la corrida
     pares = []
@@ -1111,8 +1191,12 @@ def run(hkey, fecha):
             # reconciliar; el +0,03 anterior no estaba rastreado a ninguna medicion).
             # sigma_min = repetibilidad escena-a-escena MEDIDA del NDMI: sin ese piso
             # el intervalo cubre ~60-79 % y fue RECHAZADO por el validador (21-ago).
+            # la serie de agua fusiona S2 + Landsat 8/9 (offset medido +0,02 ya
+            # restado en fusionar_agua); si no hay fusion, cae a la serie S2 sola
+            agua = u.get('serie_agua') or [dict(fecha=p['fecha'], NDMI=p['NDMI'])
+                                           for p in u['serie']]
             u['ventana'] = mz.ajuste_cruce(
-                [(p['fecha'], p['NDMI']) for p in u['serie']],
+                [(p['fecha'], p['NDMI']) for p in agua],
                 piso=ref['ndmi_p50'], nivel=ref['ndmi_p90'],
                 sigma_min=mz.SIGMA_NDMI_ESCENA)
         u['inicio'] = mz.inicio_cobertura([(p['fecha'], p['cire_corr']) for p in u['serie']])

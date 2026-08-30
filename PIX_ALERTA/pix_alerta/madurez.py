@@ -259,6 +259,29 @@ SIGMA_NDMI_ESCENA = 0.021      # repetibilidad escena-a-escena del NDMI de unida
                                # 10/12/15-jul vs recta local, n=14: SD 0,021). El rmse del
                                # ajuste con 4-6 puntos y 3 parametros subestima esto 2-3x.
 
+# Landsat 8/9 refuerza SOLO el eje de AGUA: sin red-edge no hay CIre, asi que sus
+# puntos jamas tocan pico/avance/estado — solo la serie NDMI de la ventana.
+# OFFSET MEDIDO 2026-08-30 sobre SA/SF: 12 pares Landsat-S2 a 0-1 dia (excluidos los
+# pares a 2 dias en fase de secado rapido, donde el secado real ~0,03/dia contamina
+# la comparacion): mediana +0,02 (p10 +0,001). Landsat L2 lee ~0,02 MAS ALTO.
+OFFSET_NDMI_LANDSAT = 0.02
+
+
+def fusionar_agua(pts_s2, pts_landsat):
+    """Serie de AGUA fusionada para ajuste_cruce y graficos.
+
+    pts_s2: [(fecha_iso, ndmi)] · pts_landsat: [(fecha_iso, ndmi, sat)] con sat
+    'L8'/'L9'. Aplica OFFSET_NDMI_LANDSAT (resta: Landsat lee mas alto) SOLO a los
+    puntos Landsat. Si una fecha esta en ambas fuentes gana S2 (nativo del motor,
+    sin correccion). Devuelve [{fecha, NDMI, src}] cronologica; src 'S2'|'L8'|'L9'.
+    """
+    out = {f: dict(fecha=f, NDMI=v, src='S2') for f, v in pts_s2 if v is not None}
+    for f, v, sat in pts_landsat:
+        if v is None or f in out:
+            continue
+        out[f] = dict(fecha=f, NDMI=round(v - OFFSET_NDMI_LANDSAT, 4), src=sat)
+    return [out[f] for f in sorted(out)]
+
 
 def _logistica(t, A, t0, tau, piso):
     import numpy as _np

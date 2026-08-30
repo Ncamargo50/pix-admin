@@ -267,3 +267,24 @@ def test_sigma_min_ensancha_el_intervalo():
     w0 = (D(r0['ic'][1]) - D(r0['ic'][0])).days
     w1 = (D(r1['ic'][1]) - D(r1['ic'][0])).days
     assert w1 > w0
+
+
+# ------------------------------------------------------------------ fusion Landsat
+def test_fusionar_agua_offset_solo_landsat():
+    # el offset medido (+0,02) se resta SOLO a los puntos Landsat
+    out = mz.fusionar_agua([('2026-08-01', 0.500)], [('2026-08-17', 0.320, 'L9')])
+    assert out[0] == dict(fecha='2026-08-01', NDMI=0.500, src='S2')
+    assert out[1]['NDMI'] == round(0.320 - mz.OFFSET_NDMI_LANDSAT, 4)
+    assert out[1]['src'] == 'L9'
+
+
+def test_fusionar_agua_misma_fecha_gana_s2():
+    # colision de fecha: gana S2 (nativo del motor, sin correccion)
+    out = mz.fusionar_agua([('2026-08-01', 0.500)], [('2026-08-01', 0.520, 'L8')])
+    assert len(out) == 1 and out[0]['src'] == 'S2' and out[0]['NDMI'] == 0.500
+
+
+def test_fusionar_agua_cronologica_y_none():
+    out = mz.fusionar_agua([('2026-08-09', 0.45), ('2026-08-01', 0.50)],
+                           [('2026-08-05', None, 'L8'), ('2026-08-03', 0.48, 'L9')])
+    assert [p['fecha'] for p in out] == ['2026-08-01', '2026-08-03', '2026-08-09']
