@@ -38,3 +38,20 @@ Cautelas: humedades reportadas por el cliente a nivel de zona (no georreferencia
 fecha de corte de la zona seca incierta (22-29 ago); escena 29-ago es S2C (NDMI no afectado).
 (Reconstruido 2026-08-30 tras perdida del workspace D: — commits sin push. Los numeros
 provienen de la corrida documentada en memoria de proyecto y chat de la sesion 29/30-ago.)
+
+== 2026-09-02 · SA-SF — TERCER PUNTO Y LIMITE FISICO: 24 % dentro del "marron" ==
+Cliente cosechando: partes de Sao Francisco pintadas MARRON (<= nivel de referencia) dieron
+24 % de humedad de grano; otras partes marron 18 %. Dentro del "seco espectral" caben
+18-24 % de grano. LIMITE FISICO: la banda de agua (B8A/B11) ve el DOSEL/paja, no el grano;
+en el extremo seco pierde sensibilidad — el grano seca mas lento que la paja.
+Consecuencias (aplicadas 02-sep):
+ a) El mapa de 5 zonas con UN solo marron y suavizado gaussiano ESCONDIA la variabilidad
+    real del rango seco. Reemplazado/acompanado por el mapa de VARIABILIDAD FINA
+    (zonas_proximidad.render_fino): 20 m NATIVOS (la banda de agua no es de 10 m), SIN
+    suavizar, escalones de 0,02 (= repetibilidad medida: pixeles iguales dentro del ruido
+    se unifican, los distintos conservan su tono), 7 tonos de marron bajo el nivel.
+ b) Ningun tono de marron promete humedad: el mapa ORDENA (mas oscuro = mas seco = entrar
+    primero); el humedimetro certifica cada punto. Cada punto de humedad extra = descuento
+    en la cooperativa: por eso el orden fino importa mas que la clase.
+Anclas acumuladas cohorte tardia SA/SF: 18 % (seca, 29-ago) · 20 % (promedio parte alta SF)
+· 23 % (verde, NDMI ~0,16) · 24 % (marron, 02-sep) · PH 78.

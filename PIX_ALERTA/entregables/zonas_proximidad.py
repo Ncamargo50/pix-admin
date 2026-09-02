@@ -150,3 +150,109 @@ RAIZ_MED = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 if __name__ == '__main__':
     run(sys.argv[1] if len(sys.argv) > 1 else '../salida/resultados_SA_SF_2026-08-29.json',
         sys.argv[2] if len(sys.argv) > 2 else 'es')
+
+
+# ================================================================= variabilidad FINA
+# Correccion de campo 02-sep-2026: en zonas pintadas de un solo 'marron' el cliente midio
+# 24 % de humedad donde el mapa sugeria ~18 %. Dos defectos: (1) una sola clase bajo el
+# nivel de referencia aplastaba toda la variabilidad del rango seco; (2) el suavizado
+# 'para lectura' borraba el pixel. Y un LIMITE FISICO: la banda de agua ve el DOSEL/paja,
+# no el grano — en el extremo seco pierde sensibilidad (18-24 % de grano caben en el
+# mismo 'seco espectral'). Este mapa ORDENA (mas oscuro = mas seco = primero); el
+# humedimetro certifica. Escalon = 0,02 = repetibilidad medida (pixeles iguales dentro
+# del ruido se unifican; los distintos conservan su tono). 20 m NATIVOS (B8A/B11), sin
+# suavizar: los 10 m son solo de las bandas visibles.
+BORDES_FINO = [-0.30, -0.06, -0.04, -0.02, 0.00, 0.02, 0.04, 0.068,
+               0.09, 0.11, 0.13, 0.16, 0.20, 0.25, 0.30, 0.35, 0.45, 1.0]
+COLS_FINO = ['#2B1704', '#4A2A0C', '#6B3E14', '#8A5522', '#A56E33', '#BE8A4C', '#D3A76B',
+             '#E0781E', '#F0A030', '#F4C542', '#E8E060', '#BFD97A', '#8FC98A', '#5EB39A',
+             '#3A9AA0', '#2A7A94', '#1F5A80']
+TXT_F = {
+ 'es': dict(
+    titulo='Variabilidad FINA del agua del dosel · %s · escena %s · 20 m nativos, SIN suavizar\n'
+           'Más oscuro = más seco = cosechar primero · el satélite ORDENA, el humedímetro decide',
+    chip=' %s · %.0f ha · NDMI p10 %+.2f · p50 %+.2f · p90 %+.2f ',
+    cbar='NDMI (agua del dosel) · escalones de 0,02 = ruido de medición',
+    caja=('MEDIDO A CAMPO dentro del rango marrón: 18 % y 24 % de humedad de grano.\n'
+          'La banda de agua ve la PAJA, no el grano: en el extremo seco pierde sensibilidad.\n'
+          'Usar el orden (oscuro → claro) para elegir por dónde entrar; medir humedad SIEMPRE.'),
+    flecha='cosechar\nprimero'),
+ 'pt': dict(
+    titulo='Variabilidade FINA da água do dossel · %s · cena %s · 20 m nativos, SEM suavizar\n'
+           'Mais escuro = mais seco = colher primeiro · o satélite ORDENA, o medidor de umidade decide',
+    chip=' %s · %.0f ha · NDMI p10 %+.2f · p50 %+.2f · p90 %+.2f ',
+    cbar='NDMI (água do dossel) · degraus de 0,02 = ruído de medição',
+    caja=('MEDIDO NO CAMPO dentro da faixa marrom: 18 % e 24 % de umidade do grão.\n'
+          'A banda de água vê a PALHA, não o grão: no extremo seco perde sensibilidade.\n'
+          'Usar a ordem (escuro → claro) para escolher por onde entrar; medir umidade SEMPRE.'),
+    flecha='colher\nprimeiro'),
+}
+
+
+def render_fino(res, ndmi20, rgb_z, out, idioma='es'):
+    """ndmi20: {lid: (array_20m, ext)} · rgb_z: dict {lid|rgb, lid|rgb_ext} (npz)."""
+    from matplotlib.colors import ListedColormap, BoundaryNorm
+    T = TXT_F[idioma]
+    cmap = ListedColormap(COLS_FINO); norm = BoundaryNorm(BORDES_FINO, len(COLS_FINO))
+    lotes = res['lotes']
+    n = len(lotes); cols = 2; rows = (n + 1) // 2
+    fig, axs = plt.subplots(rows, cols, figsize=(13.5, 5.7 * rows), facecolor='white')
+    axs = np.atleast_1d(axs).ravel()
+    for ax in axs[n:]:
+        ax.axis('off')
+    im = None
+    for ax, r in zip(axs, lotes):
+        lid = r['id']
+        nd, ext = ndmi20[lid]
+        rgb, extr = rgb_z[f'{lid}|rgb'], list(rgb_z[f'{lid}|rgb_ext'])
+        lat = (ext[2] + ext[3]) / 2
+        fin = np.isfinite(nd)
+        p10, p50, p90 = np.percentile(nd[fin], [10, 50, 90])
+        if rgb.ndim == 3 and rgb.shape[2] in (3, 4):
+            ax.imshow(rgb, extent=extr, origin='upper', zorder=0)
+        im = ax.imshow(np.ma.masked_invalid(nd), extent=ext, origin='upper',
+                       cmap=cmap, norm=norm, interpolation='nearest', zorder=2, alpha=0.97)
+        ans = _anillos(r['ring'])
+        rec = Path.make_compound_path(*[Path(np.asarray(rr)) for rr in ans])
+        im.set_clip_path(PathPatch(rec, transform=ax.transData))
+        for rr in ans:
+            xy = np.asarray(rr)
+            ax.plot(xy[:, 0], xy[:, 1], color='white', lw=2.0, zorder=4)
+            ax.plot(xy[:, 0], xy[:, 1], color='#1a1a1a', lw=0.8, zorder=5)
+        for bq in r.get('bloques', []):
+            for rr in _anillos(bq['ring']):
+                xy = np.asarray(rr)
+                ax.plot(xy[:, 0], xy[:, 1], color='white', lw=1.2, ls=(0, (4, 3)), zorder=5)
+        xs = [p[0] for rr in ans for p in rr]; ys = [p[1] for rr in ans for p in rr]
+        mx = 220 / (111320 * np.cos(np.radians(lat))); my = 220 / 110540
+        ax.set_xlim(max(extr[0], min(xs) - mx), min(extr[1], max(xs) + mx))
+        ax.set_ylim(max(extr[2], min(ys) - my), min(extr[3], max(ys) + my))
+        ax.set_aspect(1.0 / np.cos(np.radians(lat)))
+        ax.set_facecolor('#E8EDEA'); ax.set_xticks([]); ax.set_yticks([])
+        ax.set_title(T['chip'] % (lid, r['area'], p10, p50, p90),
+                     fontsize=10.5, fontweight='bold', color='white', loc='left',
+                     bbox=dict(boxstyle='square,pad=0.4', fc='#0D9488', ec='none'), pad=6)
+    fig.subplots_adjust(left=0.02, right=0.85, top=0.90, bottom=0.13, wspace=0.05, hspace=0.14)
+    cax = fig.add_axes([0.885, 0.20, 0.018, 0.62])
+    cb = fig.colorbar(im, cax=cax, orientation='vertical')
+    cb.set_ticks([-0.06, -0.02, 0.02, 0.068, 0.11, 0.16, 0.25, 0.35, 0.45])
+    cb.set_ticklabels(['-0,06', '-0,02', '+0,02', 'ref.', '0,11', '0,16', '0,25', '0,35', '0,45'])
+    cb.ax.tick_params(labelsize=8.5)
+    cb.set_label(T['cbar'], fontsize=9)
+    cb.ax.annotate(T['flecha'], xy=(0.5, -0.02), xycoords='axes fraction', xytext=(0.5, -0.11),
+                   ha='center', va='top', fontsize=8.5, fontweight='bold',
+                   arrowprops=dict(arrowstyle='->', lw=1.4))
+    fig.text(0.5, 0.045, T['caja'], ha='center', va='center', fontsize=9.5,
+             bbox=dict(boxstyle='round,pad=0.5', fc='#FFF6E5', ec='#B8860B', lw=1.2))
+    fig.suptitle(T['titulo'] % (res['nombre'], res['fecha']), fontsize=12.5, fontweight='bold', y=0.985)
+    plt.savefig(out, dpi=160, bbox_inches='tight', facecolor='white'); plt.close()
+
+
+def cargar_ndmi20(res, salida_dir):
+    d = {}
+    for r in res['lotes']:
+        lid = r['id']
+        a = np.load(os.path.join(salida_dir, f"ndmi20m_{lid}_{res['fecha']}.npy"))
+        ext = json.load(open(os.path.join(salida_dir, f"ndmi20m_{lid}_{res['fecha']}_ext.json")))
+        d[lid] = (a, ext)
+    return d
