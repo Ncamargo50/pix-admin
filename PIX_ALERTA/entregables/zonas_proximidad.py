@@ -173,7 +173,7 @@ TXT_F = {
            'Más oscuro = más seco = cosechar primero · el satélite ORDENA, el humedímetro decide',
     chip=' %s · %.0f ha · NDMI p10 %+.2f · p50 %+.2f · p90 %+.2f ',
     cbar='NDMI (agua del dosel) · escalones de 0,02 = ruido de medición',
-    caja=('MEDIDO A CAMPO dentro del rango marrón: 18 % y 24 % de humedad de grano.\n'
+    caja=('MEDIDO A CAMPO: SA-01, el lote MÁS OSCURO, cosechado 31-ago a 16 % · dentro del marrón de SF: 18 % y 24 %.\n'
           'La banda de agua ve la PAJA, no el grano: en el extremo seco pierde sensibilidad.\n'
           'Usar el orden (oscuro → claro) para elegir por dónde entrar; medir humedad SIEMPRE.'),
     flecha='cosechar\nprimero'),
@@ -182,7 +182,7 @@ TXT_F = {
            'Mais escuro = mais seco = colher primeiro · o satélite ORDENA, o medidor de umidade decide',
     chip=' %s · %.0f ha · NDMI p10 %+.2f · p50 %+.2f · p90 %+.2f ',
     cbar='NDMI (água do dossel) · degraus de 0,02 = ruído de medição',
-    caja=('MEDIDO NO CAMPO dentro da faixa marrom: 18 % e 24 % de umidade do grão.\n'
+    caja=('MEDIDO NO CAMPO: SA-01, o talhão MAIS ESCURO, colhido 31/ago com 16 % · dentro do marrom de SF: 18 % e 24 %.\n'
           'A banda de água vê a PALHA, não o grão: no extremo seco perde sensibilidade.\n'
           'Usar a ordem (escuro → claro) para escolher por onde entrar; medir umidade SEMPRE.'),
     flecha='colher\nprimeiro'),

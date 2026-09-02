@@ -55,3 +55,11 @@ Consecuencias (aplicadas 02-sep):
     en la cooperativa: por eso el orden fino importa mas que la clase.
 Anclas acumuladas cohorte tardia SA/SF: 18 % (seca, 29-ago) · 20 % (promedio parte alta SF)
 · 23 % (verde, NDMI ~0,16) · 24 % (marron, 02-sep) · PH 78.
+
+== 2026-09-02 · SA-01 (lote del asfalto) — QUINTA ANCLA, la mas seca ==
+SA-01 cosechado el 31-ago con 16 % de humedad PROMEDIO. Era el lote MAS OSCURO de la flota
+en la escena del 29-ago (NDMI p50 -0,01, p10 -0,05; 'alcanzado' desde el 25..31-ago predicho
+el 21-ago). Confirma el ORDEN del mapa fino: mas oscuro -> menos humedad (SA-01 -0,01 -> 16 %;
+marrones claros de SF 0,00-0,04 -> 18-24 %; verde 0,16 -> 23 %). Anclas acumuladas:
+16 / 18 / 20 / 23 / 24 %, PH 78. (Identificacion del lote por inferencia: el unico de SA
+entero al nivel el 29-ago; SA-02 tenia el Sector B verde.)

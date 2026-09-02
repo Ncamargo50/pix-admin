@@ -372,6 +372,7 @@ TXT = {
                   "lote, los sectores marrones se secan primero: por ahí empezar el muestreo de "
                   "humedad de grano.",
     mapa_zonas_cap="Proximidad en 5 zonas con hectareas por clase: el nivel trillable es el p90 de la referencia seca de esta corrida (medido a campo 29-ago: ~18 % de humedad al alcanzarlo = inicio de ventana de trilla, PH 78; la zona cerca midio 23 %). Los dias asumen la tasa de secado medida y sin lluvia. La barra de cada lote dice cuantas hectareas entran esta semana y cuantas despues.",
+    mapa_fino_cap="Variabilidad FINA del agua del dosel a 20 m nativos, sin suavizar: escalones de 0,02 (= ruido de medicion), 7 tonos dentro del rango seco. Mas oscuro = mas seco = entrar primero. Medido a campo: SA-01, el lote mas oscuro, cosechado 31-ago a 16 % de humedad; dentro del marron de SF: 18 % y 24 % — la banda de agua ve la paja,no el grano, y en el extremo seco pierde sensibilidad. El mapa ORDENA; el humedimetro certifica.",
     sec4="Método y alcance",
     metodo="Madurez por caída del CIre respecto del pico propio (pico solo con escenas S2A/B; "
            "S2C corregido por nivel). Compuerta de bruma por lote y fecha. Producto RELATIVO: "
@@ -472,6 +473,7 @@ TXT = {
                   "de cada talhão, os setores marrons secam primeiro: por aí começar a amostragem "
                   "de umidade do grão.",
     mapa_zonas_cap="Proximidade em 5 zonas com hectares por classe: o nivel trilhavel e o p90 da referencia seca desta rodada (medido no campo 29-ago: ~18 % de umidade ao atingi-lo = inicio da janela de trilha, PH 78; a zona perto mediu 23 %). Os dias assumem a taxa de secagem medida e sem chuva. A barra de cada talhao diz quantos hectares entram nesta semana e quantos depois.",
+    mapa_fino_cap="Variabilidade FINA da agua do dossel a 20 m nativos, sem suavizar: degraus de 0,02 (= ruido de medicao), 7 tons dentro da faixa seca. Mais escuro = mais seco = entrar primeiro. Medido no campo: SA-01, o talhao mais escuro, colhido 31/ago com 16 % de umidade; dentro do marrom de SF: 18 % e 24 % — a banda de agua ve a palha,nao o grao, e no extremo seco perde sensibilidade. O mapa ORDENA; o medidor de umidade certifica.",
     sec4="Método e alcance",
     metodo="Maturação pela queda do CIre em relação ao pico próprio (pico somente com cenas "
            "S2A/B; S2C corrigido por nível). Comporta de bruma/névoa seca por talhão e data. "
@@ -914,6 +916,16 @@ def render_graficos(res, rasters, idioma):
             for k in ('ndmi', 'rgb'):
                 z_arrays[f'{lid}|{k}'], z_arrays[f'{lid}|{k}_ext'] = d[k]
         _zonas_render(res, z_arrays, pngs['zonas'], idioma)
+        # mapa de VARIABILIDAD FINA (20 m nativos, sin suavizar): solo si la corrida
+        # dejo los rasteres ndmi20m_* en salida (correccion de campo 02-sep: el marron
+        # unico escondia 18-24 % de humedad de grano)
+        try:
+            from zonas_proximidad import render_fino as _fino, cargar_ndmi20 as _c20
+            nd20 = _c20(res, SALIDA)
+            pngs['fino'] = f"{MED}/variabilidad_fina_{hkey}{suf}.png"
+            _fino(res, nd20, z_arrays, pngs['fino'], idioma)
+        except FileNotFoundError:
+            print('sin rasteres ndmi20m_* en salida: mapa fino omitido')
     return pngs
 
 
@@ -1092,6 +1104,9 @@ def render_pdf(res, idioma, pngs=None):
     if pngs.get('zonas'):
         st += [KeepTogether([_img_ajustada(pngs['zonas'], max_h=17.5 * cm),
                              figcap(T['mapa_zonas_cap'])])]
+    if pngs.get('fino'):
+        st += [KeepTogether([_img_ajustada(pngs['fino'], max_h=17.5 * cm),
+                             figcap(T['mapa_fino_cap'])])]
 
     # ---- seccion final: metodo + proximo paso (fluye: sin pagina semivacia) ----
     st += [KeepTogether([B.sec(sec_m + 1, T['sec4']),
