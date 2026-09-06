@@ -1,0 +1,23 @@
+{
+ "ANA_BHO2017_5k_trecho_drenagem": {
+  "url": "https://www.snirh.gov.br/arcgis/rest/services/SPR/BHO2017_5K_TRECHODRENAGEM/FeatureServer/0",
+  "n": 10
+ },
+ "ANA_BHO2017_50k_trecho_drenagem": {
+  "url": "https://www.snirh.gov.br/arcgis/rest/services/SPR/BHO2017_50K_TRECHODRENAGEM/FeatureServer/0",
+  "n": 2
+ },
+ "ANA_BHO2017_50k_area_drenagem": {
+  "url": "https://www.snirh.gov.br/arcgis/rest/services/SPR/BHO2017_50K_AREADRENAGEM/FeatureServer/0",
+  "n": 4
+ },
+ "PR_geoserver_car_hidrografia_pol": {
+  "url": "https://geoserver.pr.gov.br/geoserver/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=car%3Ahidrografia_pol_p4674&bbox=-50.70%2C-23.52%2C-50.62%2C-23.45&outputFormat=application%2Fjson&srsName=EPSG%3A4326",
+  "n": 73
+ },
+ "IBGE_BC250_trecho_drenagem": {
+  "url": "https://geoservicos.ibge.gov.br/geoserver/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=CCAR%3ABC250_2025_hid_trecho_drenagem_l&bbox=-50.70%2C-23.52%2C-50.62%2C-23.45&outputFormat=application%2Fjson&srsName=EPSG%3A4326",
+  "layer": "CCAR:BC250_2025_hid_trecho_drenagem_l",
+  "n": 16
+ }
+}

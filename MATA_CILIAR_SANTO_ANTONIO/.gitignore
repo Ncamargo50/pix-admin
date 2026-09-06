@@ -1,0 +1,4 @@
+__pycache__/
+# capas FBDS >10 MB: re-descargables via geopr.iat.pr.gov.br (ver metodologia/METODOLOGIA_AGUA_VEGETACION.md §2)
+datos_externos/IAT_FBDS_uso_cobertura_2013.geojson
+datos_externos/IAT_FBDS_app_uso.geojson

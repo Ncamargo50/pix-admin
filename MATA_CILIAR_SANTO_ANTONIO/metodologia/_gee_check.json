@@ -1,0 +1,146 @@
+{
+ "COPERNICUS/S2_SR_HARMONIZED": [
+  200,
+  "Harmonized Sentinel-2 MSI: MultiSpectral Instrument, Level-2A (SR) &nbsp;|&nbsp; Earth Eng",
+  "2017-03-28T00:00:00Z–2026-09-06T08:22:00.448000Z",
+  false
+ ],
+ "GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED": [
+  200,
+  "Cloud Score+ S2_HARMONIZED V1 &nbsp;|&nbsp; Earth Engine Data Catalog &nbsp;|&nbsp; Google",
+  "2015-06-27T00:00:00Z–2026-09-06T05:51:32.090000Z",
+  false
+ ],
+ "COPERNICUS/DEM/GLO30": [
+  200,
+  "Copernicus DEM GLO-30: Global 30m Digital Elevation Model [deprecated] &nbsp;|&nbsp; Earth",
+  "2010-12-01T00:00:00Z–2015-01-31T00:00:00Z",
+  false
+ ],
+ "NASA/NASADEM_HGT/001": [
+  200,
+  "NASADEM: NASA 30m Digital Elevation Model &nbsp;|&nbsp; Earth Engine Data Catalog &nbsp;|&",
+  "2000-02-11T00:00:00Z–2000-02-22T00:00:00Z",
+  false
+ ],
+ "JAXA/ALOS/AW3D30/V3_2": [
+  200,
+  "ALOS DSM: Global 30m v3.2 [deprecated] &nbsp;|&nbsp; Earth Engine Data Catalog &nbsp;|&nbs",
+  "2006-01-24T00:00:00Z–2011-05-12T00:00:00Z",
+  false
+ ],
+ "JRC/GSW1_4/GlobalSurfaceWater": [
+  200,
+  "JRC Global Surface Water Mapping Layers, v1.4 &nbsp;|&nbsp; Earth Engine Data Catalog &nbs",
+  "1984-03-16T00:00:00Z–2022-01-01T00:00:00Z",
+  false
+ ],
+ "JRC/GSW1_4/MonthlyHistory": [
+  200,
+  "JRC Monthly Water History, v1.4 &nbsp;|&nbsp; Earth Engine Data Catalog &nbsp;|&nbsp; Goog",
+  "1984-03-16T00:00:00Z–2022-01-01T00:00:00Z",
+  false
+ ],
+ "MERIT/Hydro/v1_0_1": [
+  200,
+  "MERIT Hydro: Global Hydrography Datasets &nbsp;|&nbsp; Earth Engine Data Catalog &nbsp;|&n",
+  "1987-01-01T00:00:00Z–2017-01-01T00:00:00Z",
+  false
+ ],
+ "MERIT/DEM/v1_0_3": [
+  200,
+  "MERIT DEM: Multi-Error-Removed Improved-Terrain DEM &nbsp;|&nbsp; Earth Engine Data Catalo",
+  "1987-01-01T00:00:00Z–2017-01-01T00:00:00Z",
+  false
+ ],
+ "WWF/HydroSHEDS/v1/FreeFlowingRivers": [
+  200,
+  "WWF HydroSHEDS Free Flowing Rivers Network v1 &nbsp;|&nbsp; Earth Engine Data Catalog &nbs",
+  "2000-02-11T00:00:00Z–2000-02-22T00:00:00Z",
+  false
+ ],
+ "WWF/HydroSHEDS/03CONDEM": [
+  200,
+  "WWF HydroSHEDS Hydrologically Conditioned DEM, 3 Arc-Seconds &nbsp;|&nbsp; Earth Engine Da",
+  "2000-02-11T00:00:00Z–2000-02-22T00:00:00Z",
+  false
+ ],
+ "WWF/HydroSHEDS/03DIR": [
+  200,
+  "WWF HydroSHEDS Drainage Direction, 3 Arc-Seconds &nbsp;|&nbsp; Earth Engine Data Catalog &",
+  "2000-02-11T00:00:00Z–2000-02-22T00:00:00Z",
+  false
+ ],
+ "UMD/hansen/global_forest_change_2024_v1_12": [
+  200,
+  "Hansen Global Forest Change v1.12 (2000-2024) [deprecated] &nbsp;|&nbsp; Earth Engine Data",
+  "2000-01-01T00:00:00Z–2024-12-31T00:00:00Z",
+  false
+ ],
+ "UMD/hansen/global_forest_change_2023_v1_11": [
+  200,
+  "Hansen Global Forest Change v1.11 (2000-2023) [deprecated] &nbsp;|&nbsp; Earth Engine Data",
+  "2000-01-01T00:00:00Z–2023-12-31T00:00:00Z",
+  false
+ ],
+ "ESA/WorldCover/v200": [
+  200,
+  "ESA WorldCover 10m v200 &nbsp;|&nbsp; Earth Engine Data Catalog &nbsp;|&nbsp; Google for D",
+  "2021-01-01T00:00:00Z–2022-01-01T00:00:00Z",
+  false
+ ],
+ "GOOGLE/DYNAMICWORLD/V1": [
+  200,
+  "Dynamic World V1 &nbsp;|&nbsp; Earth Engine Data Catalog &nbsp;|&nbsp; Google for Develope",
+  "2015-06-27T00:00:00Z–2026-09-06T07:19:04.176000Z",
+  false
+ ],
+ "USGS/SRTMGL1_003": [
+  200,
+  "NASA SRTM Digital Elevation 30m &nbsp;|&nbsp; Earth Engine Data Catalog &nbsp;|&nbsp; Goog",
+  "2000-02-11T00:00:00Z–2000-02-22T00:00:00Z",
+  false
+ ],
+ "COPERNICUS/S1_GRD": [
+  200,
+  "Sentinel-1 SAR GRD: C-band Synthetic Aperture Radar Ground Range Detected, log scaling &nb",
+  "2014-10-03T00:00:00Z–2026-09-06T11:02:15Z",
+  false
+ ],
+ "projects/sat-io/open-datasets/FABDEM": [
+  404,
+  "404 &nbsp;|&nbsp; Page Not Found &nbsp;|&nbsp; Google for Developers",
+  "",
+  false
+ ],
+ "MERIT/Hydro_reduced/v1_0_1": [
+  200,
+  "MERIT Hydro: Supplementary Visualization Layers &nbsp;|&nbsp; Earth Engine Data Catalog &n",
+  "1987-01-01T00:00:00Z–2017-01-01T00:00:00Z",
+  false
+ ],
+ "WWF/HydroATLAS/v1/Basins_level12": [
+  200,
+  "WWF HydroATLAS Basins Level 12 &nbsp;|&nbsp; Earth Engine Data Catalog &nbsp;|&nbsp; Googl",
+  "2000-02-22T00:00:00Z–2000-02-22T00:00:00Z",
+  false
+ ],
+ "COPERNICUS/S2_SR": [
+  200,
+  "Sentinel-2 MSI: MultiSpectral Instrument, Level-2A (SR) [deprecated] &nbsp;|&nbsp; Earth E",
+  "2017-03-28T00:00:00Z–2026-09-06T08:34:39.322000Z",
+  false
+ ],
+ "COPERNICUS/S2_CLOUD_PROBABILITY": [
+  200,
+  "Sentinel-2: Cloud Probability &nbsp;|&nbsp; Earth Engine Data Catalog &nbsp;|&nbsp; Google",
+  "2015-06-27T00:00:00Z–2026-09-06T09:05:51Z",
+  false
+ ],
+ "UMD/hansen/global_forest_change_2025_v1_13": [
+  200,
+  "Hansen Global Forest Change v1.13 (2000-2025) &nbsp;|&nbsp; Earth Engine Data Catalog &nbs",
+  "2000-01-01T00:00:00Z–2025-12-31T00:00:00Z",
+  false
+ ]
+}

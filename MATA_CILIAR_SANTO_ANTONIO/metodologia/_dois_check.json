@@ -1,0 +1,358 @@
+{
+ "McFeeters 1996 NDWI": [
+  "OK",
+  "10.1080/01431169608948714",
+  1996,
+  "McFEETERS",
+  "International Journal of Remote Sensing",
+  "The use of the Normalized Difference Water Index (NDWI) in the delineation of open water features"
+ ],
+ "Xu 2006 MNDWI": [
+  "OK",
+  "10.1080/01431160600589179",
+  2006,
+  "Xu",
+  "International Journal of Remote Sensing",
+  "Modification of normalised difference water index (NDWI) to enhance open water features in remotely sensed ima"
+ ],
+ "Feyisa 2014 AWEI": [
+  "OK",
+  "10.1016/j.rse.2013.08.029",
+  2014,
+  "Feyisa, Meilby, Fensholt",
+  "Remote Sensing of Environment",
+  "Automated Water Extraction Index: A new technique for surface water mapping using Landsat imagery"
+ ],
+ "Pekel 2016 GSW": [
+  "OK",
+  "10.1038/nature20584",
+  2016,
+  "Pekel, Cottam, Gorelick",
+  "Nature",
+  "High-resolution mapping of global surface water and its long-term changes"
+ ],
+ "O'Callaghan & Mark 1984": [
+  "OK",
+  "10.1016/S0734-189X(84)80011-0",
+  1984,
+  "O'Callaghan, Mark",
+  "Computer Vision, Graphics, and Image Pro",
+  "The extraction of drainage networks from digital elevation data"
+ ],
+ "Tarboton 1997 Dinf": [
+  "OK",
+  "10.1029/96WR03137",
+  1997,
+  "Tarboton",
+  "Water Resources Research",
+  "A new method for the determination of flow directions and upslope areas in grid digital elevation models"
+ ],
+ "Renno 2008 HAND": [
+  "OK",
+  "10.1016/j.rse.2008.03.018",
+  2008,
+  "Rennó, Nobre, Cuartas",
+  "Remote Sensing of Environment",
+  "HAND, a new terrain descriptor using SRTM-DEM: Mapping terra-firme rainforest environments in Amazonia"
+ ],
+ "Nobre 2011 HAND": [
+  "OK",
+  "10.1016/j.jhydrol.2011.03.051",
+  2011,
+  "Nobre, Cuartas, Hodnett",
+  "Journal of Hydrology",
+  "Height Above the Nearest Drainage – a hydrologically relevant new terrain model"
+ ],
+ "Hawker 2022 FABDEM": [
+  "OK",
+  "10.1088/1748-9326/ac4d4f",
+  2022,
+  "Hawker, Uhe, Paulo",
+  "Environmental Research Letters",
+  "A 30 m global map of elevation with forests and buildings removed"
+ ],
+ "Guth & Geoffroy 2021 DEMs": [
+  "OK",
+  "10.1111/tgis.12825",
+  2021,
+  "Guth, Geoffroy",
+  "Transactions in GIS",
+  "LiDAR point cloud and <i>ICESat‐2</i> evaluation of 1 second global digital elevation models: Copernicus wins"
+ ],
+ "Uuemaa 2020 DEM accuracy": [
+  "OK",
+  "10.3390/rs12213482",
+  2020,
+  "Uuemaa, Ahi, Montibeller",
+  "Remote Sensing",
+  "Vertical Accuracy of Freely Available Global Digital Elevation Models (ASTER, AW3D30, MERIT, TanDEM-X, SRTM, a"
+ ],
+ "Yamazaki 2017 MERIT DEM": [
+  "OK",
+  "10.1002/2017GL072874",
+  2017,
+  "Yamazaki, Ikeshima, Tawatari",
+  "Geophysical Research Letters",
+  "A high‐accuracy map of global terrain elevations"
+ ],
+ "Yamazaki 2019 MERIT Hydro": [
+  "OK",
+  "10.1029/2019WR024873",
+  2019,
+  "Yamazaki, Ikeshima, Sosa",
+  "Water Resources Research",
+  "MERIT Hydro: A High‐Resolution Global Hydrography Map Based on Latest Topography Dataset"
+ ],
+ "Souza 2020 MapBiomas": [
+  "OK",
+  "10.3390/rs12172735",
+  2020,
+  "Souza, Z. Shimbo, Rosa",
+  "Remote Sensing",
+  "Reconstructing Three Decades of Land Use and Land Cover Changes in Brazilian Biomes with Landsat Archive and E"
+ ],
+ "Du 2016 S2 MNDWI sharpen": [
+  "OK",
+  "10.3390/rs8040354",
+  2016,
+  "Du, Zhang, Ling",
+  "Remote Sensing",
+  "Water Bodies’ Mapping from Sentinel-2 Imagery with Modified Normalized Difference Water Index at 10-m Spatial "
+ ],
+ "Yang 2017 S2 NDWI sharpen": [
+  "OK",
+  "10.3390/rs9060596",
+  2017,
+  "Yang, Zhao, Qin",
+  "Remote Sensing",
+  "Mapping of Urban Surface Water Bodies from Sentinel-2 MSI Imagery at 10 m Resolution via NDWI-Based Image Shar"
+ ],
+ "Allen & Pavelsky 2018 GRWL": [
+  "OK",
+  "10.1126/science.aat0636",
+  2018,
+  "Allen, Pavelsky",
+  "Science",
+  "Global extent of rivers and streams"
+ ],
+ "Gorelick 2017 GEE": [
+  "OK",
+  "10.1016/j.rse.2017.06.031",
+  2017,
+  "Gorelick, Hancher, Dixon",
+  "Remote Sensing of Environment",
+  "Google Earth Engine: Planetary-scale geospatial analysis for everyone"
+ ],
+ "Hansen 2013 GFC": [
+  "OK",
+  "10.1126/science.1244693",
+  2013,
+  "Hansen, Potapov, Moore",
+  "Science",
+  "High-Resolution Global Maps of 21st-Century Forest Cover Change"
+ ],
+ "Brown 2022 Dynamic World": [
+  "OK",
+  "10.1038/s41597-022-01307-4",
+  2022,
+  "Brown, Brumby, Guzder-Williams",
+  "Scientific Data",
+  "Dynamic World, Near real-time global 10 m land use land cover mapping"
+ ],
+ "Zanaga 2022 WorldCover": [
+  "FAIL",
+  "10.5281/zenodo.7254221",
+  404
+ ],
+ "Lehner 2008 HydroSHEDS": [
+  "OK",
+  "10.1029/2008EO100001",
+  2008,
+  "Lehner, Verdin, Jarvis",
+  "Eos, Transactions American Geophysical U",
+  "New Global Hydrography Derived From Spaceborne Elevation Data"
+ ],
+ "Grill 2019 FFR": [
+  "OK",
+  "10.1038/s41586-019-1111-9",
+  2019,
+  "Grill, Lehner, Thieme",
+  "Nature",
+  "Mapping the world’s free-flowing rivers"
+ ],
+ "Breiman 2001 RF": [
+  "OK",
+  "10.1023/A:1010933404324",
+  2001,
+  "Breiman",
+  "Machine Learning",
+  "Random Forests"
+ ],
+ "Haralick 1973 GLCM": [
+  "OK",
+  "10.1109/TSMC.1973.4309314",
+  1973,
+  "Haralick, Shanmugam, Dinstein",
+  "IEEE Transactions on Systems, Man, and C",
+  "Textural Features for Image Classification"
+ ],
+ "Jenson & Domingue 1988": [
+  "OK",
+  "10.1002/joc.3370080202",
+  1988,
+  "Hamilton, Lennon, O'Donnell",
+  "Journal of Climatology",
+  "Objective analysis of monthly climatological fields of temperature, sunshine, rainfall percentage and rainfall"
+ ],
+ "Rosa 2021 Atlantic Forest older forests": [
+  "FAIL",
+  "10.1126/sciadv.abc6667",
+  404
+ ],
+ "Bielski 2024 Copernicus DEM ranking": [
+  "FAIL",
+  "10.1109/TGRS.2024.3352254",
+  404
+ ],
+ "Ogilvie 2018 small water bodies": [
+  "OK",
+  "10.1016/j.jhydrol.2018.02.006",
+  2018,
+  "Zell, Culver, Sanford",
+  "Journal of Hydrology",
+  "Prediction uncertainty and data worth assessment for groundwater transport times in an agricultural catchment"
+ ],
+ "Isikdogan 2017 RivaMap": [
+  "OK",
+  "10.1016/j.rse.2017.03.044",
+  2017,
+  "Isikdogan, Bovik, Passalacqua",
+  "Remote Sensing of Environment",
+  "RivaMap: An automated river analysis and mapping engine"
+ ],
+ "Marsh 2023?": [
+  "OK",
+  "10.3390/rs15071895",
+  2023,
+  "Jin, Wang, Yang",
+  "Remote Sensing",
+  "Precise Ambiguity Performance Evaluation for Spaceborne SAR with Diverse Waveforms"
+ ],
+ "Belgiu 2016 RF review": [
+  "OK",
+  "10.1016/j.isprsjprs.2016.01.011",
+  2016,
+  "Belgiu, Drăguţ",
+  "ISPRS Journal of Photogrammetry and Remo",
+  "Random forest in remote sensing: A review of applications and future directions"
+ ],
+ "Mullissa 2021 S1 GEE": [
+  "OK",
+  "10.3390/rs13101954",
+  2021,
+  "Mullissa, Vollrath, Odongo-Braun",
+  "Remote Sensing",
+  "Sentinel-1 SAR Backscatter Analysis Ready Data Preparation in Google Earth Engine"
+ ],
+ "jag 2023 103396": [
+  "OK",
+  "10.1016/j.jag.2023.103396",
+  2023,
+  "Fol, Kükenbrink, Rehush",
+  "International Journal of Applied Earth O",
+  "Evaluating state-of-the-art 3D scanning methods for stem-level biodiversity inventories in forests"
+ ],
+ "Souza 2019?": [
+  "OK",
+  "10.3390/rs11242926",
+  2019,
+  "Sebastiá-Frasquet, Aguilar-Maldonado, Santamaría-Del-Ángel",
+  "Remote Sensing",
+  "Sentinel 2 Analysis of Turbidity Patterns in a Coastal Lagoon"
+ ],
+ "Jenson Domingue PE&RS?": [
+  "FAIL",
+  "10.14358/PERS.54.11.1593",
+  404
+ ],
+ "FBDS RBC 2020": [
+  "OK",
+  "10.14393/rbcv72nespecial50anos-56591",
+  2020,
+  "Oliveira, Cassol, Ganem",
+  "Revista Brasileira de Cartografia",
+  "Mapeamento da Vegetação do Cerrado – Uma Revisão das Iniciativas de Sensoriamento Remoto"
+ ],
+ "Bielski 2024": [
+  "OK",
+  "10.1109/tgrs.2024.3368015",
+  2024,
+  "Bielski, López-Vázquez, Grohmann",
+  "IEEE Transactions on Geoscience and Remote Se",
+  "Novel Approach for Ranking DEMs: Copernicus DEM Improves One Arc Second Open Global Topography"
+ ],
+ "Lu & Yang 2020 Arctic rivers": [
+  "OK",
+  "10.1016/j.jhydrol.2020.124689",
+  2020,
+  "Lu, Yang, Lu",
+  "Journal of Hydrology",
+  "Small Arctic rivers mapped from Sentinel-2 satellite imagery and ArcticDEM"
+ ],
+ "Perez & Bourscheidt 2022": [
+  "OK",
+  "10.1016/j.ecoinf.2022.101680",
+  2022,
+  "Perez, Bourscheidt, Lopes",
+  "Ecological Informatics",
+  "Use of Sentinel 2 imagery to estimate vegetation height in fragments of Atlantic Forest"
+ ],
+ "Kirby & Ferguson 2024": [
+  "OK",
+  "10.1016/j.rsase.2024.101367",
+  2024,
+  "Kirby, Ferguson, Rennie",
+  "Remote Sensing Applications: Society and Envi",
+  "Identification of the best method for detecting surface water in Sentinel-2 multispectral satellite imagery"
+ ],
+ "Cavallo 2022": [
+  "OK",
+  "10.1038/s41598-022-26034-z",
+  2022,
+  "Cavallo, Papa, Negro",
+  "Scientific Reports",
+  "Exploiting Sentinel-2 dataset to assess flow intermittency in non-perennial rivers"
+ ],
+ "Bortolini 2025 RAEGA": [
+  "OK",
+  "10.5380/raega.v62i1.98168",
+  2025,
+  "Bortolini, Taborda da Silveira, Siame",
+  "RAEGA - O Espaço Geográfico em Análise",
+  "Comparison of drainage network extracted from global digital elevation models with simple-flow and multi-flow direction"
+ ],
+ "Wang & Yin 1998": [
+  "OK",
+  "10.1016/s0022-1694(98)00189-9",
+  1998,
+  "Wang, Yin",
+  "Journal of Hydrology",
+  "A comparison of drainage networks derived from digital elevation models at two scales"
+ ],
+ "Xiao 2024 natural/planted": [
+  "OK",
+  "10.34133/remotesensing.0204",
+  2024,
+  "Xiao, Wang, Zhang",
+  "Journal of Remote Sensing",
+  "Global Natural and Planted Forests Mapping at Fine Spatial Resolution of 30 m"
+ ],
+ "Zhou 2024 eucalyptus CCDC": [
+  "OK",
+  "10.3390/f15111866",
+  2024,
+  "Zhou, Han, Wang",
+  "Forests",
+  "Identification and Mapping of Eucalyptus Plantations in Remote Sensing Data Using CCDC Algorithm and Random Forest"
+ ]
+}

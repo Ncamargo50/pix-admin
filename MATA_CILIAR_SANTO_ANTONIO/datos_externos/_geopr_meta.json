@@ -1,0 +1,360 @@
+{
+ "00_PUBLICACOES/fbds_nascentes": {
+  "desc": "Base de pontos de nascente de água nos municípios do estado do Paraná, realizado através do Mapeamento de Áreas de Preservação Permanentes Hídricas, conforme previsto nos Artigos 4º e 5º da Lei 12.651/2012. O mapeamento foi feito através da análise de bases de redes hidrográficas existentes compleme",
+  "copyright": "FBDS, 2013",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Nascentes - FBDS",
+    "geom": "esriGeometryPoint",
+    "fields": [
+     "objectid",
+     "cod_ibge",
+     "municipio",
+     "hidrografia",
+     "arquivo"
+    ],
+    "desc": "fbds_nascentes",
+    "count_bbox": 38
+   }
+  ]
+ },
+ "00_PUBLICACOES/fbds_rio_ate10m_larg": {
+  "desc": "<div style='text-align:justify;'>Base de cursos d'água com largura de até 10 metros, realizado através do Mapeamento de Áreas de Preservação Permanentes Hídricas, conforme previsto nos Artigos 4º e 5º da Lei 12.651/2012. O mapeamento foi feito através da análise de bases de redes hidrográficas exist",
+  "copyright": "FBDS, 2013",
+  "layers": [
+   {
+    "id": 0,
+    "name": "FBDS - Rio até 10m de largura",
+    "geom": "esriGeometryPolyline",
+    "fields": [
+     "objectid",
+     "cod_ibge",
+     "municipio",
+     "hidrografia",
+     "comprimento_km",
+     "arquivo",
+     "Shape__Length"
+    ],
+    "desc": "Base de cursos d'água com largura de até 10 metros, realizado através do Mapeamento de Áreas de Preservação Permanentes Hídricas, conforme previsto nos Artigos 4º e 5º da Lei 12.651/2012. O mapeamento foi feito através da análise de bases de redes hidrográficas existentes complementadas e/ou adaptadas com base nas imagens RapidEye. A medida da largura dos cursos d’água é realizada para intervalos de 10 metros, agrupados em trechos 100 metros. Para cada trecho de 100 metros, é atribuído o maior valor de largura medido para seus intervalos de 10 metros.",
+    "count_bbox": 231
+   }
+  ]
+ },
+ "00_PUBLICACOES/Cursos_D_água_Largura_acima_de_10_metros_FBDS": {
+  "desc": "Base de Cursos d'água com largura maior de 10 metros, realizado através do Mapeamento de Áreas de Preservação Permanentes Hídricas, conforme previsto nos Artigos 4º e 5º da Lei 12.651/2012. O mapeamento foi feito através da análise de bases de redes hidrográficas existentes complementadas e/ou adapt",
+  "copyright": "FBDS, 2013",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Cursos D'água (Largura acima de 10 metros) - FBDS",
+    "geom": "esriGeometryPolygon",
+    "fields": [
+     "objectid",
+     "cod_ibge",
+     "municipio",
+     "hidrografia",
+     "arquivo",
+     "Shape__Area",
+     "Shape__Length"
+    ],
+    "desc": "Base de Cursos d'água com largura maior de 10 metros, realizado através do Mapeamento de Áreas de Preservação Permanentes Hídricas, conforme previsto nos Artigos 4º e 5º da Lei 12.651/2012. O mapeamento foi feito através da análise de bases de redes hidrográficas existentes complementadas e/ou adaptadas com base nas imagens RapidEye. A medida da largura dos cursos d’água é realizada para intervalos de 10 metros, agrupados em trechos 100 metros. Para cada trecho de 100 metros, é atribuído o maior valor de largura medido para seus intervalos de 10 metros.",
+    "count_bbox": 3
+   }
+  ]
+ },
+ "00_PUBLICACOES/fbds_massas_dagua": {
+  "desc": "Base de Massas de água naturais e artificiais por município e setor (rural e urbano) no estado do Paraná, realizado através do Mapeamento de Áreas de Preservação Permanentes Hídricas, conforme previsto nos Artigos 4º e 5º da Lei 12.651/2012.  <br /> <br /> Dado derivado do projeto de mapeamento do u",
+  "copyright": "FBDS, 2013",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Massas D'água Naturais e Artificiais - FBDS",
+    "geom": "esriGeometryPolygon",
+    "fields": [
+     "objectid",
+     "cod_ibge",
+     "municipio",
+     "hidrografia",
+     "natureza",
+     "rio",
+     "setor",
+     "arquivo",
+     "Shape__Area",
+     "Shape__Length"
+    ],
+    "desc": "fbds_massas_dagua",
+    "count_bbox": 33
+   }
+  ]
+ },
+ "00_PUBLICACOES/fbds_app": {
+  "desc": "Mapeamento de Áreas de Preservação Permanentes Hídricas realizado conforme previsto nos Artigos 4º e 5º da Lei 12.651/2012, sendo composto pelas categorias Componente da Hidrografia (nascente; lago ou lagoa natural; reservatório artificial; curso d'água) e Largura da APP (metros). A medida da largur",
+  "copyright": "FBDS, 2013",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Áreas de Preservação Permanentes Hídricas - FBDS",
+    "geom": "esriGeometryPolygon",
+    "fields": [
+     "objectid",
+     "cod_ibge",
+     "municipio",
+     "hidrografia",
+     "app",
+     "arquivo",
+     "Shape__Area",
+     "Shape__Length"
+    ],
+    "desc": "",
+    "count_bbox": 9
+   }
+  ]
+ },
+ "00_PUBLICACOES/fbds_app_uso": {
+  "desc": "União dos dados de Áreas de Preservação Permanentes Hídricas e Uso do Solo. Dado derivado do projeto de mapeamento do uso e cobertura do solo, da Fundação Brasileira de Desenvolvimento Sustentável - 2013.  Dado derivado do projeto de mapeamento do uso e cobertura do solo, da Fundação Brasileira de D",
+  "copyright": "FBDS, 2013",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Uso e Cobertura do Solo nas APPs Hídricas - FBDS",
+    "geom": "esriGeometryPolygon",
+    "fields": [
+     "objectid",
+     "cod_ibge",
+     "municipio",
+     "classe_uso",
+     "arquivo",
+     "Shape__Area",
+     "Shape__Length"
+    ],
+    "desc": "",
+    "count_bbox": 9
+   }
+  ]
+ },
+ "00_PUBLICACOES/fbds_uso_cobertura_2013": {
+  "desc": "O mapeamento do uso e cobertura do solo foi realizado por meio da classificação supervisionada de imagens RapidEye, ano base 2013. Foram mapeadas 6 classes de uso e cobertura. A delimitação das áreas edificadas respeita os limites estabelecidos pela Base Cartográfica Contínua do IBGE (2013). Dado de",
+  "copyright": "FBDS, 2013",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Uso e Cobertura da Terra (2013) - FBDS",
+    "geom": "esriGeometryPolygon",
+    "fields": [
+     "objectid",
+     "cod_ibge",
+     "municipio",
+     "classe_uso",
+     "arquivo",
+     "Shape__Area",
+     "Shape__Length"
+    ],
+    "desc": "O mapeamento do uso e cobertura do solo foi realizado por meio da classificação supervisionada de imagens RapidEye, ano base 2013. Foram mapeadas 6 classes de uso e cobertura. A delimitação das áreas edificadas respeita os limites estabelecidos pela Base Cartográfica Contínua do IBGE (2013).",
+    "count_bbox": 12
+   }
+  ]
+ },
+ "00_PUBLICACOES/rede_otto_trech_drena_2020_iat": {
+  "desc": "Rede Hidrográfica modelada de acordo com a metodologia da Agência Nacional das Águas, de 2010. O dado original foi elaborado em Datum Horizontal SAD-69 por bacias de nível 4. <br /> A Rede Hidrográfica ottocodificada corresponde aos elementos vetoriais da base hidrográfica modelados com uma topologi",
+  "copyright": "IAT, 2020",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Hidrografia Ottocodificada - Trecho de Drenagem (2020)",
+    "geom": "esriGeometryPolyline",
+    "fields": [
+     "objectid",
+     "drn_pk",
+     "cotrecho",
+     "noorigem",
+     "nodestino",
+     "cocursodag",
+     "cobacia",
+     "nucomptrec",
+     "nudistbact",
+     "nudistcdag",
+     "nuareacont",
+     "nuareamont",
+     "nogenerico",
+     "noligacao",
+     "noespecif",
+     "noriocomp",
+     "nooriginal",
+     "cocdadesag",
+     "nutrjus",
+     "nudistbacc",
+     "nuareabacc",
+     "nuordemcda",
+     "nucompcda",
+     "nunivotto",
+     "nunivotcda",
+     "nustrahler",
+     "dedominial",
+     "dsversao",
+     "old_nutrjus",
+     "cobacia_2011",
+     "Shape__Length"
+    ],
+    "desc": "Rede Hidrográfica modelada de acordo com a metodologia da Agência Nacional das Águas, de 2010. O dado original foi elaborado em Datum Horizontal SAD-69 por bacias de nível 4.A Rede Hidrográfica ottocodificada corresponde aos elementos vetoriais da base hidrográfica modelados com uma topologia de rede e processados pela metodologia de ottocodificação desenvolvida pela Agência Nacional das Águas - ANA.Dado do IAT, derivado das ottobacias da ANA. Em relação a versão anterior, denominado COPEL/AGUASPARANA, 2011 foram corrigidos uma série de pequenos erros, e acrescentados novos elementos de toponímia de nomes de rios.",
+    "count_bbox": 90
+   }
+  ]
+ },
+ "00_PUBLICACOES/rede_otto_areas_drena_2020_iat": {
+  "desc": "Área de contribuição hídrica de cada trecho da hidrografia integrada modelada de acordo com a metodologia da Agência Nacional das Águas, de 2010. O dado original foi elaborado em Datum Horizontal SAD-69 por bacias de nível 4. <br /> A Rede Hidrográfica ottocodificada corresponde aos elementos vetori",
+  "copyright": "IAT, 2020",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Hidrografia Ottocodificada - Áreas de Drenagem (2020)",
+    "geom": "esriGeometryPolygon",
+    "fields": [
+     "objectid",
+     "dra_pk",
+     "idbacia",
+     "cotrecho",
+     "cocursodag",
+     "cobacia",
+     "nuareacont",
+     "nuordemcda",
+     "nunivotto1",
+     "nunivotto2",
+     "nunivotto3",
+     "nunivotto4",
+     "nunivotto5",
+     "nunivotto6",
+     "nunivotto",
+     "dsversao",
+     "cobacia_2011",
+     "Shape__Area",
+     "Shape__Length"
+    ],
+    "desc": "Área de contribuição hídrica de cada trecho da hidrografia integrada modelada de acordo com a metodologia da Agência Nacional das Águas, de 2010. O dado original foi elaborado em Datum Horizontal SAD-69 por bacias de nível 4.A Rede Hidrográfica ottocodificada corresponde aos elementos vetoriais da base hidrográfica modelados com uma topologia de rede e processados pela metodologia de ottocodificação desenvolvida pela Agência Nacional das Águas - ANA.Em relação a versão anterior (COPEL/AGUASPARANA, 2011) foram corrigidos uma série de pequenos erros, e acrescentados novos elementos de toponímia de nomes de rios. Camada do IAT, derivada das ottobacias da ANA.",
+    "count_bbox": null
+   }
+  ]
+ },
+ "00_PUBLICACOES/bc_hid_trecho_drenagem_l_10k": {
+  "desc": "Mapeamento por radar em escala 1:10.000 das áreas susceptíveis a desastres no litoral do Paraná: o Projeto consistiu na elaboração de bases cartográficas de áreas susceptíveis a desastres na região litorânea do estado do Paraná, de acordo com o contrato nº 02/2015, firmado entre a Secretaria de Esta",
+  "copyright": "SEMA, 2016",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Hidrografia - Trecho de Drenagem - Mapeamento por radar 1:10.000",
+    "geom": "esriGeometryPolyline",
+    "fields": [
+     "objectid",
+     "tipo",
+     "Shape__Length"
+    ],
+    "desc": "Mapeamento de Radar em escala 1:10.000 das áreas susceptíveis a desastres no litoral do Paraná: o Projeto consistiu na elaboração de bases cartográficas de áreas susceptíveis a desastres na região litorânea do estado do Paraná, de acordo com o contrato nº 02/2015, firmado entre a Secretaria de Estado do Meio Ambiente e Recursos Hídricos – SEMA do Paraná e Bradar Indústria S.A. Resumidamente, o serviço consistiu no aerolevantamento por meio de radar de abertura sintética, com as bandas X e P, para uma área de 2.134,56 km² na escala de 1:10.000, bem como no processamento dos dados para geração de imagens, modelos e base cartográfica em formato vetorial.",
+    "count_bbox": 0
+   }
+  ]
+ },
+ "00_PUBLICACOES/bc_hid_massa_dagua_a_10k": {
+  "desc": "<div style='text-align:Left;'><div><div><p style='text-align:Justify;'><span style='font-size:12pt'>Mapeamento por radar em escala 1:10.000 das áreas susceptíveis a desastres no litoral do Paraná: o Projeto consistiu na elaboração de bases cartográficas de áreas susceptíveis a desastres na região li",
+  "copyright": "SEMA, 2016",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Hidrografia - Massas d'água - Mapeamento por radar 1:10.000",
+    "geom": "esriGeometryPolygon",
+    "fields": [
+     "objectid",
+     "categoria",
+     "classe",
+     "tipo",
+     "Shape__Area",
+     "Shape__Length"
+    ],
+    "desc": "Mapeamento por radar em escala 1:10.000 das áreas susceptíveis a desastres no litoral do Paraná: o Projeto consistiu na elaboração de bases cartográficas de áreas susceptíveis a desastres na região litorânea do estado do Paraná, de acordo com o contrato nº 02/2015, firmado entre a Secretaria de Estado do Meio Ambiente e Recursos Hídricos – SEMA do Paraná e Bradar Indústria S.A. Resumidamente, o serviço consistiu no aerolevantamento por meio de radar de abertura sintética, com as bandas X e P, para uma área de 2.134,56 km² na escala de 1:10.000, bem como no processamento dos dados para geração de imagens, modelos e base cartográfica em formato vetorial.",
+    "count_bbox": 0
+   }
+  ]
+ },
+ "00_PUBLICACOES/hidro_50k_massa_dagua_prcidade": {
+  "desc": "Base relativa aos corpos d'água presentes no estado do Paraná, incluindo canais, cursos d'água, represas, açudes, lagoas, lagos e viveiros de peixes. A base ainda contém campos de nome do curso d'água (quando houver) e regime do curso (permanente ou temporário). Dado derivado do IAT, oriundo da uniã",
+  "copyright": "PARANACIDADE / COPEL, 2000",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Massas D'água 1:50.000 - PARANACIDADE",
+    "geom": "esriGeometryPolygon",
+    "fields": [
+     "objectid",
+     "nome",
+     "tipo",
+     "regime",
+     "fonte_topo",
+     "fonte_mape",
+     "Shape__Area",
+     "Shape__Length"
+    ],
+    "desc": "Base relativa às corpos d'água presentes no estado do Paraná, incluindo canais, cursos d'água, represas, açudes, lagoas, lagos e viveiros de peixes. A base ainda contém campos de nome do curso d'água (quando houver) e regime do curso (permanente ou temporário).",
+    "count_bbox": 15
+   }
+  ]
+ },
+ "00_PUBLICACOES/pbpar_hidrografia_integrada": {
+  "desc": "Dado gerado no âmbito do Plano da Bacia Hidrográfica do Paraná 3.  O Plano da Bacia Hidrográfica do Paraná 3 foi executado pela Universidade Estadual do Oeste do Paraná (UNIOESTE), por meio do Termo de Compromisso Nº JD/JE/014/09, celebrado entre a UNIOESTE e ITAIPU BINACIONAL, para suporte do Termo",
+  "copyright": "IAP / COBRAPE, 2014",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Hidrografia - Plano de Bacia da UGRHI do Paraná 3",
+    "geom": "esriGeometryPolyline",
+    "fields": [
+     "objectid",
+     "cotrecho",
+     "cod_cursodagua",
+     "cobacia",
+     "corio",
+     "nu_comp_trec",
+     "nudistbact",
+     "nudistcdag",
+     "nu_area_cont",
+     "nu_area_mont",
+     "nu_niv_otto",
+     "nome_rio",
+     "nu_comp_rio",
+     "nudistbacr",
+     "cocdadesag",
+     "nucompcda",
+     "nutrjus",
+     "nutrmon",
+     "nutrafl",
+     "nudistbacc",
+     "nuareabacc",
+     "nu_ordem_cda",
+     "nu_niv_ot_cda",
+     "curso_dagu",
+     "Shape__Length"
+    ],
+    "desc": "",
+    "count_bbox": 0
+   }
+  ]
+ },
+ "00_PUBLICACOES/zee_rios": {
+  "desc": "Dado obtidos e utilizados para o desenvolvimento do projeto Zoneamento Ecológico Econômico por meio da parceria entre as instituições executoras do ZEE. Para mais informações, acesse: http://www.iat.pr.gov.br/Pagina/Zoneamento-Ecologico-Economico-ZEE",
+  "copyright": "IAP, 2011",
+  "layers": [
+   {
+    "id": 0,
+    "name": "Cursos D'água (Detalhados) - ZEE-PR",
+    "geom": "esriGeometryPolyline",
+    "fields": [
+     "objectid",
+     "tipo",
+     "rio",
+     "ordem",
+     "Shape__Length"
+    ],
+    "desc": "Camada gerada no âmbito do projeto Zoneamento Ecológico Econômico – ZEE.\n\nA geração desse conteúdo é uma iniciativa da Secretaria de Estado do Desenvolvimento Sustentável e do Turismo – SEDEST. Para mais informações, acesse: http://www.iat.pr.gov.br/Pagina/Zoneamento-Ecologico-Economico-ZEE",
+    "count_bbox": 15
+   }
+  ]
+ }
+}

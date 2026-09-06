@@ -1,0 +1,176 @@
+{
+ "IAT_FBDS_nascentes": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/fbds_nascentes/FeatureServer/0/query",
+  "n": 38,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "cod_ibge",
+   "municipio",
+   "hidrografia",
+   "arquivo",
+   "geometry"
+  ]
+ },
+ "IAT_FBDS_rios_ate10m": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/fbds_rio_ate10m_larg/FeatureServer/0/query",
+  "n": 231,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "cod_ibge",
+   "municipio",
+   "hidrografia",
+   "comprimento_km",
+   "arquivo",
+   "Shape__Length",
+   "geometry"
+  ]
+ },
+ "IAT_FBDS_rios_acima10m_pol": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/Cursos_D_água_Largura_acima_de_10_metros_FBDS/FeatureServer/0/query",
+  "n": 3,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "cod_ibge",
+   "municipio",
+   "hidrografia",
+   "arquivo",
+   "Shape__Area",
+   "Shape__Length",
+   "geometry"
+  ]
+ },
+ "IAT_FBDS_massas_dagua": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/fbds_massas_dagua/FeatureServer/0/query",
+  "n": 33,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "cod_ibge",
+   "municipio",
+   "hidrografia",
+   "natureza",
+   "rio",
+   "setor",
+   "arquivo",
+   "Shape__Area",
+   "Shape__Length",
+   "geometry"
+  ]
+ },
+ "IAT_FBDS_app_hidrica": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/fbds_app/FeatureServer/0/query",
+  "n": 9,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "cod_ibge",
+   "municipio",
+   "hidrografia",
+   "app",
+   "arquivo",
+   "Shape__Area",
+   "Shape__Length",
+   "geometry"
+  ]
+ },
+ "IAT_FBDS_app_uso": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/fbds_app_uso/FeatureServer/0/query",
+  "n": 9,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "cod_ibge",
+   "municipio",
+   "classe_uso",
+   "arquivo",
+   "Shape__Area",
+   "Shape__Length",
+   "geometry"
+  ]
+ },
+ "IAT_FBDS_uso_cobertura_2013": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/fbds_uso_cobertura_2013/FeatureServer/0/query",
+  "n": 12,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "cod_ibge",
+   "municipio",
+   "classe_uso",
+   "arquivo",
+   "Shape__Area",
+   "Shape__Length",
+   "geometry"
+  ]
+ },
+ "IAT_otto_trecho_drenagem_2020": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/rede_otto_trech_drena_2020_iat/FeatureServer/0/query",
+  "n": 90,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "drn_pk",
+   "cotrecho",
+   "noorigem",
+   "nodestino",
+   "cocursodag",
+   "cobacia",
+   "nucomptrec",
+   "nudistbact",
+   "nudistcdag",
+   "nuareacont",
+   "nuareamont"
+  ]
+ },
+ "IAT_otto_areas_drenagem_2020": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/rede_otto_areas_drena_2020_iat/FeatureServer/0/query",
+  "n": 116,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "dra_pk",
+   "idbacia",
+   "cotrecho",
+   "cocursodag",
+   "cobacia",
+   "nuareacont",
+   "nuordemcda",
+   "nunivotto1",
+   "nunivotto2",
+   "nunivotto3",
+   "nunivotto4"
+  ]
+ },
+ "IAT_hidro50k_massa_dagua_paranacidade": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/hidro_50k_massa_dagua_prcidade/FeatureServer/0/query",
+  "n": 15,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "nome",
+   "tipo",
+   "regime",
+   "fonte_topo",
+   "fonte_mape",
+   "Shape__Area",
+   "Shape__Length",
+   "geometry"
+  ]
+ },
+ "IAT_ZEE_rios_detalhados": {
+  "url": "https://geopr.iat.pr.gov.br/server/rest/services/00_PUBLICACOES/zee_rios/FeatureServer/0/query",
+  "n": 15,
+  "exceeded": false,
+  "cols": [
+   "objectid",
+   "tipo",
+   "rio",
+   "ordem",
+   "Shape__Length",
+   "geometry"
+  ]
+ }
+}
