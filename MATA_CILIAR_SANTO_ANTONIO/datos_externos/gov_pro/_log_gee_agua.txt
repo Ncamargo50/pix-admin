@@ -1,0 +1,93 @@
+  S2 escenas 2024-09-01..2026-09-07: 338
+  descarga S2 frecuencia de agua 10 m: 8 banda(s) a 10 m, ~7.4 MB estimados, 1 tile(s)
+    tile 1/1: 3.7 MB
+Warning 1: TIFFReadDirectory:Sum of Photometric type-related color channels and ExtraSamples doesn't match SamplesPerPixel. Defining non-color channels as ExtraSamples.
+  escrito C:\Users\Usuario\Desktop\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\02_ANALISIS\hidrologia_pro\agua_frecuencia_10m.tif (4.8 MB, 378x612 px)
+  S1 escenas IW VV: 43  orbitas {'24.0': 43}
+  descarga S1 frecuencia de agua 10 m: 9 banda(s) a 10 m, ~8.3 MB estimados, 1 tile(s)
+    tile 1/1: 2.8 MB
+Warning 1: TIFFReadDirectory:Sum of Photometric type-related color channels and ExtraSamples doesn't match SamplesPerPixel. Defining non-color channels as ExtraSamples.
+  escrito C:\Users\Usuario\Desktop\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\02_ANALISIS\hidrologia_pro\agua_s1_frecuencia_10m.tif (4.2 MB, 378x612 px)
+  descarga JRC mensual 30 m: 4 banda(s) a 30 m, ~0.4 MB estimados, 1 tile(s)
+    tile 1/1: 0.0 MB
+Warning 1: TIFFReadDirectory:Sum of Photometric type-related color channels and ExtraSamples doesn't match SamplesPerPixel. Defining non-color channels as ExtraSamples.
+  escrito C:\Users\Usuario\Desktop\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\02_ANALISIS\hidrologia_pro\agua_jrc_mensual_30m.tif (0.0 MB, 126x204 px)
+  descarga MapBiomas Agua col4 30 m: 3 banda(s) a 30 m, ~0.3 MB estimados, 1 tile(s)
+    tile 1/1: 0.0 MB
+  escrito C:\Users\Usuario\Desktop\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\02_ANALISIS\hidrologia_pro\agua_mapbiomas_30m.tif (0.0 MB, 126x204 px)
+{
+ "s2": {
+  "ruta": "C:\\Users\\Usuario\\Desktop\\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\\02_ANALISIS\\hidrologia_pro\\agua_frecuencia_10m.tif",
+  "bandas": [
+   "freq_total",
+   "freq_chuva",
+   "freq_seca",
+   "n_valid",
+   "ndmi_min_seca",
+   "ndmi_p10_seca",
+   "mndwi_max",
+   "mndwi_p90"
+  ],
+  "n_escenas": 338,
+  "n_chuva": 154,
+  "n_seca": 184,
+  "regla": "cs_cdf>=0.60 & SCL valido; agua = MNDWI>0.0 & NDVI<0.30",
+  "id": "COPERNICUS/S2_SR_HARMONIZED",
+  "periodo": [
+   "2024-09-01",
+   "2026-09-07"
+  ]
+ },
+ "s1": {
+  "ruta": "C:\\Users\\Usuario\\Desktop\\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\\02_ANALISIS\\hidrologia_pro\\agua_s1_frecuencia_10m.tif",
+  "bandas": [
+   "freq_16",
+   "freq_18",
+   "freq_20",
+   "freq_16_chuva",
+   "freq_16_seca",
+   "n_obs",
+   "vv_p10",
+   "vv_p50",
+   "vv_p90"
+  ],
+  "n_escenas": 43,
+  "orbitas": {
+   "24.0": 43
+  },
+  "regla": "VV dB, mediana focal 3x3, agua = VV < umbral",
+  "umbrales_db": [
+   -16,
+   -18,
+   -20
+  ],
+  "id": "COPERNICUS/S1_GRD",
+  "periodo": [
+   "2024-09-01",
+   "2026-09-07"
+  ]
+ },
+ "jrc": {
+  "ruta": "C:\\Users\\Usuario\\Desktop\\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\\02_ANALISIS\\hidrologia_pro\\agua_jrc_mensual_30m.tif",
+  "bandas": [
+   "freq",
+   "n_valid",
+   "max_extent",
+   "occurrence"
+  ],
+  "n_meses": 84,
+  "ultimo_mes": "2021_12",
+  "id": "JRC/GSW1_4/MonthlyHistory",
+  "nota": "GSW1_4 termina en 2021-12: no hay 2022-2024"
+ },
+ "mapbiomas": {
+  "ruta": "C:\\Users\\Usuario\\Desktop\\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\\02_ANALISIS\\hidrologia_pro\\agua_mapbiomas_30m.tif",
+  "bandas": [
+   "freq_2020_2024",
+   "freq_1985_2024",
+   "agua_2024"
+  ],
+  "id": "projects/mapbiomas-public/assets/brazil/water/collection4/mapbiomas_brazil_collection4_water_v3",
+  "nota": "valor 1 = agua anual; freq = anos con agua / n anos"
+ }
+}

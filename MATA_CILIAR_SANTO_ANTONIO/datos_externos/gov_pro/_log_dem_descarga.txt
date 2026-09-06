@@ -1,0 +1,7 @@
+  DEM SRTMGL1 ya existe
+  descarga DEM AW3D30 30 m: 1 banda(s) a 30 m, ~0.3 MB estimados, 1 tile(s)
+    tile 1/1: 0.1 MB
+  escrito C:\Users\Usuario\Desktop\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\01_DATOS_SATELITE\DEM_AW3D30_AOIdem_30m.tif (0.1 MB, 228x300 px)
+  DEM AW3D30  [EPSG:31982, 1 bandas, 228x300, res 30.0 m, nodata=-9999.0]
+    DEM            n=68400    min=  543.0000 max=  792.0000 media=  693.3714 nodata=  0.0%
+{'SRTMGL1': 'C:\\Users\\Usuario\\Desktop\\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\\01_DATOS_SATELITE\\DEM_SRTMGL1_AOIdem_30m.tif', 'AW3D30': 'C:\\Users\\Usuario\\Desktop\\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\\01_DATOS_SATELITE\\DEM_AW3D30_AOIdem_30m.tif'}
