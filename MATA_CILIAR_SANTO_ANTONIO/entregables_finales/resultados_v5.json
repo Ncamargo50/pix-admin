@@ -1,0 +1,1367 @@
+{
+  "_meta": {
+    "versao": 5,
+    "gerado": "2026-09-06",
+    "crs": "EPSG:31982",
+    "fecha_voo": "2026-05-22",
+    "regras_cliente": [
+      "dois imoveis separados (poligonos do GeoJSON); nada se soma entre eles",
+      "so imagem de drone (ortofoto + DSM/DTM 22-mai-2026) para medir; sem Sentinel-2 nem produtos de satelite",
+      "eixo dos arroios e nascente = dados oficiais FBDS/IAT (referencia do eixo; sob dossel o drone nao ve a calha)",
+      "sem cobertura do drone = NAO AVALIADO",
+      "cruzamento com CAR (replica IAT do SICAR) e outorga SIGARH consultados em 2026-09-06"
+    ],
+    "consulta_governo": "C:\\Users\\Usuario\\Desktop\\Proyecto-Mata_Siliar-Fazenda_Santo_Antonio\\06_DRONE_POR_IMOVEL\\situacao_car_outorga_2026-09-06.json",
+    "servicos_governo_hoje": {
+      "IAT_CAR_hidrografia": {
+        "ok": true,
+        "n": 3,
+        "http": 200,
+        "hora": "01:05:41",
+        "erro": null
+      },
+      "IAT_CAR_app_total": {
+        "ok": true,
+        "n": 2,
+        "http": 200,
+        "hora": "01:05:47",
+        "erro": null
+      },
+      "IAT_CAR_reserva_legal": {
+        "ok": true,
+        "n": 2,
+        "http": 200,
+        "hora": "01:05:50",
+        "erro": null
+      },
+      "IAT_CAR_vegetacao_nativa": {
+        "ok": true,
+        "n": 2,
+        "http": 200,
+        "hora": "01:05:53",
+        "erro": null
+      },
+      "IAT_CAR_area_consolidada": {
+        "ok": true,
+        "n": 2,
+        "http": 200,
+        "hora": "01:06:01",
+        "erro": null
+      },
+      "IAT_CAR_area_pousio": {
+        "ok": true,
+        "n": 0,
+        "http": 200,
+        "hora": "01:06:06",
+        "erro": null
+      },
+      "IAT_CAR_servidao_administrativa": {
+        "ok": true,
+        "n": 0,
+        "http": 200,
+        "hora": "01:06:06",
+        "erro": null
+      },
+      "IAT_CAR_uso_restrito": {
+        "ok": true,
+        "n": 0,
+        "http": 200,
+        "hora": "01:06:08",
+        "erro": null
+      },
+      "IAT_CAR_area_imovel": {
+        "ok": true,
+        "n": 2,
+        "http": 200,
+        "hora": "01:06:09",
+        "erro": null
+      },
+      "outorga_sigarh_26039_2023": {
+        "ok": true,
+        "n": 1,
+        "http": 200,
+        "hora": "01:06:10",
+        "erro": null
+      },
+      "outorgas_sigarh_requerente_bigati": {
+        "ok": true,
+        "n": 2,
+        "http": 200,
+        "hora": "01:06:10",
+        "erro": null
+      },
+      "outorgas_captacao_crh_bbox": {
+        "ok": true,
+        "n": 4,
+        "http": 200,
+        "hora": "01:06:11",
+        "erro": null
+      },
+      "sicar_consulta_publica": {
+        "ok": true,
+        "n": null,
+        "http": 200,
+        "hora": "01:06:11",
+        "erro": null
+      },
+      "sicar_www": {
+        "ok": false,
+        "n": null,
+        "http": 404,
+        "hora": "01:06:12",
+        "erro": null
+      }
+    },
+    "replica_sicar_iat_data_dos_dados": "SICAR 25/01/2024",
+    "nota_soma": "os dois imoveis NAO se somam: cada bloco e independente"
+  },
+  "santo_antonio": {
+    "imovel": "santo_antonio",
+    "nome": "Fazenda Santo Antônio",
+    "area_poligono_ha": 144.212,
+    "area_informada_cliente_ha": 144.21,
+    "alqueires_paulistas_poligono": 59.59,
+    "modulos_fiscais": 7.21,
+    "mf_ha": 20,
+    "car": "PR-4124301-F127CD1E73FA4B9DB4FA0CC2B3FC1E14",
+    "car_relacao": "CAR do proprio imovel",
+    "cobertura_drone": {
+      "area_imovel_ha": 144.212,
+      "ortofoto": {
+        "com_cobertura_ha": 143.295,
+        "sem_cobertura_ha": 0.918,
+        "pct_coberto": 99.36,
+        "N_min_com_dado": 7401092.1,
+        "N_max_com_dado": 7403995.6,
+        "sem_cobertura_N_min": 7401383.1
+      },
+      "dsm_dtm": {
+        "com_cobertura_ha": 116.573,
+        "sem_cobertura_ha": 27.639,
+        "pct_coberto": 80.83,
+        "N_min_com_dado": 7401710.4,
+        "N_max_com_dado": 7404018.4,
+        "sem_cobertura_N_max_sul": 7401710.6,
+        "sem_cobertura_N_min_norte": 7403990.6
+      },
+      "ortofoto_e_dsm_ha": 116.044,
+      "ortofoto_sem_dsm_ha": 27.251,
+      "regra": "sem cobertura do drone = NAO AVALIADO (nao se preenche com satelite)"
+    },
+    "agua": {
+      "agua_aberta_total_ha": 1.797,
+      "n_corpos": 4,
+      "represa_ha": 1.648,
+      "represa_ge_1ha": true,
+      "acude_cabeceira_ha": 0.048,
+      "lagoas_menores_ha": 0.101,
+      "n_lagoas_menores": 2
+    },
+    "vegetacao_ha": {
+      "sem_cobertura_drone": 0.918,
+      "arborea_altura_medida": 2.934,
+      "arborea_dossel_fechado": 10.012,
+      "arbustiva_regeneracao": 1.387,
+      "herbacea_pasto": 34.028,
+      "solo_lavoura": 89.774,
+      "agua": 1.814,
+      "construcoes": 0.05,
+      "arborea_so_cor_sem_dsm": 3.296,
+      "total_ha": 144.212,
+      "arborea_ha": 16.242,
+      "arbustiva_ha": 1.387,
+      "vegetacao_nativa_arborea_arbustiva_ha": 17.629,
+      "pasto_ha": 34.028,
+      "lavoura_solo_ha": 89.774,
+      "agua_ha": 1.814,
+      "fecha_soma_vs_area": 0.001
+    },
+    "vegetacao_nativa_poligonos": {
+      "n": 77,
+      "ha_dentro_imovel": 17.625,
+      "ha_componentes_ge_0_05ha": 17.111,
+      "ha_componentes_ge_0_5ha": 16.603,
+      "fragmentos_ge_0_5ha": [
+        {
+          "classe_dominante": "arborea_dossel_fechado",
+          "sem_dsm": false,
+          "area_dentro_imovel_ha": 1.091,
+          "pct_altura_medida": 0.0,
+          "altura_p50_m": null,
+          "altura_p90_m": null,
+          "altura_max_m": null,
+          "area_ha": 1.0911
+        },
+        {
+          "classe_dominante": "arborea_dossel_fechado",
+          "sem_dsm": false,
+          "area_dentro_imovel_ha": 12.343,
+          "pct_altura_medida": 38.9,
+          "altura_p50_m": 3.9,
+          "altura_p90_m": 10.1,
+          "altura_max_m": 21.6,
+          "area_ha": 12.3455
+        },
+        {
+          "classe_dominante": "arborea_so_cor_sem_dsm",
+          "sem_dsm": true,
+          "area_dentro_imovel_ha": 3.169,
+          "pct_altura_medida": 0.0,
+          "altura_p50_m": null,
+          "altura_p90_m": null,
+          "altura_max_m": null,
+          "area_ha": 3.1697
+        }
+      ]
+    },
+    "silvicultura_indicio": [],
+    "app": {
+      "legal_30m_nascente_50m": {
+        "exigida_ha": 11.961,
+        "com_vegetacao_nativa_ha": 6.85,
+        "agua_ha": 1.087,
+        "sem_cobertura_drone_nao_avaliado_ha": 0.592,
+        "a_recompor_ha": 3.431,
+        "a_recompor_por_subclasse_ha": {
+          "pasto_herbacea": 0.927,
+          "construcoes": 0.0,
+          "arvores_isoladas_lt_0_05ha": 0.007,
+          "lavoura_solo": 2.497
+        },
+        "pct_com_vegetacao_da_avaliada": 60.3,
+        "envolvente_borda_0_25m_ha": [
+          11.846,
+          12.076
+        ],
+        "base_legal": "art. 4 I a) e IV: 30 m do eixo FBDS (curso <= 10 m) + raio 50 m da nascente",
+        "curso_ha": 11.177,
+        "nascente_ha": 0.784
+      },
+      "pra_20m_nascente_15m": {
+        "exigida_ha": 7.96,
+        "com_vegetacao_nativa_ha": 4.761,
+        "agua_ha": 0.788,
+        "sem_cobertura_drone_nao_avaliado_ha": 0.482,
+        "a_recompor_ha": 1.928,
+        "a_recompor_por_subclasse_ha": {
+          "pasto_herbacea": 0.56,
+          "construcoes": 0.0,
+          "arvores_isoladas_lt_0_05ha": 0.003,
+          "lavoura_solo": 1.365
+        },
+        "pct_com_vegetacao_da_avaliada": 63.7,
+        "envolvente_borda_0_25m_ha": [
+          7.85,
+          8.07
+        ],
+        "base_legal": "art. 61-A par. 4 + Lei PR 18.295 art. 17 par. 2 (imovel 4-10 MF: 7,2 MF): 20 m + nascente 15 m, so em area consolidada ate 22-jul-2008"
+      },
+      "legal_mais_faixa_reservatorio_30m": {
+        "exigida_ha": 14.123,
+        "com_vegetacao_nativa_ha": 7.665,
+        "agua_ha": 1.752,
+        "sem_cobertura_drone_nao_avaliado_ha": 0.592,
+        "a_recompor_ha": 4.113,
+        "a_recompor_por_subclasse_ha": {
+          "pasto_herbacea": 1.364,
+          "construcoes": 0.0,
+          "arvores_isoladas_lt_0_05ha": 0.007,
+          "lavoura_solo": 2.742
+        },
+        "pct_com_vegetacao_da_avaliada": 56.6,
+        "envolvente_borda_0_25m_ha": [
+          14.005,
+          14.241
+        ],
+        "base_legal": "cenario art. 4 III: faixa do reservatorio \"a definir pelo IAT\" (sem dispensa: espelho 1.648 ha >= 1 ha) = espelho + 30 m",
+        "curso_ha": 11.177,
+        "nascente_ha": 0.784,
+        "faixa_reservatorio_adicional_ha": 2.162
+      },
+      "eixo_nota": "eixo dos cursos = FBDS/IAT 1:25.000 (dado oficial); o drone nao substitui o eixo sob dossel (ortho_03: < 50 % das secoes com DTM de solo). Trechos FBDS que tocam o imovel: ['617192', '647524', '647525', '647547']"
+    },
+    "reserva_legal": {
+      "exigida_pct": 0.2,
+      "exigida_ha": 28.842,
+      "exigida_sobre_area_informada_144.21ha": 28.842,
+      "base_legal": "art. 12 II (20 %%); art. 15 (APP vegetada computa); art. 12 par. 1 (area desmembrada de imovel > 4 MF mantem 20 %%)",
+      "medido_drone": {
+        "remanescente_fora_app_ha": 10.262,
+        "app_vegetada_art15_ha": 6.85,
+        "vegetacao_nativa_computavel_ha": 17.112,
+        "mmu_ha": 0.05,
+        "arvores_isoladas_nao_computadas_ha": 0.514,
+        "sem_cobertura_drone_nao_avaliado_ha": 0.917
+      },
+      "vegetacao_computavel_ha": 17.112,
+      "deficit_ha": 11.73,
+      "pct_atendido": 59.3,
+      "sensibilidade": {
+        "todas_as_manchas_ge_25m2": 17.626,
+        "so_fragmentos_ge_0_5ha": 16.603,
+        "so_com_altura_medida_chm_ge_3m": 2.934,
+        "nota": "a faixa sem cobertura (0.917 ha) nao soma nem desconta: se toda fosse mata o deficit cairia no maximo a 10.813 ha"
+      },
+      "veredicto": "NAO CONFORME: deficit 11.730 ha (59.3 % atendido)",
+      "regularizacao_art66": {
+        "deficit_ha": 11.73,
+        "opcoes": [
+          "recompor (art. 66 I): plantio de nativas, ate 20 anos, minimo 1/10 da area a cada 2 anos (art. 66 par. 2; Lei PR 18.295)",
+          "regeneracao natural (art. 66 II): condicionada a laudo de viabilidade",
+          "compensar (art. 66 III / par. 5): CRA, arrendamento (servidao ambiental), doacao de area em UC pendente de regularizacao fundiaria, ou cadastro de outra area equivalente em extensao (mesmo bioma, IN IAT 53/2025: preferencialmente mesma formacao fitogeografica)"
+        ],
+        "cronograma_recomposicao_1_10_a_cada_2_anos": [
+          {
+            "etapa": 1,
+            "ate_ano": 2,
+            "ha_acumulado_minimo": 1.173
+          },
+          {
+            "etapa": 2,
+            "ate_ano": 4,
+            "ha_acumulado_minimo": 2.346
+          },
+          {
+            "etapa": 3,
+            "ate_ano": 6,
+            "ha_acumulado_minimo": 3.519
+          },
+          {
+            "etapa": 4,
+            "ate_ano": 8,
+            "ha_acumulado_minimo": 4.692
+          },
+          {
+            "etapa": 5,
+            "ate_ano": 10,
+            "ha_acumulado_minimo": 5.865
+          },
+          {
+            "etapa": 6,
+            "ate_ano": 12,
+            "ha_acumulado_minimo": 7.038
+          },
+          {
+            "etapa": 7,
+            "ate_ano": 14,
+            "ha_acumulado_minimo": 8.211
+          },
+          {
+            "etapa": 8,
+            "ate_ano": 16,
+            "ha_acumulado_minimo": 9.384
+          },
+          {
+            "etapa": 9,
+            "ate_ano": 18,
+            "ha_acumulado_minimo": 10.557
+          },
+          {
+            "etapa": 10,
+            "ate_ano": 20,
+            "ha_acumulado_minimo": 11.73
+          }
+        ],
+        "observacao": "a recomposicao pode usar ate 50 % de exoticas em sistema intercalado (art. 66 par. 3) e a APP recomposta computa (art. 15)"
+      }
+    },
+    "mapa_car_v5": {
+      "soma_ha": 144.214,
+      "area_imovel_ha": 144.212,
+      "diferenca_ha": 0.002,
+      "solape_ha": 0.0,
+      "fecha": true,
+      "linhas": [
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "APP - Nascente ou olho d'agua perene",
+          "subclasse": "conforme",
+          "situacao": "vegetacao nativa (drone 0,25 m)",
+          "area_ha": 0.441,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "APP - Nascente ou olho d'agua perene",
+          "subclasse": "a recompor",
+          "situacao": "pasto/herbacea",
+          "area_ha": 0.065,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "APP - Nascente ou olho d'agua perene",
+          "subclasse": "a recompor",
+          "situacao": "lavoura/solo",
+          "area_ha": 0.278,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "APP - Curso d'agua natural de ate 10 metros",
+          "subclasse": "conforme",
+          "situacao": "vegetacao nativa (drone 0,25 m)",
+          "area_ha": 6.409,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "APP - Curso d'agua natural de ate 10 metros",
+          "subclasse": "agua",
+          "situacao": "agua (drone 22-mai-2026)",
+          "area_ha": 1.087,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "APP - Curso d'agua natural de ate 10 metros",
+          "subclasse": "sem cobertura do drone",
+          "situacao": "NAO AVALIADO",
+          "area_ha": 0.592,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "APP - Curso d'agua natural de ate 10 metros",
+          "subclasse": "a recompor",
+          "situacao": "arvores isoladas (< 0,05 ha)",
+          "area_ha": 0.007,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "APP - Curso d'agua natural de ate 10 metros",
+          "subclasse": "a recompor",
+          "situacao": "pasto/herbacea",
+          "area_ha": 0.862,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "APP - Curso d'agua natural de ate 10 metros",
+          "subclasse": "a recompor",
+          "situacao": "lavoura/solo",
+          "area_ha": 2.22,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "Reservatorio artificial decorrente de barramento ou represamento de cursos d agua naturais",
+          "subclasse": "espelho d agua",
+          "situacao": "agua 22-mai-2026 (1.648 ha; faixa a definir pelo IAT)",
+          "area_ha": 0.666,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "Reservatorio artificial / lagoa",
+          "subclasse": "espelho d agua",
+          "situacao": "lamina fora da APP (drone)",
+          "area_ha": 0.045,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "Sem cobertura do drone",
+          "subclasse": "nao avaliado",
+          "situacao": "fora da cobertura do voo",
+          "area_ha": 0.325,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "Remanescente de Vegetacao Nativa",
+          "subclasse": "vegetacao nativa fora da APP",
+          "situacao": "conservada (estagio requer campo)",
+          "area_ha": 10.262,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "Area Consolidada",
+          "subclasse": "construcoes",
+          "situacao": "sede/benfeitorias",
+          "area_ha": 0.05,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "Area Consolidada",
+          "subclasse": "arvores isoladas (< 0,05 ha)",
+          "situacao": "nao computadas como remanescente",
+          "area_ha": 0.507,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "Area Consolidada",
+          "subclasse": "pasto/herbacea",
+          "situacao": "uso antropico fora da APP",
+          "area_ha": 33.098,
+          "nota": ""
+        },
+        {
+          "imovel": "santo_antonio",
+          "classe_car": "Area Consolidada",
+          "subclasse": "uso agricola",
+          "situacao": "lavoura/solo fora da APP",
+          "area_ha": 87.3,
+          "nota": ""
+        }
+      ]
+    },
+    "cruzamento_car": {
+      "car": "PR-4124301-F127CD1E73FA4B9DB4FA0CC2B3FC1E14",
+      "relacao": "CAR do proprio imovel",
+      "status_atual": {
+        "ind_status": "AT",
+        "des_condic": "Aguardando analise",
+        "ind_tipo": "IRU",
+        "mod_fiscal_declarado": 7.2896,
+        "municipio_car": "Santo Antonio do Paraiso",
+        "data_inscricao": "nao publicada na replica do IAT (campos: cod_imovel, ind_status, des_condic, num_area, mod_fiscal); copyright do servico: SICAR 25/01/2024",
+        "fonte": {
+          "hidrografia": "IAT hoje 2026-09-06",
+          "app_total": "IAT hoje 2026-09-06",
+          "reserva_legal": "IAT hoje 2026-09-06",
+          "vegetacao_nativa": "IAT hoje 2026-09-06",
+          "area_consolidada": "IAT hoje 2026-09-06",
+          "area_pousio": "IAT hoje 2026-09-06 (0 registros)",
+          "servidao_administrativa": "IAT hoje 2026-09-06 (0 registros)",
+          "uso_restrito": "IAT hoje 2026-09-06 (0 registros)",
+          "area_imovel": "IAT hoje 2026-09-06"
+        }
+      },
+      "declarado_no_car_inteiro": {
+        "area_imovel_ha": 143.344,
+        "area_imovel_geom_ha": 143.344,
+        "app_total_ha": 10.446,
+        "app_total_geom_ha": 12.572,
+        "reserva_legal_ha": 2.451,
+        "reserva_legal_geom_ha": 2.451,
+        "reserva_legal_tipo": [
+          "ARL_AVERBADA"
+        ],
+        "vegetacao_nativa_ha": 3.801,
+        "vegetacao_nativa_geom_ha": 3.801,
+        "area_consolidada_ha": 125.421,
+        "area_consolidada_geom_ha": 125.421,
+        "reservatorios_geom_ha": 2.266,
+        "rios_ate_10m_geom_ha": 2.609,
+        "servidao_administrativa_ha": null
+      },
+      "declarado_DENTRO_do_poligono_deste_imovel_ha": {
+        "area_imovel_car": 142.887,
+        "app_total": 12.44,
+        "reserva_legal": 2.451,
+        "vegetacao_nativa": 3.801,
+        "area_consolidada": 125.127,
+        "reservatorios": 2.266,
+        "rios_ate_10m": 2.545
+      },
+      "poligono_fora_do_car_ha": 1.326,
+      "medido_drone_v5": {
+        "area_poligono_ha": 144.212,
+        "app_exigida_30m_50m_ha": 11.961,
+        "app_com_vegetacao_ha": 6.85,
+        "app_agua_ha": 1.087,
+        "app_a_recompor_ha": 3.431,
+        "app_sem_cobertura_ha": 0.592,
+        "rl_exigida_ha": 28.842,
+        "rl_vegetacao_computavel_ha": 17.112,
+        "rl_deficit_ha": 11.73,
+        "vegetacao_nativa_ha": 17.629,
+        "vegetacao_nativa_fora_app_ha": 10.262,
+        "reservatorios_agua_aberta_ha": 1.797,
+        "represa_ha": 1.648,
+        "area_antropizada_pasto_lavoura_construcoes_ha": 123.852
+      },
+      "diferencas_[declarado, medido, medido-declarado]": {
+        "app: declarada dentro do poligono vs exigida medida": [
+          12.44,
+          11.961,
+          -0.479
+        ],
+        "reserva legal: declarada dentro do poligono vs exigida (20 %)": [
+          2.451,
+          28.842,
+          26.391
+        ],
+        "vegetacao nativa: declarada dentro do poligono vs medida no drone": [
+          3.801,
+          17.629,
+          13.828
+        ],
+        "area consolidada: declarada dentro do poligono vs antropizada medida": [
+          125.127,
+          123.852,
+          -1.275
+        ],
+        "reservatorios: declarados dentro do poligono vs agua aberta medida": [
+          2.266,
+          1.797,
+          -0.469
+        ],
+        "area: CAR (num_area) vs poligono": [
+          143.344,
+          144.212,
+          0.868
+        ]
+      },
+      "leitura": "CAR do proprio imovel, status AT / \"Aguardando analise\": declara RL 2.451 ha (ARL_AVERBADA) contra 28.842 ha exigidas; vegetacao nativa 3.801 ha contra 17.629 ha medidas; APP 10.446 ha contra 11.961 ha exigidas (6.850 com mata); reservatorio 2.266 ha contra 1.648 ha de espelho em 22-mai-2026. Cabe RETIFICACAO do CAR."
+    },
+    "outorga_sigarh": {
+      "fonte": "IAT outorgas_sigarh HOJE 2026-09-06",
+      "nr_portaria": "26039/2023/OP-GOUT",
+      "status": "IRREGULAR",
+      "tipo_documento": "Portaria de outorga prévia",
+      "tipo_solicitacao": "Outorga prévia",
+      "titular": "Sonia Maria Bigati",
+      "empreendimento": "Fazenda Santo Antônio",
+      "interferencia": "Barragem/soleira",
+      "corpo_hidrico": "Córrego Ribeirão do Salto",
+      "finalidades": "Regularização de nível,Acumulação",
+      "bacia": "Tibagi",
+      "otto": "864227451",
+      "publicacao": "2023-11-09",
+      "vencimento": "2025-11-08",
+      "vencida_em_2026-09-06": true,
+      "protocolo": "210053859",
+      "coordenadas_wgs84": [
+        -50.6564011,
+        -23.4949297
+      ],
+      "campos_crus": {
+        "objectid": 9256,
+        "coord_latitude": -23.4949297,
+        "coord_longitude": -50.6564011,
+        "nm_requerente": "Sonia Maria Bigati",
+        "nm_empreendimento": "Fazenda Santo Antônio",
+        "cod_municipio_emp": "4124301",
+        "nm_municipio_emp": "Santo Antônio do Paraíso",
+        "cod_tipo_interferencia": "BRRG",
+        "nm_tipo_interferencia": "Barragem/soleira",
+        "nr_portaria": "26039/2023/OP-GOUT",
+        "st_portaria": "IRREGULAR",
+        "nm_tipo_documento": "Portaria de outorga prévia",
+        "cod_municipio": "4126009",
+        "nm_municipio": "São Sebastião da Amoreira",
+        "nm_comite": "Tibagi",
+        "nm_bacia_hidrografica": "Tibagi",
+        "cod_otto": "864227451",
+        "hr_inicio_bombeamento": null,
+        "hr_termino_bombeamento": null,
+        "qtd_hora_dia_jan": null,
+        "qtd_dia_mes_jan": null,
+        "vlr_vazao_capt_lanc_jan": null,
+        "vlr_vazao_diluicao_jan": null,
+        "qtd_dia_mes_fev": null,
+        "vlr_vazao_capt_lanc_fev": null,
+        "vlr_vazao_diluicao_fev": null,
+        "qtd_hora_dia_mar": null,
+        "qtd_dia_mes_mar": null,
+        "vlr_vazao_capt_lanc_mar": null,
+        "vlr_vazao_diluicao_mar": null,
+        "qtd_hora_dia_abr": null,
+        "qtd_dia_mes_abr": null,
+        "vlr_vazao_capt_lanc_abr": null,
+        "vlr_vazao_diluicao_abr": null,
+        "qtd_hora_dia_mai": null,
+        "qtd_dia_mes_mai": null,
+        "vlr_vazao_capt_lanc_mai": null,
+        "vlr_vazao_diluicao_mai": null,
+        "qtd_hora_dia_jun": null,
+        "qtd_dia_mes_jun": null,
+        "vlr_vazao_capt_lanc_jun": null,
+        "vlr_vazao_diluicao_jun": null,
+        "qtd_hora_dia_jul": null,
+        "qtd_dia_mes_jul": null,
+        "vlr_vazao_capt_lanc_jul": null,
+        "vlr_vazao_diluicao_jul": null,
+        "qtd_hora_dia_ago": null,
+        "qtd_dia_mes_ago": null,
+        "vlr_vazao_capt_lanc_ago": null,
+        "vlr_vazao_diluicao_ago": null,
+        "qtd_hora_dia_set": null,
+        "qtd_dia_mes_set": null,
+        "vlr_vazao_capt_lanc_set": null,
+        "vlr_vazao_diluicao_set": null,
+        "qtd_hora_dia_out": null,
+        "qtd_dia_mes_out": null,
+        "vlr_vazao_capt_lanc_out": null,
+        "vlr_vazao_diluicao_out": null,
+        "qtd_hora_dia_nov": null,
+        "qtd_dia_mes_nov": null,
+        "vlr_vazao_capt_lanc_nov": null,
+        "vlr_vazao_diluicao_nov": null,
+        "qtd_hora_dia_dez": null,
+        "qtd_dia_mes_dez": null,
+        "vlr_vazao_capt_lanc_dez": null,
+        "vlr_vazao_diluicao_dez": null,
+        "dt_publicacao": 1699488000000,
+        "dt_vencimento": 1762597145000,
+        "crh": null,
+        "vlr_vazao_consumida_jan": null,
+        "vlr_vazao_consumida_fev": null,
+        "vlr_vazao_consumida_mar": null,
+        "vlr_vazao_consumida_abr": null,
+        "vlr_vazao_consumida_mai": null,
+        "vlr_vazao_consumida_jun": null,
+        "vlr_vazao_consumida_jul": null,
+        "vlr_vazao_consumida_ago": null,
+        "vlr_vazao_consumida_set": null,
+        "vlr_vazao_consumida_out": null,
+        "vlr_vazao_consumida_nov": null,
+        "vlr_vazao_consumida_dez": null,
+        "qtd_hora_dia_fev": null,
+        "nr_e_protocolo": "210053859",
+        "nm_tipo_corpo_hidrico": "Córrego",
+        "desc_tipo_poco": null,
+        "nm_tipo_usuario": "Agropecuária",
+        "nm_cnae": null,
+        "cod_cnae": null,
+        "desc_finalidades": "Regularização de nível,Acumulação",
+        "nm_sistema_origem": "SIGARH",
+        "cod_bueiro": null,
+        "desc_poco": null,
+        "nm_aquifero": "Aquífero Serra Geral",
+        "nm_corpo_hidrico_complemento": "Ribeirão do Salto",
+        "nm_corpo_hidrico_popular": null,
+        "pfd_poco": null,
+        "vlr_dbo_efluente": null,
+        "vlr_dbo_mistura_abr": null,
+        "vlr_dbo_mistura_ago": null,
+        "vlr_dbo_mistura_dez": null,
+        "vlr_dbo_mistura_fev": null,
+        "vlr_dbo_mistura_jan": null,
+        "vlr_dbo_mistura_jul": null,
+        "vlr_dbo_mistura_jun": null,
+        "vlr_dbo_mistura_mai": null,
+        "vlr_dbo_mistura_mar": null,
+        "vlr_dbo_mistura_nov": null,
+        "vlr_dbo_mistura_out": null,
+        "vlr_dbo_mistura_set": null,
+        "vlr_od_efluente": null,
+        "vlr_od_mistura_abr": null,
+        "vlr_od_mistura_ago": null,
+        "vlr_od_mistura_dez": null,
+        "vlr_od_mistura_fev": null,
+        "vlr_od_mistura_jan": null,
+        "vlr_od_mistura_jul": null,
+        "vlr_od_mistura_jun": null,
+        "vlr_od_mistura_mai": null,
+        "vlr_od_mistura_mar": null,
+        "vlr_od_mistura_nov": null,
+        "vlr_od_mistura_out": null,
+        "vlr_od_mistura_set": null,
+        "vlr_poco_nivel_dinamico": null,
+        "vlr_poco_nivel_estatico": null,
+        "nm_tipo_solicitacao": "Outorga prévia"
+      },
+      "dentro_de": {
+        "santo_antonio": true,
+        "seis_alqueires": false
+      },
+      "dist_imovel_m": {
+        "santo_antonio": 0.0,
+        "seis_alqueires": 1515.6
+      },
+      "aplica_a_este_imovel": true,
+      "leitura": "outorga PREVIA da barragem do Ribeirao do Salto (represa deste imovel): status IRREGULAR, validade 2025-11-08 (VENCIDA em 2026-09-06): a regularizacao hidrica do barramento esta pendente; a faixa de APP do reservatorio (art. 4 III) sera a da licenca/outorga definitiva"
+    },
+    "kpi": {
+      "area_poligono_ha": 144.212,
+      "cobertura_ortofoto_ha": 143.295,
+      "sem_cobertura_ha": 0.918,
+      "cobertura_dsm_ha": 116.573,
+      "represa_ha": 1.648,
+      "represa_ge_1ha": true,
+      "acude_ha": 0.048,
+      "lagoas_menores_ha": 0.101,
+      "arborea_ha": 16.242,
+      "arbustiva_ha": 1.387,
+      "pasto_ha": 34.028,
+      "lavoura_solo_ha": 89.774,
+      "app_exigida_ha": 11.961,
+      "app_com_mata_ha": 6.85,
+      "app_agua_ha": 1.087,
+      "app_a_recompor_ha": 3.431,
+      "app_sem_cobertura_ha": 0.592,
+      "rl_exigida_ha": 28.842,
+      "rl_computavel_ha": 17.112,
+      "rl_deficit_ha": 11.73,
+      "app_a_recompor_pra_20m_nascente_15m_ha": 1.928,
+      "app_exigida_pra_20m_nascente_15m_ha": 7.96
+    },
+    "avisos": [
+      "Sem satelite: nenhuma camada de Sentinel-2/FABDEM/RF 10 m entra nos calculos; a faixa sem cobertura do drone (0.918 ha) fica NAO AVALIADA.",
+      "Eixo dos arroios e nascente: FBDS/IAT 1:25.000 (oficial). O drone nao ve a calha sob dossel: a borda da calha (art. 4 I) exige levantamento em campo (GNSS) ou LiDAR.",
+      "DSM/DTM no datum do voo (sem GCP/RTK): cotas relativas; CHM subestima sob dossel fechado (classe \"arborea dossel fechado\" = copa reconhecida, altura nao medida).",
+      "Vegetacao \"arborea (so cor)\" = faixa sul sem DSM (N < 7401711): altura desconhecida; MMU 25 m2; nativa para RL com MMU 0,05 ha.",
+      "Represa: espelho de 22-mai-2026 (fim do outono); o espelho legal e o do nivel maximo normal/vertedouro, a medir em campo. Outorga previa 26039/2023/OP-GOUT: status IRREGULAR, vencida em 2025-11-08.",
+      "Estagio sucessional (CONAMA 2/1994) e inventario da RL exigem campo."
+    ]
+  },
+  "seis_alqueires": {
+    "imovel": "seis_alqueires",
+    "nome": "Área dos 6 alqueires",
+    "area_poligono_ha": 14.036,
+    "area_informada_cliente_ha": 14.04,
+    "alqueires_paulistas_poligono": 5.8,
+    "modulos_fiscais": 0.7,
+    "mf_ha": 20,
+    "car": "PR-4124301-5223911747FD4B878118F1823D609DD6",
+    "car_relacao": "CAR de ORIGEM (imovel maior de 94 ha do qual foi desmembrada)",
+    "cobertura_drone": {
+      "area_imovel_ha": 14.036,
+      "ortofoto": {
+        "com_cobertura_ha": 14.036,
+        "sem_cobertura_ha": 0.0,
+        "pct_coberto": 100.0,
+        "N_min_com_dado": 7403163.9,
+        "N_max_com_dado": 7403947.9,
+        "sem_cobertura_N_min": null
+      },
+      "dsm_dtm": {
+        "com_cobertura_ha": 14.036,
+        "sem_cobertura_ha": 0.0,
+        "pct_coberto": 100.0,
+        "N_min_com_dado": 7403163.9,
+        "N_max_com_dado": 7403947.9,
+        "sem_cobertura_N_max_sul": null,
+        "sem_cobertura_N_min_norte": null
+      },
+      "ortofoto_e_dsm_ha": 14.036,
+      "ortofoto_sem_dsm_ha": 0.0,
+      "regra": "sem cobertura do drone = NAO AVALIADO (nao se preenche com satelite)"
+    },
+    "agua": {
+      "agua_aberta_total_ha": 0.0,
+      "n_corpos": 0,
+      "represa_ha": 0.0,
+      "represa_ge_1ha": false,
+      "acude_cabeceira_ha": 0.0,
+      "lagoas_menores_ha": 0,
+      "n_lagoas_menores": 0
+    },
+    "vegetacao_ha": {
+      "sem_cobertura_drone": 0.0,
+      "arborea_altura_medida": 0.0,
+      "arborea_dossel_fechado": 0.0,
+      "arbustiva_regeneracao": 0.0,
+      "herbacea_pasto": 0.003,
+      "solo_lavoura": 14.033,
+      "agua": 0.0,
+      "construcoes": 0.0,
+      "arborea_so_cor_sem_dsm": 0.0,
+      "total_ha": 14.036,
+      "arborea_ha": 0.0,
+      "arbustiva_ha": 0.0,
+      "vegetacao_nativa_arborea_arbustiva_ha": 0.0,
+      "pasto_ha": 0.003,
+      "lavoura_solo_ha": 14.033,
+      "agua_ha": 0.0,
+      "fecha_soma_vs_area": 0.0
+    },
+    "vegetacao_nativa_poligonos": {
+      "n": 0,
+      "ha_dentro_imovel": 0.0,
+      "ha_componentes_ge_0_05ha": 0.0,
+      "ha_componentes_ge_0_5ha": 0.0,
+      "fragmentos_ge_0_5ha": []
+    },
+    "silvicultura_indicio": [],
+    "app": {
+      "legal_30m_nascente_50m": {
+        "exigida_ha": 0.0,
+        "com_vegetacao_nativa_ha": 0.0,
+        "agua_ha": 0.0,
+        "sem_cobertura_drone_nao_avaliado_ha": 0.0,
+        "a_recompor_ha": 0.0,
+        "a_recompor_por_subclasse_ha": {
+          "pasto_herbacea": 0.0,
+          "construcoes": 0.0,
+          "arvores_isoladas_lt_0_05ha": 0.0,
+          "lavoura_solo": 0.0
+        },
+        "pct_com_vegetacao_da_avaliada": null,
+        "envolvente_borda_0_25m_ha": [
+          0.0,
+          0.0
+        ],
+        "base_legal": "art. 4 I a) e IV: 30 m do eixo FBDS (curso <= 10 m) + raio 50 m da nascente",
+        "curso_ha": 0.0,
+        "nascente_ha": 0.0
+      },
+      "pra_se_parte_do_imovel_de_origem_gt4mf_20m": {
+        "exigida_ha": 0.0,
+        "com_vegetacao_nativa_ha": 0.0,
+        "agua_ha": 0.0,
+        "sem_cobertura_drone_nao_avaliado_ha": 0.0,
+        "a_recompor_ha": 0.0,
+        "a_recompor_por_subclasse_ha": {
+          "pasto_herbacea": 0.0,
+          "construcoes": 0.0,
+          "arvores_isoladas_lt_0_05ha": 0.0,
+          "lavoura_solo": 0.0
+        },
+        "pct_com_vegetacao_da_avaliada": null,
+        "envolvente_borda_0_25m_ha": [
+          0.0,
+          0.0
+        ],
+        "base_legal": "se tratado como parte do imovel de origem (> 4 MF): art. 61-A par. 4 / Lei PR 18.295 art. 17 par. 2 = 20 m + nascente 15 m"
+      },
+      "pra_se_imovel_proprio_le1mf_5m": {
+        "exigida_ha": 0.0,
+        "com_vegetacao_nativa_ha": 0.0,
+        "agua_ha": 0.0,
+        "sem_cobertura_drone_nao_avaliado_ha": 0.0,
+        "a_recompor_ha": 0.0,
+        "a_recompor_por_subclasse_ha": {
+          "pasto_herbacea": 0.0,
+          "construcoes": 0.0,
+          "arvores_isoladas_lt_0_05ha": 0.0,
+          "lavoura_solo": 0.0
+        },
+        "pct_com_vegetacao_da_avaliada": null,
+        "envolvente_borda_0_25m_ha": [
+          0.0,
+          0.0
+        ],
+        "base_legal": "se imovel proprio <= 1 MF (0.70 MF): art. 61-A par. 1 = 5 m + nascente 15 m (par. 5); art. 61-B I: recomposicao de APP limitada a 10 % da area = 1.404 ha"
+      },
+      "eixo_nota": "eixo dos cursos = FBDS/IAT 1:25.000 (dado oficial); o drone nao substitui o eixo sob dossel (ortho_03: < 50 % das secoes com DTM de solo). Trechos FBDS que tocam o imovel: []"
+    },
+    "reserva_legal": {
+      "exigida_pct": 0.2,
+      "exigida_ha": 2.807,
+      "exigida_sobre_area_informada_14.04ha": 2.808,
+      "base_legal": "art. 12 II (20 %%); art. 15 (APP vegetada computa); art. 12 par. 1 (area desmembrada de imovel > 4 MF mantem 20 %%)",
+      "medido_drone": {
+        "remanescente_fora_app_ha": 0.0,
+        "app_vegetada_art15_ha": 0.0,
+        "vegetacao_nativa_computavel_ha": 0.0,
+        "mmu_ha": 0.05,
+        "arvores_isoladas_nao_computadas_ha": 0.0,
+        "sem_cobertura_drone_nao_avaliado_ha": 0.0
+      },
+      "vegetacao_computavel_ha": 0.0,
+      "regra_terra_limpa": "comprada como terra limpa, sem monte: vegetacao existente considerada 0 por regra do cliente (o drone mede 0.000 ha de nativa dentro do poligono: coerente com terra limpa)",
+      "deficit_ha": 2.807,
+      "deficit_sobre_area_informada_ha": 2.808,
+      "quanto_falta_ha": {
+        "sobre_o_poligono_14.036ha": 2.807,
+        "sobre_os_14.04ha_informados": 2.808
+      },
+      "ponta_norte_a_conferir": {
+        "area_ha": 2.571,
+        "situacao": "FORA do poligono atual dos 6 alqueires (removida pelo cliente em 2026-09-06); NAO computada; a conferir na escritura",
+        "com_ortofoto_ha": 1.493,
+        "sem_cobertura_drone_ha": 1.078,
+        "mata_medida_ha": 1.213,
+        "arborea_ha": 0.989,
+        "arbustiva_ha": 0.224,
+        "altura_chm": {
+          "pct_altura_medida": 62.4,
+          "altura_p50_m": 4.2,
+          "altura_p90_m": 9.6,
+          "altura_max_m": 15.7
+        },
+        "se_fosse_do_imovel": {
+          "area_imovel_ha": 16.607,
+          "rl_exigida_ha": 3.321,
+          "computavel_medida_ha": 1.213,
+          "deficit_ha_se_a_faixa_sem_cobertura_nao_for_mata": 2.108,
+          "deficit_ha_se_a_faixa_sem_cobertura_for_toda_mata": 1.03
+        },
+        "app_legal_30m_dentro_da_ponta_ha": 0.216,
+        "app_trechos_fbds": [
+          "647524"
+        ],
+        "app_nota": "o Arroio 1 (FBDS 647524) passa pela ponta norte: se a ponta for do imovel, entra essa APP; no poligono atual nenhuma APP toca os 6 alqueires"
+      },
+      "veredicto": "FALTA TODA A RL: 2.807 ha (20 % de 14.036 ha do poligono; 2.808 ha sobre os 14.04 ha informados); vegetacao computavel 0 (terra limpa)",
+      "regularizacao_art66": {
+        "deficit_ha": 2.807,
+        "opcoes": [
+          "recompor (art. 66 I): plantio de nativas, ate 20 anos, minimo 1/10 da area a cada 2 anos (art. 66 par. 2; Lei PR 18.295)",
+          "regeneracao natural (art. 66 II): condicionada a laudo de viabilidade",
+          "compensar (art. 66 III / par. 5): CRA, arrendamento (servidao ambiental), doacao de area em UC pendente de regularizacao fundiaria, ou cadastro de outra area equivalente em extensao (mesmo bioma, IN IAT 53/2025: preferencialmente mesma formacao fitogeografica)"
+        ],
+        "cronograma_recomposicao_1_10_a_cada_2_anos": [
+          {
+            "etapa": 1,
+            "ate_ano": 2,
+            "ha_acumulado_minimo": 0.281
+          },
+          {
+            "etapa": 2,
+            "ate_ano": 4,
+            "ha_acumulado_minimo": 0.561
+          },
+          {
+            "etapa": 3,
+            "ate_ano": 6,
+            "ha_acumulado_minimo": 0.842
+          },
+          {
+            "etapa": 4,
+            "ate_ano": 8,
+            "ha_acumulado_minimo": 1.123
+          },
+          {
+            "etapa": 5,
+            "ate_ano": 10,
+            "ha_acumulado_minimo": 1.403
+          },
+          {
+            "etapa": 6,
+            "ate_ano": 12,
+            "ha_acumulado_minimo": 1.684
+          },
+          {
+            "etapa": 7,
+            "ate_ano": 14,
+            "ha_acumulado_minimo": 1.965
+          },
+          {
+            "etapa": 8,
+            "ate_ano": 16,
+            "ha_acumulado_minimo": 2.246
+          },
+          {
+            "etapa": 9,
+            "ate_ano": 18,
+            "ha_acumulado_minimo": 2.526
+          },
+          {
+            "etapa": 10,
+            "ate_ano": 20,
+            "ha_acumulado_minimo": 2.807
+          }
+        ],
+        "observacao": "o desmembramento de imovel > 4 MF nao reduz o percentual (art. 12 par. 1): os 20 % valem integralmente; sem vegetacao no poligono, toda a RL sera recomposicao ou compensacao"
+      }
+    },
+    "mapa_car_v5": {
+      "soma_ha": 14.036,
+      "area_imovel_ha": 14.036,
+      "diferenca_ha": 0.0,
+      "solape_ha": -0.0,
+      "fecha": true,
+      "linhas": [
+        {
+          "imovel": "seis_alqueires",
+          "classe_car": "Area Consolidada",
+          "subclasse": "pasto/herbacea",
+          "situacao": "uso antropico fora da APP",
+          "area_ha": 0.003,
+          "nota": ""
+        },
+        {
+          "imovel": "seis_alqueires",
+          "classe_car": "Area Consolidada",
+          "subclasse": "uso agricola",
+          "situacao": "lavoura/solo fora da APP",
+          "area_ha": 14.033,
+          "nota": ""
+        }
+      ]
+    },
+    "cruzamento_car": {
+      "car": "PR-4124301-5223911747FD4B878118F1823D609DD6",
+      "relacao": "CAR de ORIGEM (imovel maior de 94 ha do qual foi desmembrada)",
+      "status_atual": {
+        "ind_status": "AT",
+        "des_condic": "Analisado, aguardando atendimento a notificacao",
+        "ind_tipo": "IRU",
+        "mod_fiscal_declarado": 4.782,
+        "municipio_car": "Santo Antonio do Paraiso",
+        "data_inscricao": "nao publicada na replica do IAT (campos: cod_imovel, ind_status, des_condic, num_area, mod_fiscal); copyright do servico: SICAR 25/01/2024",
+        "fonte": {
+          "hidrografia": "IAT hoje 2026-09-06",
+          "app_total": "IAT hoje 2026-09-06",
+          "reserva_legal": "IAT hoje 2026-09-06",
+          "vegetacao_nativa": "IAT hoje 2026-09-06",
+          "area_consolidada": "IAT hoje 2026-09-06",
+          "area_pousio": "IAT hoje 2026-09-06 (0 registros)",
+          "servidao_administrativa": "IAT hoje 2026-09-06 (0 registros)",
+          "uso_restrito": "IAT hoje 2026-09-06 (0 registros)",
+          "area_imovel": "IAT hoje 2026-09-06"
+        }
+      },
+      "declarado_no_car_inteiro": {
+        "area_imovel_ha": 94.131,
+        "area_imovel_geom_ha": 94.131,
+        "app_total_ha": 2.412,
+        "app_total_geom_ha": 2.412,
+        "reserva_legal_ha": 9.742,
+        "reserva_legal_geom_ha": 9.742,
+        "reserva_legal_tipo": [
+          "ARL_PROPOSTA"
+        ],
+        "vegetacao_nativa_ha": 9.742,
+        "vegetacao_nativa_geom_ha": 9.742,
+        "area_consolidada_ha": 84.306,
+        "area_consolidada_geom_ha": 84.306,
+        "reservatorios_geom_ha": null,
+        "rios_ate_10m_geom_ha": 0.083,
+        "servidao_administrativa_ha": null
+      },
+      "declarado_DENTRO_do_poligono_deste_imovel_ha": {
+        "area_imovel_car": 14.036,
+        "app_total": 0.0,
+        "reserva_legal": 0.0,
+        "vegetacao_nativa": 0.0,
+        "area_consolidada": 14.036,
+        "reservatorios": 0.0,
+        "rios_ate_10m": 0.0
+      },
+      "poligono_fora_do_car_ha": 0.0,
+      "medido_drone_v5": {
+        "area_poligono_ha": 14.036,
+        "app_exigida_30m_50m_ha": 0.0,
+        "app_com_vegetacao_ha": 0.0,
+        "app_agua_ha": 0.0,
+        "app_a_recompor_ha": 0.0,
+        "app_sem_cobertura_ha": 0.0,
+        "rl_exigida_ha": 2.807,
+        "rl_vegetacao_computavel_ha": 0.0,
+        "rl_deficit_ha": 2.807,
+        "vegetacao_nativa_ha": 0.0,
+        "vegetacao_nativa_fora_app_ha": 0.0,
+        "reservatorios_agua_aberta_ha": 0.0,
+        "represa_ha": 0.0,
+        "area_antropizada_pasto_lavoura_construcoes_ha": 14.036
+      },
+      "diferencas_[declarado, medido, medido-declarado]": {
+        "app: declarada dentro do poligono vs exigida medida": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "reserva legal: declarada dentro do poligono vs exigida (20 %)": [
+          0.0,
+          2.807,
+          2.807
+        ],
+        "vegetacao nativa: declarada dentro do poligono vs medida no drone": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "area consolidada: declarada dentro do poligono vs antropizada medida": [
+          14.036,
+          14.036,
+          0.0
+        ],
+        "reservatorios: declarados dentro do poligono vs agua aberta medida": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "area: CAR (num_area) vs poligono": [
+          94.131,
+          14.036,
+          -80.095
+        ]
+      },
+      "leitura": "o poligono dos 6 alqueires esta DENTRO do CAR de origem PR-4124301-5223911747FD4B878118F1823D609DD6 (94.131 ha, 4.78 MF, status AT / \"Analisado, aguardando atendimento a notificacao\"); dentro do poligono esse CAR declara RL 0.000 ha, APP 0.000 ha, vegetacao nativa 0.000 ha e area consolidada 14.036 ha; o drone mede 0.000 ha de nativa e 0.000 ha de APP exigida. O desmembramento exige CAR proprio (ou retificacao do de origem) com RL de 2.807 ha."
+    },
+    "outorga_sigarh": {
+      "fonte": "IAT outorgas_sigarh HOJE 2026-09-06",
+      "nr_portaria": "26039/2023/OP-GOUT",
+      "status": "IRREGULAR",
+      "tipo_documento": "Portaria de outorga prévia",
+      "tipo_solicitacao": "Outorga prévia",
+      "titular": "Sonia Maria Bigati",
+      "empreendimento": "Fazenda Santo Antônio",
+      "interferencia": "Barragem/soleira",
+      "corpo_hidrico": "Córrego Ribeirão do Salto",
+      "finalidades": "Regularização de nível,Acumulação",
+      "bacia": "Tibagi",
+      "otto": "864227451",
+      "publicacao": "2023-11-09",
+      "vencimento": "2025-11-08",
+      "vencida_em_2026-09-06": true,
+      "protocolo": "210053859",
+      "coordenadas_wgs84": [
+        -50.6564011,
+        -23.4949297
+      ],
+      "campos_crus": {
+        "objectid": 9256,
+        "coord_latitude": -23.4949297,
+        "coord_longitude": -50.6564011,
+        "nm_requerente": "Sonia Maria Bigati",
+        "nm_empreendimento": "Fazenda Santo Antônio",
+        "cod_municipio_emp": "4124301",
+        "nm_municipio_emp": "Santo Antônio do Paraíso",
+        "cod_tipo_interferencia": "BRRG",
+        "nm_tipo_interferencia": "Barragem/soleira",
+        "nr_portaria": "26039/2023/OP-GOUT",
+        "st_portaria": "IRREGULAR",
+        "nm_tipo_documento": "Portaria de outorga prévia",
+        "cod_municipio": "4126009",
+        "nm_municipio": "São Sebastião da Amoreira",
+        "nm_comite": "Tibagi",
+        "nm_bacia_hidrografica": "Tibagi",
+        "cod_otto": "864227451",
+        "hr_inicio_bombeamento": null,
+        "hr_termino_bombeamento": null,
+        "qtd_hora_dia_jan": null,
+        "qtd_dia_mes_jan": null,
+        "vlr_vazao_capt_lanc_jan": null,
+        "vlr_vazao_diluicao_jan": null,
+        "qtd_dia_mes_fev": null,
+        "vlr_vazao_capt_lanc_fev": null,
+        "vlr_vazao_diluicao_fev": null,
+        "qtd_hora_dia_mar": null,
+        "qtd_dia_mes_mar": null,
+        "vlr_vazao_capt_lanc_mar": null,
+        "vlr_vazao_diluicao_mar": null,
+        "qtd_hora_dia_abr": null,
+        "qtd_dia_mes_abr": null,
+        "vlr_vazao_capt_lanc_abr": null,
+        "vlr_vazao_diluicao_abr": null,
+        "qtd_hora_dia_mai": null,
+        "qtd_dia_mes_mai": null,
+        "vlr_vazao_capt_lanc_mai": null,
+        "vlr_vazao_diluicao_mai": null,
+        "qtd_hora_dia_jun": null,
+        "qtd_dia_mes_jun": null,
+        "vlr_vazao_capt_lanc_jun": null,
+        "vlr_vazao_diluicao_jun": null,
+        "qtd_hora_dia_jul": null,
+        "qtd_dia_mes_jul": null,
+        "vlr_vazao_capt_lanc_jul": null,
+        "vlr_vazao_diluicao_jul": null,
+        "qtd_hora_dia_ago": null,
+        "qtd_dia_mes_ago": null,
+        "vlr_vazao_capt_lanc_ago": null,
+        "vlr_vazao_diluicao_ago": null,
+        "qtd_hora_dia_set": null,
+        "qtd_dia_mes_set": null,
+        "vlr_vazao_capt_lanc_set": null,
+        "vlr_vazao_diluicao_set": null,
+        "qtd_hora_dia_out": null,
+        "qtd_dia_mes_out": null,
+        "vlr_vazao_capt_lanc_out": null,
+        "vlr_vazao_diluicao_out": null,
+        "qtd_hora_dia_nov": null,
+        "qtd_dia_mes_nov": null,
+        "vlr_vazao_capt_lanc_nov": null,
+        "vlr_vazao_diluicao_nov": null,
+        "qtd_hora_dia_dez": null,
+        "qtd_dia_mes_dez": null,
+        "vlr_vazao_capt_lanc_dez": null,
+        "vlr_vazao_diluicao_dez": null,
+        "dt_publicacao": 1699488000000,
+        "dt_vencimento": 1762597145000,
+        "crh": null,
+        "vlr_vazao_consumida_jan": null,
+        "vlr_vazao_consumida_fev": null,
+        "vlr_vazao_consumida_mar": null,
+        "vlr_vazao_consumida_abr": null,
+        "vlr_vazao_consumida_mai": null,
+        "vlr_vazao_consumida_jun": null,
+        "vlr_vazao_consumida_jul": null,
+        "vlr_vazao_consumida_ago": null,
+        "vlr_vazao_consumida_set": null,
+        "vlr_vazao_consumida_out": null,
+        "vlr_vazao_consumida_nov": null,
+        "vlr_vazao_consumida_dez": null,
+        "qtd_hora_dia_fev": null,
+        "nr_e_protocolo": "210053859",
+        "nm_tipo_corpo_hidrico": "Córrego",
+        "desc_tipo_poco": null,
+        "nm_tipo_usuario": "Agropecuária",
+        "nm_cnae": null,
+        "cod_cnae": null,
+        "desc_finalidades": "Regularização de nível,Acumulação",
+        "nm_sistema_origem": "SIGARH",
+        "cod_bueiro": null,
+        "desc_poco": null,
+        "nm_aquifero": "Aquífero Serra Geral",
+        "nm_corpo_hidrico_complemento": "Ribeirão do Salto",
+        "nm_corpo_hidrico_popular": null,
+        "pfd_poco": null,
+        "vlr_dbo_efluente": null,
+        "vlr_dbo_mistura_abr": null,
+        "vlr_dbo_mistura_ago": null,
+        "vlr_dbo_mistura_dez": null,
+        "vlr_dbo_mistura_fev": null,
+        "vlr_dbo_mistura_jan": null,
+        "vlr_dbo_mistura_jul": null,
+        "vlr_dbo_mistura_jun": null,
+        "vlr_dbo_mistura_mai": null,
+        "vlr_dbo_mistura_mar": null,
+        "vlr_dbo_mistura_nov": null,
+        "vlr_dbo_mistura_out": null,
+        "vlr_dbo_mistura_set": null,
+        "vlr_od_efluente": null,
+        "vlr_od_mistura_abr": null,
+        "vlr_od_mistura_ago": null,
+        "vlr_od_mistura_dez": null,
+        "vlr_od_mistura_fev": null,
+        "vlr_od_mistura_jan": null,
+        "vlr_od_mistura_jul": null,
+        "vlr_od_mistura_jun": null,
+        "vlr_od_mistura_mai": null,
+        "vlr_od_mistura_mar": null,
+        "vlr_od_mistura_nov": null,
+        "vlr_od_mistura_out": null,
+        "vlr_od_mistura_set": null,
+        "vlr_poco_nivel_dinamico": null,
+        "vlr_poco_nivel_estatico": null,
+        "nm_tipo_solicitacao": "Outorga prévia"
+      },
+      "dentro_de": {
+        "santo_antonio": true,
+        "seis_alqueires": false
+      },
+      "dist_imovel_m": {
+        "santo_antonio": 0.0,
+        "seis_alqueires": 1515.6
+      },
+      "aplica_a_este_imovel": false,
+      "leitura": "a outorga 26039/2023 e da represa da Fazenda Santo Antonio (a 1516 m deste poligono): nao ha outorga/interferencia cadastrada dentro dos 6 alqueires"
+    },
+    "kpi": {
+      "area_poligono_ha": 14.036,
+      "cobertura_ortofoto_ha": 14.036,
+      "sem_cobertura_ha": 0.0,
+      "cobertura_dsm_ha": 14.036,
+      "represa_ha": 0.0,
+      "represa_ge_1ha": false,
+      "acude_ha": 0.0,
+      "lagoas_menores_ha": 0,
+      "arborea_ha": 0.0,
+      "arbustiva_ha": 0.0,
+      "pasto_ha": 0.003,
+      "lavoura_solo_ha": 14.033,
+      "app_exigida_ha": 0.0,
+      "app_com_mata_ha": 0.0,
+      "app_agua_ha": 0.0,
+      "app_a_recompor_ha": 0.0,
+      "app_sem_cobertura_ha": 0.0,
+      "rl_exigida_ha": 2.807,
+      "rl_computavel_ha": 0.0,
+      "rl_deficit_ha": 2.807,
+      "app_a_recompor_pra_se_parte_do_imovel_de_origem_gt4mf_20m_ha": 0.0,
+      "app_exigida_pra_se_parte_do_imovel_de_origem_gt4mf_20m_ha": 0.0,
+      "app_a_recompor_pra_se_imovel_proprio_le1mf_5m_ha": 0.0,
+      "app_exigida_pra_se_imovel_proprio_le1mf_5m_ha": 0.0
+    },
+    "avisos": [
+      "",
+      "Sem satelite: nenhuma camada de Sentinel-2/FABDEM/RF 10 m entra nos calculos; a faixa sem cobertura do drone (0.000 ha) fica NAO AVALIADA.",
+      "Eixo dos arroios e nascente: FBDS/IAT 1:25.000 (oficial). O drone nao ve a calha sob dossel: a borda da calha (art. 4 I) exige levantamento em campo (GNSS) ou LiDAR.",
+      "DSM/DTM no datum do voo (sem GCP/RTK): cotas relativas; CHM subestima sob dossel fechado (classe \"arborea dossel fechado\" = copa reconhecida, altura nao medida).",
+      "Vegetacao \"arborea (so cor)\" = faixa sul sem DSM (N < 7401711): altura desconhecida; MMU 25 m2; nativa para RL com MMU 0,05 ha.",
+      "Represa: espelho de 22-mai-2026 (fim do outono); o espelho legal e o do nivel maximo normal/vertedouro, a medir em campo. Outorga previa 26039/2023/OP-GOUT: status IRREGULAR, vencida em 2025-11-08.",
+      "Estagio sucessional (CONAMA 2/1994) e inventario da RL exigem campo."
+    ]
+  }
+}
