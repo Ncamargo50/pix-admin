@@ -110,3 +110,40 @@ Estados: **CORREGIDO** = resuelto en la v3 · **ACEPTADO CON NOTA** = no se pued
 - Sin glifos fuera de WinAnsi; PT sin "-cao" sin tilde ni "sesgo/ensamble/Director"; ES sin "-cion/-sion" sin tilde ni "leito/floresta/laudo/nascente/talvegue" (salvo nomenclatura oficial y "Floresta Estacional").
 - Paginas: PT 21, ES 22 (rango 16-22). Resultado: **OK** en ambos.
 - Sumas (an_12 `_verificacao`, 14 items, tolerancia 0,011 ha): todas OK (144,212 + 13,538 = 157,750; 28,842 + 2,708 = 31,550; 31,55 − 17,70 = 13,85; 17,70 − 10,46 = 7,24; 31,55 − 7,24 = 24,31; 11,96 + 0,22 = 12,18; 7,887 + 1,157 + 2,916 = 11,960; 28,57 + 2,98 = 31,55; 11,96 + 1,66 = 13,62).
+
+## 9. v4 — ortofoto de dron (22/05/2026): que cambio y que sigue pendiente
+
+Scripts: `ortho_00..07` (preparacion, agua, canales, nascentes, vegetacion, legal v4, cauce alternativo) → `05_ORTOFOTO/resultados_v4.json` + `cauce/cauce_resumo.json`; `an_16_mapas_v4.py` (X01-X09, PT/ES), `textos_v4.py` (hereda `textos_v3`), `an_17_informe_v4.py` (PDF v4 PT/ES, 26 pag., 6,2 MB c/u), `an_18_exportar_v4.py` (`04_VETORES_ENTREGA_V4`, 14 capas EPSG:4674 + LEIAME + zip). Ninguna cifra se recalcula en mapas/informe: todo sale de los JSON.
+
+### 9.1 Lo que la ortofoto CAMBIO (ANTES v3 → DEPOIS v4)
+
+| Item | v3 (S2 10 m + FBDS + 5 DEM) | v4 (ortofoto 0,5 m) | Lectura |
+|---|---|---|---|
+| APP exigible imovel / G1 / G2 | 12,18 / 11,96 / 0,22 | 12,18 / 11,96 / 0,22 | mismo eje FBDS (la ortofoto NO lo sustituyo); envolvente v4 = ±0,5 m en la borda [11,94; 12,42] |
+| APP G1 con vegetacion / agua / a recompor | 7,89 / 1,16 / 2,92 | 7,71 / 0,94 / **3,32** (pasto 0,78 + cultivo/solo 2,44 + arvores isoladas 0,10) | la ortofoto separa pasto y arboles aislados de la vegetacion nativa continua; PRA-PR 20 m 1,63 → 1,93 |
+| "Silvicultura em APP" | 0,58 ha (RF S2) | **0,00** — NO confirmada (ningun componente con hileras) | sale del informe como hecho; queda "confirmar en campo" |
+| Vegetacion computable RL / deficit | 17,70 / 13,85 | **19,71 [17,84; 21,58] / 11,84** (conserv. 12,39 / 19,16; ponta norte 9,56) | bordes resueltos + arbustiva (MMU 0,05 ha) |
+| Represa (espejo) | 0,83-1,23 (2024-26) → >= 1 ha INDETERMINADO | **1,388 ha el 22/05/2026 → >= 1 ha SI** | dispensa art. 4 §4 "so cabe abaixo de 1 ha e nao se aplica"; faja por la licencia; cota NO medida (sin DSM) |
+| 2.o reservatorio (cabecera Arroio 2) | 0,00 (sin agua 2024-26; declarado 0,15) | **0,048 ha, EXISTE** (lamina oscura y plana, DSM sd 0,21 m) a 59 m de la nascente | corpo d'agua artificial sobre la cabecera: APP 50 m + faja a definir; outorga |
+| Nascente 306158 | PROBABLE (indicios satelitales) | PROBABLE — cabecera humeda confirmada (varzea 48 %, agua a 59 m); dem_2 = NO nascente (lavoura) | olho d'agua exacto y perenidad: GNSS + aforo |
+| Fragmento 13 | regeneracion sin historico | 62,5 % arboreo; altura media 5,6 m, P90 9,8 (CHM subestima: altura medida en 23 %) → indicador inicial-medio | estagio sigue exigiendo campo (CONAMA 2/1994) |
+| Alineacion / dique | — | ortofoto–S2 <= 3 m; dique real 9 m al E del FBDS 2013 y 8 m al O del CAR | los desplazamientos son de las bases |
+
+### 9.2 Lo que la ortofoto NO resolvio (declarado en ficha, sec. 4, sec. 8 y sec. 10 del PDF)
+
+1. **Borda da calha / largura del leito regular**: dossel continuo en los 3 arroios; DTM fotogrametrico = copa (Arroio 1: 3/26 secciones con suelo; Arroio 2: 0/56; Arroio 3 sin DSM). M1 (claros 5 cm) = 0 naturales en 2.187 m; M2 (secciones DTM) = 7 en borda campo-floresta, excluidas; M3 (geometria hidraulica Bieger 2015, ESTIMATIVA) = 5,9 [3,1-10,2] / 2,5 [1,4-4,3] / 6,5 [3,4-11,3] m; M4 = clase FBDS 0-10 m. Conclusion en el PDF: **"<= 10 m provavel, sem medicao direta"** → protocolo M5 (trena + GNSS, 8/10/8 secciones). El verificador rechaza "confirmado por medicao".
+2. **Cotas**: DTM sin GCP (desvio -39 m corregido contra FABDEM, MAD 0,2 m): cotas ±0,5 m, SIN valor legal; sin DSM sobre la represa (cota del espejo y espejo maximo no medidos).
+3. **Cobertura**: faixa norte > N 7.404.007 sin ortofoto (1,99 ha: clases v3) — cobertura 98,7 % del imovel (calculada de `cobertura_voo`; el 99,2 % citado en el briefing no esta en ningun JSON y no se uso); 27,64 ha de G1 sin DSM/DTM (Arroio 3, represa, fragmento 30).
+4. **Estagio sucessional**: CHM solo indicador; inventario de campo obligatorio.
+5. **APP por el talweg DTM** (13,47 G1 / 13,69 imovel) queda como INDICATIVO junto a la mediana de los 5 DEM (hasta 14,00): el eje legal se fija con GNSS.
+
+### 9.3 Verificacion automatica v4 (an_17, PyMuPDF) — ambos PDF OK
+
+- KPIs presentes: 12,18 · 11,96 · 0,22 · 7,71 · 0,94 · 3,32 · 1,93 · 13,78 · 3,81 · 31,55 · 19,71 · 11,84 · 12,39 · 19,16 · 9,56 · 1,388 · 0,048 · 2,45 · 143,34 · 157,75 · 523 · 951 · 564 · 5,9 · 2,5 · 6,5 (+ envolventes, vaso 1,835, CAR 0,147, portaria).
+- Ausentes: "Dictame", "RL existente", "mata do vizinho", "confirmado por medicao", "silvicultura em APP" afirmada; "dispensa" solo negada / "so cabe abaixo de 1 ha"; sin glifos fuera de WinAnsi (el menos matematico U+2212 se reemplazo por "-"); PT/ES con acentos; ES sin lusismos.
+- Paginas: 26 / 26 (rango 18-26); tamano 6,2 MB (mapas embebidos como JPEG q88).
+- Mapas: X01 ortofoto + inventario; X02 vegetacion 0,5 m; X03 APP; X04 RL; X05 CAR/SICAR (cierra 157,75); X06 CAR vs medido; X07 Gleba 2 A/B/C; X08 detalles a 5 cm (4 paneles); X09 S2 vs ortofoto + tabla antes/depois. Fondo ortofoto 0,5 m (reamostrada del GSD 5 cm) mascarada al perimetro; la faixa sin vuelo se rellena con S2 y se hachura.
+
+### 9.4 Pendiente (no resoluble desde escritorio) — orden del PDF v4 sec. 9
+
+1. Escritura/SIGEF de la Gleba 2 (ponta norte 2,29 ha de vegetacion, 1,08 fuera del vuelo) y matricula 1168 (art. 67). 2. Campo M5: largura/borda de la calha (8/10/8 secciones), olho d'agua de la nascente + aforo, perimetro de la represa en la cota del vertedero, 2.o reservatorio. 3. Outorga de los dos barramentos. 4. Retificacion del CAR (RL 2,45 → 31,55; vegetacao 3,80 → 19,71; espejos 1,388 + 0,048; G2). 5. Inventario forestal frag. 13 y 2. 6. PRADA APP (3,32 / 1,93 / 3,81) + RL (corredor 8,55 + ~3,3 ha a localizar o compensar). 7. Opcional: vuelo complementario con GCP/RTK (norte y sur) o LiDAR para la calha bajo dosel.
